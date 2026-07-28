@@ -1,0 +1,21 @@
+# Android / Gradle
+*.iml
+.gradle/
+/build/
+/app/build/
+/local.properties
+/.idea/
+.kotlin/
+.externalNativeBuild/
+.cxx/
+captures/
+
+# OS
+.DS_Store
+
+# Firebase local debug
+firebase-debug.log
+firebase-debug.*.log
+
+# Admin web panel (separate repo)
+admin-web/

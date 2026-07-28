@@ -1,0 +1,79 @@
+package com.laiza.worker.core.utils
+
+import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Location
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.suspendCancellableCoroutine
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.resume
+
+@Singleton
+class LocationHelper @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val permissionHelper: PermissionHelper
+) {
+    private val fusedLocationClient: FusedLocationProviderClient by lazy {
+        LocationServices.getFusedLocationProviderClient(context)
+    }
+
+    /**
+     * Attempts to fetch the last known location or request current precise location.
+     * Returns null if permission is denied or location is unavailable.
+     */
+    @SuppressLint("MissingPermission")
+    suspend fun getCurrentLocation(): Location? {
+        if (!permissionHelper.isLocationPermissionGranted()) {
+            return null
+        }
+
+        return suspendCancellableCoroutine { continuation ->
+            val cancellationTokenSource = CancellationTokenSource()
+
+            fusedLocationClient.getCurrentLocation(
+                Priority.PRIORITY_HIGH_ACCURACY,
+                cancellationTokenSource.token
+            ).addOnSuccessListener { location: Location? ->
+                if (location != null) {
+                    if (continuation.isActive) continuation.resume(location)
+                } else {
+                    fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                        if (continuation.isActive) continuation.resume(lastLoc)
+                    }.addOnFailureListener {
+                        if (continuation.isActive) continuation.resume(null)
+                    }
+                }
+            }.addOnFailureListener {
+                fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                    if (continuation.isActive) continuation.resume(lastLoc)
+                }.addOnFailureListener {
+                    if (continuation.isActive) continuation.resume(null)
+                }
+            }
+
+            continuation.invokeOnCancellation {
+                cancellationTokenSource.cancel()
+            }
+        }
+    }
+
+    /**
+     * Resolves the coordinate into a user-friendly physical address string.
+     */
+    suspend fun getAddressFromLocation(latitude: Double, longitude: Double): String? = 
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                val geocoder = android.location.Geocoder(context, java.util.Locale.getDefault())
+                @Suppress("DEPRECATION")
+                val addresses = geocoder.getFromLocation(latitude, longitude, 1)
+                addresses?.firstOrNull()?.getAddressLine(0)
+            } catch (e: Exception) {
+                null
+            }
+        }
+}

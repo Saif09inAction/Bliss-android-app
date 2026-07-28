@@ -1,0 +1,41 @@
+<resources>
+    <string name="app_name">Laiza Worker</string>
+
+    <!-- Admin navigation -->
+    <string name="admin_nav_overview">Overview</string>
+    <string name="admin_nav_workers">Workers</string>
+    <string name="admin_nav_production">Production</string>
+    <string name="admin_nav_reports">Reports</string>
+    <string name="admin_nav_logout">Logout</string>
+    <string name="admin_nav_settings">Settings</string>
+
+    <!-- Admin titles -->
+    <string name="admin_title_overview">Admin Overview</string>
+    <string name="admin_title_workers">Worker Management</string>
+    <string name="admin_title_production">Production Control</string>
+    <string name="admin_title_reports">Reports &amp; Analytics</string>
+    <string name="admin_title_default">Laiza Admin</string>
+
+    <!-- Admin dashboard -->
+    <string name="admin_welcome">Welcome, %1$s</string>
+    <string name="admin_default_name">Administrator</string>
+    <string name="admin_subtitle">Manage workers, production, and factory operations</string>
+    <string name="admin_stat_active_workers">Active Workers</string>
+    <string name="admin_stat_open_orders">Open Orders</string>
+    <string name="admin_stat_attendance_today">Attendance Today</string>
+    <string name="admin_stat_pending_payouts">Pending Payouts</string>
+    <string name="admin_management_title">Management Modules</string>
+    <string name="admin_module_description">Tap to open module</string>
+    <string name="admin_module_workers">Workers</string>
+    <string name="admin_module_production">Production</string>
+    <string name="admin_module_inventory">Inventory</string>
+    <string name="admin_module_payroll">Payroll</string>
+    <string name="admin_module_attendance">Attendance</string>
+    <string name="admin_module_reports">Reports</string>
+    <string name="admin_module_settings">Settings</string>
+
+    <!-- Admin logout -->
+    <string name="admin_logout_title">Confirm Logout</string>
+    <string name="admin_logout_message">Are you sure you want to log out from the admin panel?</string>
+    <string name="admin_logout_cancel">Cancel</string>
+</resources>

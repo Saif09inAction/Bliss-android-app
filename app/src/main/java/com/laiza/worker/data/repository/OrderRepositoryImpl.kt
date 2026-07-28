@@ -1,0 +1,287 @@
+package com.laiza.worker.data.repository
+
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
+import com.laiza.worker.core.local.dao.InventoryDao
+import com.laiza.worker.core.local.entity.FinishedProductEntity
+import com.laiza.worker.core.utils.Resource
+import com.laiza.worker.domain.models.*
+import com.laiza.worker.domain.repository.OrderRepository
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.UUID
+import javax.inject.Inject
+import javax.inject.Singleton
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+@Singleton
+class OrderRepositoryImpl @Inject constructor(
+    private val firestore: FirebaseFirestore,
+    private val inventoryDao: InventoryDao
+) : OrderRepository {
+
+    override fun getAllOrders(): Flow<List<KaarigerOrder>> = ordersFlow(
+        firestore.collection("kaariger_orders").orderBy("createdAt", Query.Direction.DESCENDING)
+    )
+
+    override fun getOrdersForKaariger(kaarigerId: String): Flow<List<KaarigerOrder>> = ordersFlow(
+        firestore.collection("kaariger_orders")
+            .whereEqualTo("kaarigerId", kaarigerId)
+            .orderBy("createdAt", Query.Direction.DESCENDING)
+    )
+
+    override fun getPendingApprovalOrders(): Flow<List<KaarigerOrder>> = ordersFlow(
+        firestore.collection("kaariger_orders")
+            .whereEqualTo("status", OrderStatus.PENDING_APPROVAL.name)
+            .orderBy("deliverySubmittedAt", Query.Direction.DESCENDING)
+    )
+
+    override fun createOrder(order: KaarigerOrder): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("kaariger_orders").document(order.id).set(orderToMap(order)).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to create order"))
+        }
+    }
+
+    override fun submitDelivery(
+        orderId: String,
+        quantity: Int,
+        color: String,
+        productName: String,
+        notes: String?
+    ): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val updates = mapOf(
+                "deliveredQuantity" to quantity,
+                "deliveryColor" to color,
+                "productName" to productName,
+                "deliveryNotes" to (notes ?: ""),
+                "deliverySubmittedAt" to System.currentTimeMillis(),
+                "status" to OrderStatus.PENDING_APPROVAL.name
+            )
+            firestore.collection("kaariger_orders").document(orderId).update(updates).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to submit delivery"))
+        }
+    }
+
+    override fun approveOrder(orderId: String, verifiedBy: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
+            if (!doc.exists()) {
+                emit(Resource.Error("Order not found"))
+                return@flow
+            }
+            val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+            val qty = order.deliveredQuantity ?: order.targetQuantity
+            val product = FinishedProduct(
+                id = UUID.randomUUID().toString(),
+                name = order.productName,
+                quantity = qty,
+                lastUpdatedBy = verifiedBy,
+                lastUpdatedTime = System.currentTimeMillis(),
+                unitPrice = order.pricePerPiece ?: (order.totalDealAmount / order.targetQuantity.coerceAtLeast(1)),
+                color = order.deliveryColor ?: order.color,
+                orderId = order.id
+            )
+            inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(product))
+            firestore.collection("finished_products").document(product.id).set(
+                hashMapOf(
+                    "id" to product.id,
+                    "name" to product.name,
+                    "quantity" to product.quantity,
+                    "lastUpdatedBy" to product.lastUpdatedBy,
+                    "lastUpdatedTime" to product.lastUpdatedTime,
+                    "unitPrice" to product.unitPrice,
+                    "color" to product.color,
+                    "orderId" to product.orderId,
+                    "imagePath" to ""
+                )
+            ).await()
+            firestore.collection("kaariger_orders").document(orderId).update(
+                mapOf(
+                    "status" to OrderStatus.APPROVED.name,
+                    "verifiedBy" to verifiedBy,
+                    "verifiedAt" to System.currentTimeMillis()
+                )
+            ).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to approve order"))
+        }
+    }
+
+    override fun rejectOrder(orderId: String, verifiedBy: String, reason: String): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("kaariger_orders").document(orderId).update(
+                mapOf(
+                    "status" to OrderStatus.REJECTED.name,
+                    "verifiedBy" to verifiedBy,
+                    "verifiedAt" to System.currentTimeMillis(),
+                    "rejectionReason" to reason
+                )
+            ).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to reject order"))
+        }
+    }
+
+    override fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>> = paymentsFlow(
+        firestore.collection("kaariger_payments").whereEqualTo("orderId", orderId)
+    )
+
+    override fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>> = paymentsFlow(
+        firestore.collection("kaariger_payments")
+            .whereEqualTo("kaarigerId", kaarigerId)
+            .orderBy("date", Query.Direction.DESCENDING)
+    )
+
+    override fun addPayment(payment: KaarigerOrderPayment): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            firestore.collection("kaariger_payments").document(payment.id).set(
+                hashMapOf(
+                    "id" to payment.id,
+                    "orderId" to payment.orderId,
+                    "kaarigerId" to payment.kaarigerId,
+                    "amount" to payment.amount,
+                    "date" to payment.date,
+                    "time" to payment.time,
+                    "remarks" to (payment.remarks ?: ""),
+                    "createdBy" to payment.createdBy
+                )
+            ).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to record payment"))
+        }
+    }
+
+    private fun ordersFlow(query: Query): Flow<List<KaarigerOrder>> = callbackFlow {
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+            val orders = snapshot?.documents?.mapNotNull { doc ->
+                docToOrder(doc.data ?: emptyMap(), doc.id)
+            } ?: emptyList()
+            trySend(orders)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    private fun paymentsFlow(query: Query): Flow<List<KaarigerOrderPayment>> = callbackFlow {
+        val listener = query.addSnapshotListener { snapshot, error ->
+            if (error != null) {
+                trySend(emptyList())
+                return@addSnapshotListener
+            }
+            val payments = snapshot?.documents?.mapNotNull { doc ->
+                val data = doc.data ?: return@mapNotNull null
+                KaarigerOrderPayment(
+                    id = data["id"] as? String ?: doc.id,
+                    orderId = data["orderId"] as? String ?: "",
+                    kaarigerId = data["kaarigerId"] as? String ?: "",
+                    amount = (data["amount"] as? Number)?.toDouble() ?: 0.0,
+                    date = data["date"] as? String ?: "",
+                    time = data["time"] as? String ?: "",
+                    remarks = data["remarks"] as? String,
+                    createdBy = data["createdBy"] as? String ?: ""
+                )
+            } ?: emptyList()
+            trySend(payments)
+        }
+        awaitClose { listener.remove() }
+    }
+
+    private fun orderToMap(order: KaarigerOrder): Map<String, Any?> = mapOf(
+        "id" to order.id,
+        "kaarigerId" to order.kaarigerId,
+        "kaarigerName" to order.kaarigerName,
+        "productName" to order.productName,
+        "targetQuantity" to order.targetQuantity,
+        "color" to order.color,
+        "rawMaterials" to order.rawMaterials.map {
+            mapOf(
+                "materialId" to it.materialId,
+                "materialName" to it.materialName,
+                "quantity" to it.quantity,
+                "unit" to it.unit
+            )
+        },
+        "totalDealAmount" to order.totalDealAmount,
+        "pricePerPiece" to order.pricePerPiece,
+        "pricingType" to order.pricingType.name,
+        "status" to order.status.name,
+        "deliveredQuantity" to order.deliveredQuantity,
+        "deliveryColor" to order.deliveryColor,
+        "deliveryNotes" to order.deliveryNotes,
+        "deliverySubmittedAt" to order.deliverySubmittedAt,
+        "verifiedBy" to order.verifiedBy,
+        "verifiedAt" to order.verifiedAt,
+        "rejectionReason" to order.rejectionReason,
+        "createdBy" to order.createdBy,
+        "createdAt" to order.createdAt,
+        "notes" to order.notes
+    )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun docToOrder(data: Map<String, Any>, id: String): KaarigerOrder {
+        val materials = (data["rawMaterials"] as? List<Map<String, Any>>)?.map {
+            OrderMaterial(
+                materialId = it["materialId"] as? String ?: "",
+                materialName = it["materialName"] as? String ?: "",
+                quantity = (it["quantity"] as? Number)?.toDouble() ?: 0.0,
+                unit = it["unit"] as? String ?: ""
+            )
+        } ?: emptyList()
+        return KaarigerOrder(
+            id = data["id"] as? String ?: id,
+            kaarigerId = data["kaarigerId"] as? String ?: "",
+            kaarigerName = data["kaarigerName"] as? String ?: "",
+            productName = data["productName"] as? String ?: "",
+            targetQuantity = (data["targetQuantity"] as? Number)?.toInt() ?: 0,
+            color = data["color"] as? String ?: "",
+            rawMaterials = materials,
+            totalDealAmount = (data["totalDealAmount"] as? Number)?.toDouble() ?: 0.0,
+            pricePerPiece = (data["pricePerPiece"] as? Number)?.toDouble(),
+            pricingType = try {
+                OrderPricingType.valueOf(data["pricingType"] as? String ?: OrderPricingType.OVERALL.name)
+            } catch (_: Exception) {
+                OrderPricingType.OVERALL
+            },
+            status = try {
+                OrderStatus.valueOf(data["status"] as? String ?: OrderStatus.ASSIGNED.name)
+            } catch (_: Exception) {
+                OrderStatus.ASSIGNED
+            },
+            deliveredQuantity = (data["deliveredQuantity"] as? Number)?.toInt(),
+            deliveryColor = data["deliveryColor"] as? String,
+            deliveryNotes = data["deliveryNotes"] as? String,
+            deliverySubmittedAt = (data["deliverySubmittedAt"] as? Number)?.toLong(),
+            verifiedBy = data["verifiedBy"] as? String,
+            verifiedAt = (data["verifiedAt"] as? Number)?.toLong(),
+            rejectionReason = data["rejectionReason"] as? String,
+            createdBy = data["createdBy"] as? String ?: "",
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
+            notes = data["notes"] as? String
+        )
+    }
+}

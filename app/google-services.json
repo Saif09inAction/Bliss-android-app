@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "269542035211",
+    "project_id": "laiza-6aace",
+    "storage_bucket": "laiza-6aace.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:269542035211:android:27166fbcb4453991c01c0e",
+        "android_client_info": {
+          "package_name": "com.laiza.worker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBr2LIfwsFGYoCdM_mhgfymTder8NCAjrs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

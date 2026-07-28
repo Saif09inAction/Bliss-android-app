@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Employees collection rules
+    match /employees/{employeePhone} {
+      allow read, write: if true;
+    }
+    
+    // Employee extra profile details (bank details, address, designation, branch, etc.)
+    match /employee_profiles/{phone} {
+      allow read, write: if true;
+    }
+    
+    // Raw Materials inventory rules
+    match /raw_materials/{materialId} {
+      allow read, write: if true;
+    }
+    
+    // Finished Products rules
+    match /finished_products/{productId} {
+      allow read, write: if true;
+    }
+    
+    // Attendance logging rules
+    match /attendance/{attendanceId} {
+      allow read, write: if true;
+    }
+    
+    // Payment transactions rules
+    match /payments/{paymentId} {
+      allow read, write: if true;
+    }
+    
+    // Sales checkout transactions
+    match /sales/{saleId} {
+      allow read, write: if true;
+    }
+
+    // System audit logs
+    match /audit_logs/{logId} {
+      allow read, write: if true;
+    }
+
+    // Admins list
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+
+    // Kaariger orders
+    match /kaariger_orders/{orderId} {
+      allow read, write: if true;
+    }
+
+    // Kaariger payments
+    match /kaariger_payments/{paymentId} {
+      allow read, write: if true;
+    }
+
+    // Pickup records
+    match /pickup_records/{recordId} {
+      allow read, write: if true;
+    }
+
+    // Return records (RTO/DTO)
+    match /return_records/{recordId} {
+      allow read, write: if true;
+    }
+
+    // App Settings
+    match /settings/{settingId} {
+      allow read, write: if true;
+    }
+  }
+}

@@ -1,0 +1,27 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Background: Brand Dark Navy rounded square -->
+    <path
+        android:fillColor="#021024"
+        android:pathData="M12,0 h84 a12,12 0 0 1 12,12 v84 a12,12 0 0 1 -12,12 h-84 a12,12 0 0 1 -12,-12 v-84 a12,12 0 0 1 12,-12 z" />
+    
+    <!-- Glowing circle accent -->
+    <path
+        android:fillColor="#052659"
+        android:pathData="M54,54m-40,0a40,40 0 1,1 80,0a40,40 0 1,1 -80,0" />
+
+    <!-- Accent ring -->
+    <path
+        android:strokeColor="#C1E8FF"
+        android:strokeWidth="2"
+        android:pathData="M54,54m-32,0a32,32 0 1,1 64,0a32,32 0 1,1 -64,0" />
+
+    <!-- Bold letter L -->
+    <path
+        android:fillColor="#C1E8FF"
+        android:pathData="M41,32 h10 v34 h18 v9 h-28 Z" />
+</vector>

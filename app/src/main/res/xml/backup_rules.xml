@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="database" path="laiza_database.db" />
+    <exclude domain="sharedpref" path="com.laiza.worker_preferences.xml" />
+</full-backup-content>
