@@ -9,8 +9,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.OrderStatus
 import java.text.SimpleDateFormat
@@ -32,6 +34,7 @@ fun KaarigerOrderDetailSheet(
 ) {
     val remaining = order.remainingQuantity()
     val awaiting = if (order.status == OrderStatus.PENDING_APPROVAL) order.deliveredQuantity ?: 0 else 0
+    val emDash = stringResource(R.string.kaariger_em_dash)
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
@@ -50,38 +53,42 @@ fun KaarigerOrderDetailSheet(
                 Text(order.productName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                     Text(
-                        order.status.displayName(),
+                        order.status.kaarigerDisplayName(),
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
             }
 
-            DetailRow("Received on", formatOrderDate(order.createdAt))
-            if (order.color.isNotBlank()) DetailRow("Color", order.color)
-            DetailRow("Target quantity", "${order.targetQuantity} pcs")
-            DetailRow("Sent & approved", "${order.approvedQuantity} pcs")
-            if (awaiting > 0) DetailRow("Awaiting approval", "$awaiting pcs")
-            DetailRow("Remaining", "$remaining pcs")
+            DetailRow(stringResource(R.string.kaariger_detail_received_on), formatOrderDate(order.createdAt).ifBlank { emDash })
+            if (order.color.isNotBlank()) DetailRow(stringResource(R.string.kaariger_detail_color), order.color)
+            DetailRow(stringResource(R.string.kaariger_detail_target), stringResource(R.string.kaariger_pcs, order.targetQuantity))
+            DetailRow(stringResource(R.string.kaariger_detail_sent_approved), stringResource(R.string.kaariger_pcs, order.approvedQuantity))
+            if (awaiting > 0) DetailRow(stringResource(R.string.kaariger_detail_awaiting), stringResource(R.string.kaariger_pcs, awaiting))
+            DetailRow(stringResource(R.string.kaariger_detail_remaining), stringResource(R.string.kaariger_pcs, remaining))
             DetailRow(
-                "Deal",
+                stringResource(R.string.kaariger_detail_deal),
                 if (order.pricingType.name == "PER_PIECE")
-                    "₹${order.totalDealAmount.toInt()} (₹${order.pricePerPiece?.toInt() ?: 0}/pc)"
+                    stringResource(R.string.kaariger_deal_per_piece, order.totalDealAmount.toInt(), order.pricePerPiece?.toInt() ?: 0)
                 else
-                    "₹${order.totalDealAmount.toInt()}"
+                    stringResource(R.string.kaariger_deal_total, order.totalDealAmount.toInt())
             )
-            order.notes?.takeIf { it.isNotBlank() }?.let { DetailRow("Notes", it) }
-            order.verifiedBy?.let { DetailRow("Last verified by", it) }
-            order.verifiedAt?.let { DetailRow("Last verified on", formatOrderDate(it)) }
+            order.notes?.takeIf { it.isNotBlank() }?.let { DetailRow(stringResource(R.string.kaariger_detail_notes), it) }
+            order.verifiedBy?.let { DetailRow(stringResource(R.string.kaariger_detail_last_verified_by), it) }
+            order.verifiedAt?.let { DetailRow(stringResource(R.string.kaariger_detail_last_verified_on), formatOrderDate(it)) }
 
             if (order.rawMaterials.isNotEmpty()) {
-                Text("Raw Materials Received", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.kaariger_detail_raw_materials), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
                 order.rawMaterials.forEach { mat ->
                     val usage = if (mat.usedQuantity != null) {
-                        " · Used: ${mat.usedQuantity.toInt()} ${mat.unit} · Left: ${mat.remainingQuantity?.toInt() ?: 0} ${mat.unit}"
+                        stringResource(
+                            R.string.kaariger_detail_material_usage,
+                            "${mat.usedQuantity!!.toInt()} ${mat.unit}",
+                            "${mat.remainingQuantity?.toInt() ?: 0} ${mat.unit}"
+                        )
                     } else ""
                     Text(
-                        "• ${mat.materialName}: ${mat.quantity.toInt()} ${mat.unit}$usage",
+                        stringResource(R.string.kaariger_detail_material_line, mat.materialName, mat.quantity.toInt(), mat.unit) + usage,
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -89,12 +96,12 @@ fun KaarigerOrderDetailSheet(
 
             if ((order.status == OrderStatus.ASSIGNED || order.status == OrderStatus.REJECTED) && remaining > 0 && onSubmitDelivery != null) {
                 Button(onClick = onSubmitDelivery, modifier = Modifier.fillMaxWidth()) {
-                    Text("Submit Delivery ($remaining left)")
+                    Text(stringResource(R.string.kaariger_submit_delivery, remaining))
                 }
             }
             if (order.status == OrderStatus.COMPLETED && !order.materialUsageReported && onReportMaterials != null) {
                 OutlinedButton(onClick = onReportMaterials, modifier = Modifier.fillMaxWidth()) {
-                    Text("Report Material Usage")
+                    Text(stringResource(R.string.kaariger_report_materials))
                 }
             }
         }
@@ -114,9 +121,9 @@ fun OrderProgressChips(order: KaarigerOrder) {
     val remaining = order.remainingQuantity()
     val awaiting = if (order.status == OrderStatus.PENDING_APPROVAL) order.deliveredQuantity ?: 0 else 0
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        ProgressChip("Approved", "${order.approvedQuantity}", Color(0xFF10B981), Modifier.weight(1f))
-        if (awaiting > 0) ProgressChip("Pending", "$awaiting", Color(0xFFB45309), Modifier.weight(1f))
-        ProgressChip("Left", "$remaining", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
+        ProgressChip(stringResource(R.string.kaariger_chip_approved), "${order.approvedQuantity}", Color(0xFF10B981), Modifier.weight(1f))
+        if (awaiting > 0) ProgressChip(stringResource(R.string.kaariger_chip_pending), "$awaiting", Color(0xFFB45309), Modifier.weight(1f))
+        ProgressChip(stringResource(R.string.kaariger_chip_left), "$remaining", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
     }
 }
 

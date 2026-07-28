@@ -15,10 +15,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.OrderMaterial
 import com.laiza.worker.domain.models.OrderStatus
@@ -28,6 +30,7 @@ import com.laiza.worker.presentation.components.OrderProgressChips
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.formatOrderDate
+import com.laiza.worker.presentation.components.kaarigerDisplayName
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 
@@ -53,8 +56,7 @@ fun KaarigerOrdersScreen(
         if (q.isEmpty()) orders
         else orders.filter {
             it.productName.lowercase().contains(q) ||
-                it.color.lowercase().contains(q) ||
-                it.status.displayName().lowercase().contains(q)
+                it.color.lowercase().contains(q)
         }
     }
 
@@ -68,7 +70,7 @@ fun KaarigerOrdersScreen(
             value = search,
             onValueChange = { search = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("Search orders...") },
+            placeholder = { Text(stringResource(R.string.kaariger_search_orders)) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             singleLine = true,
             shape = RoundedCornerShape(12.dp)
@@ -83,7 +85,8 @@ fun KaarigerOrdersScreen(
         if (filtered.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    if (orders.isEmpty()) "No orders assigned yet" else "No matching orders",
+                    if (orders.isEmpty()) stringResource(R.string.kaariger_no_orders)
+                    else stringResource(R.string.kaariger_no_matching_orders),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -163,21 +166,21 @@ fun KaarigerOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                StatusBadge(order.status.displayName())
+                StatusBadge(order.status.kaarigerDisplayName())
             }
             Spacer(modifier = Modifier.height(8.dp))
             OrderProgressChips(order)
             if (!compact) {
                 Spacer(modifier = Modifier.height(6.dp))
-                Text("Received: ${formatOrderDate(order.createdAt)}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.kaariger_received, formatOrderDate(order.createdAt)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (order.color.isNotBlank()) {
-                Text("Color: ${order.color}", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.kaariger_color, order.color), style = MaterialTheme.typography.bodySmall)
             }
             if (!compact && order.rawMaterials.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "${order.rawMaterials.size} raw material(s) assigned",
+                    stringResource(R.string.kaariger_raw_materials_count, order.rawMaterials.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -185,18 +188,18 @@ fun KaarigerOrderCard(
             if (order.status == OrderStatus.PENDING_APPROVAL) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "⏳ ${order.deliveredQuantity ?: 0} pcs awaiting staff approval",
+                    stringResource(R.string.kaariger_awaiting_approval, order.deliveredQuantity ?: 0),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFB45309)
                 )
             }
             if (!compact && (order.status == OrderStatus.ASSIGNED || order.status == OrderStatus.REJECTED) && remaining > 0) {
                 Spacer(modifier = Modifier.height(12.dp))
-                PrimaryButton(text = "Submit Delivery ($remaining left)", onClick = onSubmitDelivery)
+                PrimaryButton(text = stringResource(R.string.kaariger_submit_delivery, remaining), onClick = onSubmitDelivery)
             }
             if (!compact && order.status == OrderStatus.COMPLETED && !order.materialUsageReported) {
                 Spacer(modifier = Modifier.height(12.dp))
-                PrimaryButton(text = "Report Material Usage", onClick = onReportMaterials)
+                PrimaryButton(text = stringResource(R.string.kaariger_report_materials), onClick = onReportMaterials)
             }
         }
     }
@@ -216,20 +219,20 @@ private fun SubmitDeliveryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Submit Delivery", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.kaariger_submit_dialog_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("You can send up to $remaining pcs. Staff will verify before adding to store inventory.", style = MaterialTheme.typography.bodySmall)
-                Text("Already approved: ${order.approvedQuantity} / ${order.targetQuantity}", style = MaterialTheme.typography.labelMedium)
-                CustomTextField(value = name, onValueChange = { name = it }, label = "Product Name")
-                CustomTextField(value = color, onValueChange = { color = it }, label = "Color")
-                CustomTextField(value = qty, onValueChange = { qty = it }, label = "Quantity Sending Now", keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number))
-                CustomTextField(value = notes, onValueChange = { notes = it }, label = "Notes (optional)")
+                Text(stringResource(R.string.kaariger_submit_dialog_hint, remaining), style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.kaariger_submit_dialog_progress, order.approvedQuantity, order.targetQuantity), style = MaterialTheme.typography.labelMedium)
+                CustomTextField(value = name, onValueChange = { name = it }, label = stringResource(R.string.kaariger_field_product_name))
+                CustomTextField(value = color, onValueChange = { color = it }, label = stringResource(R.string.kaariger_field_color))
+                CustomTextField(value = qty, onValueChange = { qty = it }, label = stringResource(R.string.kaariger_field_qty_sending), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number))
+                CustomTextField(value = notes, onValueChange = { notes = it }, label = stringResource(R.string.kaariger_field_notes))
             }
         },
         confirmButton = {
             PrimaryButton(
-                text = "Submit",
+                text = stringResource(R.string.kaariger_submit),
                 onClick = {
                     val q = qty.toIntOrNull()
                     if (q != null && q in 1..remaining && name.isNotBlank()) {
@@ -238,7 +241,7 @@ private fun SubmitDeliveryDialog(
                 }
             )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.kaariger_cancel)) } }
     )
 }
 
@@ -261,27 +264,27 @@ private fun MaterialUsageDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Report Material Usage", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.kaariger_material_dialog_title), fontWeight = FontWeight.Bold) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text("How much of each assigned material did you use?", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.kaariger_material_dialog_hint), style = MaterialTheme.typography.bodySmall)
                 order.rawMaterials.forEach { mat ->
-                    Text("${mat.materialName} (assigned: ${mat.quantity.toInt()} ${mat.unit})", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.kaariger_material_assigned, mat.materialName, mat.quantity.toInt(), mat.unit), fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelMedium)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedTextField(
                             value = usedMap["${mat.materialId}_used"] ?: "",
                             onValueChange = { usedMap["${mat.materialId}_used"] = it },
-                            label = { Text("Used") },
+                            label = { Text(stringResource(R.string.kaariger_field_used)) },
                             modifier = Modifier.weight(1f),
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
                         OutlinedTextField(
                             value = remainingMap["${mat.materialId}_rem"] ?: "",
                             onValueChange = { remainingMap["${mat.materialId}_rem"] = it },
-                            label = { Text("Remaining") },
+                            label = { Text(stringResource(R.string.kaariger_field_remaining)) },
                             modifier = Modifier.weight(1f),
                             keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number)
                         )
@@ -291,7 +294,7 @@ private fun MaterialUsageDialog(
         },
         confirmButton = {
             PrimaryButton(
-                text = "Save Report",
+                text = stringResource(R.string.kaariger_save_report),
                 onClick = {
                     val list = order.rawMaterials.map { mat ->
                         mat.copy(
@@ -303,7 +306,7 @@ private fun MaterialUsageDialog(
                 }
             )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.kaariger_cancel)) } }
     )
 }
 

@@ -11,11 +11,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
@@ -37,10 +37,10 @@ fun KaarigerPaymentsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAF9F6))
+            .background(androidx.compose.ui.graphics.Color(0xFFFAF9F6))
             .padding(16.dp)
     ) {
-        Text("Payments", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.kaariger_payments_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(16.dp))
 
         orders.filter { it.status != com.laiza.worker.domain.models.OrderStatus.REJECTED }.forEach { order ->
@@ -52,15 +52,15 @@ fun KaarigerPaymentsScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(order.productName, fontWeight = FontWeight.Bold)
                     Spacer(modifier = Modifier.height(8.dp))
-                    PaymentRow("Total Deal", "₹${order.totalDealAmount.toInt()}")
-                    PaymentRow("Advance Received", "₹${totalPaid.toInt()}")
-                    PaymentRow("Remaining", "₹${remaining.toInt()}", highlight = true)
+                    PaymentRow(stringResource(R.string.kaariger_payment_total_deal), "₹${order.totalDealAmount.toInt()}")
+                    PaymentRow(stringResource(R.string.kaariger_payment_advance), "₹${totalPaid.toInt()}")
+                    PaymentRow(stringResource(R.string.kaariger_payment_remaining), "₹${remaining.toInt()}", highlight = true)
                 }
             }
         }
 
         if (payments.isNotEmpty()) {
-            Text("Payment History", fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
+            Text(stringResource(R.string.kaariger_payment_history), fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 8.dp))
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(payments) { payment ->
                     PaymentHistoryCard(payment)
@@ -68,7 +68,7 @@ fun KaarigerPaymentsScreen(
             }
         } else if (orders.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No payment records yet", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.kaariger_no_payments), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

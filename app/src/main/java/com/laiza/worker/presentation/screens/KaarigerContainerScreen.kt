@@ -14,24 +14,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.laiza.worker.R
+import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.components.DrawerHeader
 import com.laiza.worker.presentation.components.DrawerItem
+import com.laiza.worker.presentation.components.KaarigerLanguageSwitch
+import com.laiza.worker.presentation.components.KaarigerLocalizedContent
 import com.laiza.worker.presentation.components.LaizaTopAppBar
 import com.laiza.worker.presentation.components.SessionGuard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
-import com.laiza.worker.domain.models.KaarigerOrder
-import com.laiza.worker.domain.models.OrderStatus
-import com.laiza.worker.presentation.components.PremiumCard
+import com.laiza.worker.presentation.viewmodels.KaarigerLanguageViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
 
@@ -40,7 +45,30 @@ import kotlinx.coroutines.launch
 fun KaarigerContainerScreen(
     rootNavController: NavController,
     authViewModel: AuthViewModel = hiltViewModel(),
-    orderViewModel: OrderViewModel = hiltViewModel()
+    orderViewModel: OrderViewModel = hiltViewModel(),
+    languageViewModel: KaarigerLanguageViewModel = hiltViewModel()
+) {
+    val language by languageViewModel.language.collectAsState()
+
+    KaarigerLocalizedContent(languageCode = language) {
+        KaarigerContainerContent(
+            rootNavController = rootNavController,
+            authViewModel = authViewModel,
+            orderViewModel = orderViewModel,
+            language = language,
+            onLanguageSelected = languageViewModel::setLanguage
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KaarigerContainerContent(
+    rootNavController: NavController,
+    authViewModel: AuthViewModel,
+    orderViewModel: OrderViewModel,
+    language: String,
+    onLanguageSelected: (String) -> Unit
 ) {
     val childNavController = rememberNavController()
     val session by authViewModel.userSession.collectAsState()
@@ -65,7 +93,7 @@ fun KaarigerContainerScreen(
                 DrawerHeader(session = session, profilePhotoUrl = null)
                 Spacer(modifier = Modifier.height(12.dp))
                 DrawerItem(
-                    title = "Dashboard",
+                    title = stringResource(R.string.kaariger_nav_home),
                     icon = Icons.Default.Home,
                     selected = currentRoute == KaarigerNav.Home.route,
                     onClick = {
@@ -74,7 +102,7 @@ fun KaarigerContainerScreen(
                     }
                 )
                 DrawerItem(
-                    title = "My Orders",
+                    title = stringResource(R.string.kaariger_nav_orders),
                     icon = Icons.Default.Task,
                     selected = currentRoute == KaarigerNav.Orders.route,
                     onClick = {
@@ -83,7 +111,7 @@ fun KaarigerContainerScreen(
                     }
                 )
                 DrawerItem(
-                    title = "Payments",
+                    title = stringResource(R.string.kaariger_nav_payments),
                     icon = Icons.Default.Payments,
                     selected = currentRoute == KaarigerNav.Payments.route,
                     onClick = {
@@ -91,9 +119,14 @@ fun KaarigerContainerScreen(
                         childNavController.navigate(KaarigerNav.Payments.route)
                     }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                KaarigerLanguageSwitch(
+                    selectedLanguage = language,
+                    onLanguageSelected = onLanguageSelected
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 DrawerItem(
-                    title = "Logout",
+                    title = stringResource(R.string.kaariger_nav_logout),
                     icon = Icons.Default.ExitToApp,
                     selected = false,
                     onClick = {
@@ -108,10 +141,10 @@ fun KaarigerContainerScreen(
             topBar = {
                 LaizaTopAppBar(
                     title = when (currentRoute) {
-                        KaarigerNav.Home.route -> "Kaariger Dashboard"
-                        KaarigerNav.Orders.route -> "My Orders"
-                        KaarigerNav.Payments.route -> "Payments"
-                        else -> "Laiza Bags"
+                        KaarigerNav.Home.route -> stringResource(R.string.kaariger_title_dashboard)
+                        KaarigerNav.Orders.route -> stringResource(R.string.kaariger_title_orders)
+                        KaarigerNav.Payments.route -> stringResource(R.string.kaariger_title_payments)
+                        else -> stringResource(R.string.kaariger_title_app)
                     },
                     subtitle = session?.name,
                     showMenuButton = true,
@@ -132,8 +165,8 @@ fun KaarigerContainerScreen(
                                     }
                                 }
                             },
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title, fontSize = 11.sp) }
+                            icon = { Icon(item.icon, contentDescription = stringResource(item.titleRes)) },
+                            label = { Text(stringResource(item.titleRes), fontSize = 11.sp) }
                         )
                     }
                 }
@@ -146,7 +179,7 @@ fun KaarigerContainerScreen(
             ) {
                 composable(KaarigerNav.Home.route) {
                     KaarigerDashboardContent(
-                        name = session?.name ?: "Kaariger",
+                        name = session?.name ?: stringResource(R.string.kaariger_default_name),
                         orders = orders,
                         onViewAllOrders = {
                             childNavController.navigate(KaarigerNav.Orders.route) {
@@ -169,10 +202,10 @@ fun KaarigerContainerScreen(
 
     if (showLogoutDialog) {
         ConfirmationDialog(
-            title = "Confirm Logout",
-            message = "Are you sure you want to log out?",
-            confirmButtonText = "Logout",
-            dismissButtonText = "Cancel",
+            title = stringResource(R.string.kaariger_logout_title),
+            message = stringResource(R.string.kaariger_logout_message),
+            confirmButtonText = stringResource(R.string.kaariger_logout_confirm),
+            dismissButtonText = stringResource(R.string.kaariger_cancel),
             onConfirm = { showLogoutDialog = false; authViewModel.logout() },
             onDismiss = { showLogoutDialog = false }
         )
@@ -199,12 +232,24 @@ private fun KaarigerDashboardContent(
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("Welcome, $name", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
+                Text(
+                    stringResource(R.string.kaariger_welcome, name),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleLarge
+                )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("$activeOrders active order(s) · $totalRemaining pcs remaining", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    stringResource(R.string.kaariger_active_summary, activeOrders, totalRemaining),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 if (pendingBatches > 0) {
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("$pendingBatches batch(es) awaiting staff approval", color = Color(0xFFB45309), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        stringResource(R.string.kaariger_pending_batches, pendingBatches),
+                        color = Color(0xFFB45309),
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -215,8 +260,8 @@ private fun KaarigerDashboardContent(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Recent Orders", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                TextButton(onClick = onViewAllOrders) { Text("View all") }
+                Text(stringResource(R.string.kaariger_recent_orders), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = onViewAllOrders) { Text(stringResource(R.string.kaariger_view_all)) }
             }
             recentOrders.forEach { order ->
                 KaarigerOrderCard(
@@ -231,19 +276,19 @@ private fun KaarigerDashboardContent(
 
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(20.dp)) {
-                Text("How it works", fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.kaariger_how_it_works), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("1. Admin assigns you an order with raw materials")
-                Text("2. Submit partial deliveries from My Orders")
-                Text("3. Staff verifies before stock is added")
-                Text("4. Report material usage when order completes")
+                Text(stringResource(R.string.kaariger_step_1))
+                Text(stringResource(R.string.kaariger_step_2))
+                Text(stringResource(R.string.kaariger_step_3))
+                Text(stringResource(R.string.kaariger_step_4))
             }
         }
     }
 }
 
-private sealed class KaarigerNav(val route: String, val title: String, val icon: ImageVector) {
-    object Home : KaarigerNav("kaariger_home", "Home", Icons.Default.Home)
-    object Orders : KaarigerNav("kaariger_orders", "Orders", Icons.Default.Task)
-    object Payments : KaarigerNav("kaariger_payments", "Payments", Icons.Default.Payments)
+private sealed class KaarigerNav(val route: String, @StringRes val titleRes: Int, val icon: ImageVector) {
+    object Home : KaarigerNav("kaariger_home", R.string.kaariger_nav_home, Icons.Default.Home)
+    object Orders : KaarigerNav("kaariger_orders", R.string.kaariger_nav_orders, Icons.Default.Task)
+    object Payments : KaarigerNav("kaariger_payments", R.string.kaariger_nav_payments, Icons.Default.Payments)
 }

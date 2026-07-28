@@ -29,6 +29,7 @@ class DataStoreManager @Inject constructor(
         private val LOGGED_USER = stringPreferencesKey("logged_user")
         private val APP_THEME = stringPreferencesKey("app_theme")
         private val APP_LANGUAGE = stringPreferencesKey("app_language")
+        private val KAARIGER_LANGUAGE = stringPreferencesKey("kaariger_language")
     }
 
     // JWT Token Flow
@@ -136,6 +137,23 @@ class DataStoreManager @Inject constructor(
     suspend fun saveAppLanguage(language: String) {
         dataStore.edit { preferences ->
             preferences[APP_LANGUAGE] = language
+        }
+    }
+
+    val kaarigerLanguage: Flow<String> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }.map { preferences ->
+            preferences[KAARIGER_LANGUAGE] ?: "en"
+        }
+
+    suspend fun saveKaarigerLanguage(language: String) {
+        dataStore.edit { preferences ->
+            preferences[KAARIGER_LANGUAGE] = language
         }
     }
 
