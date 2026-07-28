@@ -18,15 +18,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.Image
-import com.laiza.worker.R
 import com.laiza.worker.core.theme.BlissGold
 import com.laiza.worker.core.theme.BlissGreen
 import com.laiza.worker.core.theme.BlissGreenLight
@@ -95,11 +91,9 @@ fun BlissLogoImage(
     size: Dp = 96.dp,
     small: Boolean = false
 ) {
-    Image(
-        painter = painterResource(if (small) R.drawable.bliss_logo_sm else R.drawable.bliss_logo),
-        contentDescription = "Bliss Bombay",
-        modifier = modifier.size(size),
-        contentScale = ContentScale.Fit
+    BlissBBMonogram(
+        modifier = modifier,
+        size = if (small) size * 0.85f else size
     )
 }
 

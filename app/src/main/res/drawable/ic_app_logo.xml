@@ -3,25 +3,55 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    
-    <!-- Background: Brand Dark Navy rounded square -->
+
+    <!-- Brand dark background -->
     <path
-        android:fillColor="#021024"
+        android:fillColor="#0A0A0A"
         android:pathData="M12,0 h84 a12,12 0 0 1 12,12 v84 a12,12 0 0 1 -12,12 h-84 a12,12 0 0 1 -12,-12 v-84 a12,12 0 0 1 12,-12 z" />
-    
-    <!-- Glowing circle accent -->
-    <path
-        android:fillColor="#052659"
-        android:pathData="M54,54m-40,0a40,40 0 1,1 80,0a40,40 0 1,1 -80,0" />
 
-    <!-- Accent ring -->
+    <!-- Subtle green glow -->
     <path
-        android:strokeColor="#C1E8FF"
-        android:strokeWidth="2"
-        android:pathData="M54,54m-32,0a32,32 0 1,1 64,0a32,32 0 1,1 -64,0" />
+        android:fillColor="#151A10"
+        android:pathData="M54,54m-38,0a38,38 0 1,1 76,0a38,38 0 1,1 -76,0" />
 
-    <!-- Bold letter L -->
-    <path
-        android:fillColor="#C1E8FF"
-        android:pathData="M41,32 h10 v34 h18 v9 h-28 Z" />
+    <group
+        android:translateX="4"
+        android:translateY="4">
+        <!-- First B stem -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M8,8 L8,92"
+            android:strokeWidth="11"
+            android:strokeColor="#D4AF37"
+            android:strokeLineCap="round" />
+
+        <!-- First B bowl -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M8,8 C46,8 46,44 10,50 C50,50 46,92 8,92"
+            android:strokeWidth="11"
+            android:strokeColor="#D4AF37"
+            android:strokeLineCap="round" />
+
+        <!-- Second B stem -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M48,8 L48,92"
+            android:strokeWidth="11"
+            android:strokeColor="#D4AF37"
+            android:strokeLineCap="round" />
+
+        <!-- Second B bowl -->
+        <path
+            android:fillColor="#00000000"
+            android:pathData="M48,8 C86,8 86,44 50,50 C90,50 86,92 48,92"
+            android:strokeWidth="11"
+            android:strokeColor="#D4AF37"
+            android:strokeLineCap="round" />
+
+        <!-- Interlock accent -->
+        <path
+            android:fillColor="#D4AF37"
+            android:pathData="M40.95,42 L59.05,42 A4.95,4.95 0 0,1 59.05,51.9 L40.95,51.9 A4.95,4.95 0 0,1 40.95,42 Z" />
+    </group>
 </vector>

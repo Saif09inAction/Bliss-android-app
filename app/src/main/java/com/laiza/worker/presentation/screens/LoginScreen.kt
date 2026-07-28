@@ -108,7 +108,7 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // White header block containing large L brand logo
+            // White header block with BB monogram
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
