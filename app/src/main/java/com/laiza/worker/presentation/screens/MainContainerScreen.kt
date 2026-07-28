@@ -311,7 +311,7 @@ fun StaffContainerScreen(
                                 brush = androidx.compose.ui.graphics.Brush.linearGradient(
                                     colors = listOf(
                                         Color(0xFFD4AF37).copy(alpha = 0.5f),
-                                        Color(0xFFC8FF00).copy(alpha = 0.25f)
+                                        Color(0xFF15803D).copy(alpha = 0.25f)
                                     )
                                 )
                             ),
@@ -369,7 +369,7 @@ fun StaffContainerScreen(
                                                     scaleY = activePillScale
                                                 }
                                                 .background(
-                                                    color = Color(0xFFC8FF00).copy(alpha = 0.18f),
+                                                    color = Color(0xFF15803D).copy(alpha = 0.2f),
                                                     shape = RoundedCornerShape(100.dp)
                                                 )
                                                 .border(

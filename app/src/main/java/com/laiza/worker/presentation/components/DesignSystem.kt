@@ -45,7 +45,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.laiza.worker.core.theme.BlissGold
-import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.core.theme.BlissGreen
+import com.laiza.worker.core.theme.BlissGreenLight
 
 @Composable
 fun PremiumCard(
@@ -72,7 +73,7 @@ fun PremiumCard(
             brush = Brush.linearGradient(
                 colors = listOf(
                     BlissGold.copy(alpha = 0.45f),
-                    BlissLime.copy(alpha = 0.15f),
+                    BlissGreenLight.copy(alpha = 0.15f),
                     BlissGold.copy(alpha = 0.25f)
                 )
             )
@@ -90,7 +91,7 @@ fun M3StatusChip(
 ) {
     val (backgroundColor, contentColor, borderColor) = when (status.uppercase()) {
         "ON TIME", "PRESENT", "COMPLETED", "ACTIVE", "PAID", "APPROVED" -> Triple(
-            BlissLime.copy(alpha = 0.15f), Color(0xFF3D5A00), BlissLime.copy(alpha = 0.4f)
+                    BlissGreen.copy(alpha = 0.15f), Color(0xFF14532D), BlissGreen.copy(alpha = 0.35f)
         )
         "LATE", "IN PROGRESS", "PENDING", "PENDING APPROVAL" -> Triple(
             BlissGold.copy(alpha = 0.18f), Color(0xFF7A5C00), BlissGold.copy(alpha = 0.45f)
@@ -154,7 +155,7 @@ fun M3SearchBar(
             .fillMaxWidth()
             .height(48.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = BlissLime.copy(alpha = 0.5f),
+            focusedBorderColor = BlissGreen.copy(alpha = 0.5f),
             unfocusedBorderColor = BlissGold.copy(alpha = 0.2f),
             focusedContainerColor = MaterialTheme.colorScheme.surface,
             unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
@@ -202,7 +203,7 @@ fun M3EmptyState(
             modifier = Modifier
                 .size(64.dp)
                 .background(
-                    color = BlissLime.copy(alpha = 0.12f),
+                    color = BlissGreen.copy(alpha = 0.12f),
                     shape = RoundedCornerShape(16.dp)
                 )
                 .border(1.dp, BlissGold.copy(alpha = 0.3f), RoundedCornerShape(16.dp)),

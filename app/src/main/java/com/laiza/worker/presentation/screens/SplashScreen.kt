@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,8 +29,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laiza.worker.core.navigation.Screen
 import com.laiza.worker.core.theme.BlissGold
-import com.laiza.worker.core.theme.BlissLime
-import com.laiza.worker.presentation.components.BlissLogoImage
+import com.laiza.worker.presentation.components.BlissSplashBrand
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
 
@@ -48,7 +46,7 @@ fun SplashScreen(
         alpha.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
         scale.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
         pulseScale.animateTo(
-            targetValue = 1.04f,
+            targetValue = 1.03f,
             animationSpec = infiniteRepeatable(
                 animation = tween(1400, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse
@@ -75,7 +73,7 @@ fun SplashScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF0A0A0A), Color(0xFF121417), Color(0xFF1A1F14))
+                    colors = listOf(Color(0xFF0A0A0A), Color(0xFF0F1A12), Color(0xFF14532D))
                 )
             ),
         contentAlignment = Alignment.Center
@@ -87,27 +85,12 @@ fun SplashScreen(
                 .scale(scale.value * pulseScale.value)
                 .alpha(alpha.value)
         ) {
-            BlissLogoImage(size = 120.dp)
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "BLISS",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Black,
-                color = BlissLime,
-                letterSpacing = 6.sp
-            )
-            Text(
-                text = "BOMBAY",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = BlissGold,
-                letterSpacing = 8.sp
-            )
-            Spacer(modifier = Modifier.height(12.dp))
+            BlissSplashBrand(monogramSize = 110.dp)
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = "Premium Quality & Style",
                 fontSize = 13.sp,
-                color = BlissGold.copy(alpha = 0.7f),
+                color = BlissGold.copy(alpha = 0.75f),
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 2.sp
             )

@@ -31,7 +31,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.laiza.worker.core.theme.BlissGold
-import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.core.theme.BlissGreen
+import com.laiza.worker.core.theme.BlissGreenLight
 import com.laiza.worker.domain.models.UserSession
 
 @Composable
@@ -62,7 +63,7 @@ fun DrawerHeader(
                         text = "BLISS",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Black,
-                        color = BlissLime,
+                        color = BlissGreenLight,
                         letterSpacing = 3.sp
                     )
                     Text(
@@ -92,13 +93,13 @@ fun DrawerHeader(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(BlissLime.copy(alpha = 0.15f)),
+                            .background(BlissGreen.copy(alpha = 0.15f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = session?.name?.firstOrNull()?.uppercase() ?: "?",
                             fontWeight = FontWeight.Bold,
-                            color = BlissLime,
+                            color = BlissGreenLight,
                             fontSize = 22.sp
                         )
                     }
@@ -139,7 +140,7 @@ fun DrawerItem(
     badgeCount: Int? = null
 ) {
     val containerColor = if (selected) {
-        BlissLime.copy(alpha = 0.12f)
+        BlissGreen.copy(alpha = 0.12f)
     } else {
         Color.Transparent
     }
@@ -150,7 +151,7 @@ fun DrawerItem(
         MaterialTheme.colorScheme.onSurfaceVariant
     }
 
-    val iconTint = if (selected) BlissLime.copy(alpha = 0.9f) else contentColor
+    val iconTint = if (selected) BlissGreen else contentColor
 
     Row(
         modifier = modifier
@@ -165,7 +166,7 @@ fun DrawerItem(
         if (badgeCount != null && badgeCount > 0) {
             BadgedBox(
                 badge = {
-                    Badge(containerColor = BlissLime, contentColor = Color.Black) {
+                    Badge(containerColor = BlissGreen, contentColor = Color.White) {
                         Text(text = badgeCount.toString())
                     }
                 }

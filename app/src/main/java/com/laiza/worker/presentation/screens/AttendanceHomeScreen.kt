@@ -217,8 +217,8 @@ fun TodayStatusCard(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                            Color(0xFF14532D),
+                            Color(0xFF15803D)
                         )
                     )
                 )
@@ -302,8 +302,8 @@ fun TodayStatusCard(
                         .height(54.dp),
                     shape = RoundedCornerShape(100.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = Color.White
+                        containerColor = Color(0xFFD4AF37),
+                        contentColor = Color(0xFF0A0A0A)
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {

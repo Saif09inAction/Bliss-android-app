@@ -171,7 +171,7 @@ fun LoginScreen(
                                     .graphicsLayer(scaleX = scale, scaleY = scale)
                                     .clip(RoundedCornerShape(100.dp))
                                     .background(
-                                        color = if (screenState.selectedRole == role) Color(0xFFC8FF00) else Color.Transparent
+                                        color = if (screenState.selectedRole == role) Color(0xFF15803D) else Color.Transparent
                                     )
                                     .clickable(interactionSource = interactionSource, indication = null) {
                                         viewModel.onRoleChange(role)
@@ -182,7 +182,7 @@ fun LoginScreen(
                                     text = label,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (screenState.selectedRole == role) Color(0xFF0A0A0A) else Color(0xFFC8FF00).copy(alpha = 0.8f)
+                                    color = if (screenState.selectedRole == role) Color(0xFF0A0A0A) else Color(0xFF15803D).copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -199,7 +199,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Default.Phone,
                                 contentDescription = "Mobile Number",
-                                tint = Color(0xFFC8FF00)
+                                tint = Color(0xFF15803D)
                             )
                         },
                         isError = screenState.employeeIdError != null,
@@ -212,14 +212,14 @@ fun LoginScreen(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFC8FF00),
-                            unfocusedBorderColor = Color(0xFFC8FF00).copy(alpha = 0.4f),
-                            focusedLabelColor = Color(0xFFC8FF00),
-                            unfocusedLabelColor = Color(0xFFC8FF00).copy(alpha = 0.6f),
+                            focusedBorderColor = Color(0xFF15803D),
+                            unfocusedBorderColor = Color(0xFF15803D).copy(alpha = 0.4f),
+                            focusedLabelColor = Color(0xFF15803D),
+                            unfocusedLabelColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedLeadingIconColor = Color(0xFFC8FF00),
-                            unfocusedLeadingIconColor = Color(0xFFC8FF00).copy(alpha = 0.6f),
+                            focusedLeadingIconColor = Color(0xFF15803D),
+                            unfocusedLeadingIconColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             errorBorderColor = Color(0xFFEF4444)
                         ),
                         modifier = Modifier.fillMaxWidth(),
@@ -238,7 +238,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Password",
-                                tint = Color(0xFFC8FF00)
+                                tint = Color(0xFF15803D)
                             )
                         },
                         trailingIcon = {
@@ -246,7 +246,7 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
                                     contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                    tint = Color(0xFFC8FF00)
+                                    tint = Color(0xFF15803D)
                                 )
                             }
                         },
@@ -266,14 +266,14 @@ fun LoginScreen(
                             }
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFC8FF00),
-                            unfocusedBorderColor = Color(0xFFC8FF00).copy(alpha = 0.4f),
-                            focusedLabelColor = Color(0xFFC8FF00),
-                            unfocusedLabelColor = Color(0xFFC8FF00).copy(alpha = 0.6f),
+                            focusedBorderColor = Color(0xFF15803D),
+                            unfocusedBorderColor = Color(0xFF15803D).copy(alpha = 0.4f),
+                            focusedLabelColor = Color(0xFF15803D),
+                            unfocusedLabelColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedLeadingIconColor = Color(0xFFC8FF00),
-                            unfocusedLeadingIconColor = Color(0xFFC8FF00).copy(alpha = 0.6f),
+                            focusedLeadingIconColor = Color(0xFF15803D),
+                            unfocusedLeadingIconColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             errorBorderColor = Color(0xFFEF4444)
                         ),
                         modifier = Modifier.fillMaxWidth(),
@@ -295,15 +295,15 @@ fun LoginScreen(
                                 checked = screenState.rememberMe,
                                 onCheckedChange = { viewModel.onRememberMeChange(it) },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = Color(0xFFC8FF00),
+                                    checkedColor = Color(0xFF15803D),
                                     checkmarkColor = Color(0xFF0A0A0A),
-                                    uncheckedColor = Color(0xFFC8FF00).copy(alpha = 0.6f)
+                                    uncheckedColor = Color(0xFF15803D).copy(alpha = 0.6f)
                                 )
                             )
                             Text(
                                 text = "Remember Me",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFC8FF00).copy(alpha = 0.8f)
+                                color = Color(0xFF15803D).copy(alpha = 0.8f)
                             )
                         }
 
@@ -311,7 +311,7 @@ fun LoginScreen(
                             Text(
                                 text = "Forgot Password?",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFC8FF00),
+                                color = Color(0xFF15803D),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -332,9 +332,9 @@ fun LoginScreen(
                         enabled = screenState.isLoginButtonEnabled,
                         interactionSource = buttonInteractionSource,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFC8FF00),
-                            contentColor = Color(0xFF0A0A0A),
-                            disabledContainerColor = Color(0xFFC8FF00).copy(alpha = 0.25f),
+                            containerColor = Color(0xFF15803D),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF15803D).copy(alpha = 0.25f),
                             disabledContentColor = Color.White.copy(alpha = 0.4f)
                         ),
                         shape = RoundedCornerShape(100.dp),
@@ -356,7 +356,7 @@ fun LoginScreen(
                     Text(
                         text = "Version ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFC8FF00).copy(alpha = 0.4f)
+                        color = Color(0xFF15803D).copy(alpha = 0.4f)
                     )
                 }
             }

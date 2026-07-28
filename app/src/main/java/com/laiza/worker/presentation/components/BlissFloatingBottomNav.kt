@@ -31,7 +31,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.laiza.worker.core.theme.BlissGold
-import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.core.theme.BlissGreen
+import com.laiza.worker.core.theme.BlissGreenLight
 
 data class BlissNavTab(
     val route: String,
@@ -69,7 +70,7 @@ fun BlissFloatingBottomNav(
             border = androidx.compose.foundation.BorderStroke(
                 1.dp,
                 Brush.linearGradient(
-                    colors = listOf(BlissGold.copy(alpha = 0.5f), BlissLime.copy(alpha = 0.25f))
+                    colors = listOf(BlissGold.copy(alpha = 0.5f), BlissGreen.copy(alpha = 0.25f))
                 )
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -90,7 +91,7 @@ fun BlissFloatingBottomNav(
                             .weight(1f)
                             .fillMaxHeight()
                             .padding(horizontal = 2.dp)
-                            .background(BlissLime.copy(alpha = 0.16f), RoundedCornerShape(100.dp))
+                            .background(BlissGreen.copy(alpha = 0.22f), RoundedCornerShape(100.dp))
                             .border(1.dp, BlissGold.copy(alpha = 0.4f), RoundedCornerShape(100.dp))
                     )
                     val remaining = tabs.size - 1f - animIndex
@@ -108,12 +109,12 @@ fun BlissFloatingBottomNav(
                         val pressed by interactionSource.collectIsPressedAsState()
                         val scale by animateFloatAsState(if (pressed) 0.92f else 1f, label = "tab_scale")
                         val iconColor by animateColorAsState(
-                            if (selected) BlissLime else Color.White.copy(alpha = 0.45f),
+                            if (selected) BlissGreenLight else Color.White.copy(alpha = 0.45f),
                             tween(150),
                             label = "icon_color"
                         )
                         val labelColor by animateColorAsState(
-                            if (selected) BlissLime else Color.White.copy(alpha = 0.45f),
+                            if (selected) BlissGreenLight else Color.White.copy(alpha = 0.45f),
                             tween(150),
                             label = "label_color"
                         )
