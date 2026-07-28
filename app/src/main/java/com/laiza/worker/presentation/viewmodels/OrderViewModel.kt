@@ -40,12 +40,8 @@ class OrderViewModel @Inject constructor(
         .map { it.size }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
 
-    val approvalHistory: StateFlow<List<KaarigerOrder>> = allOrders
-        .map { orders ->
-            orders.filter { it.approvedQuantity > 0 }
-                .sortedByDescending { it.verifiedAt ?: it.createdAt }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _staffApprovalHistory = MutableStateFlow<List<OrderApprovalRecord>>(emptyList())
+    val staffApprovalHistory = _staffApprovalHistory.asStateFlow()
 
     val kaarigers: StateFlow<List<Employee>> = employeeRepository.getAllEmployees()
         .map { list -> list.filter { it.role == Role.KAARIGER } }
@@ -65,6 +61,14 @@ class OrderViewModel @Inject constructor(
 
     private val _paymentSummaries = MutableStateFlow<List<OrderPaymentSummary>>(emptyList())
     val paymentSummaries = _paymentSummaries.asStateFlow()
+
+    fun loadStaffApprovalHistory(staffPhone: String) {
+        viewModelScope.launch {
+            orderRepository.getApprovalHistoryForStaff(staffPhone).collect { records ->
+                _staffApprovalHistory.value = records
+            }
+        }
+    }
 
     fun loadKaarigerData(kaarigerId: String) {
         viewModelScope.launch {
@@ -137,8 +141,10 @@ class OrderViewModel @Inject constructor(
 
     fun approveOrder(orderId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
         viewModelScope.launch {
-            val verifiedBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
-            orderRepository.approveOrder(orderId, verifiedBy).collect { res ->
+            val session = sessionManager.userSession.firstOrNull()
+            val verifiedBy = session?.name ?: "Staff"
+            val verifiedByPhone = session?.phone ?: ""
+            orderRepository.approveOrder(orderId, verifiedBy, verifiedByPhone).collect { res ->
                 when (res) {
                     is Resource.Success -> onSuccess()
                     is Resource.Error -> onError(res.message ?: "Failed")

@@ -118,7 +118,7 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun approveOrder(orderId: String, verifiedBy: String): Flow<Resource<Unit>> = flow {
+    override fun approveOrder(orderId: String, verifiedBy: String, verifiedByPhone: String): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
             val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
@@ -137,6 +137,7 @@ class OrderRepositoryImpl @Inject constructor(
                 return@flow
             }
             val newApproved = order.approvedQuantity + batchQty
+            val verifiedAt = System.currentTimeMillis()
             val product = FinishedProduct(
                 id = UUID.randomUUID().toString(),
                 name = order.productName,
@@ -167,12 +168,43 @@ class OrderRepositoryImpl @Inject constructor(
                     "approvedQuantity" to newApproved,
                     "status" to if (isComplete) OrderStatus.COMPLETED.name else OrderStatus.ASSIGNED.name,
                     "verifiedBy" to verifiedBy,
-                    "verifiedAt" to System.currentTimeMillis(),
+                    "verifiedAt" to verifiedAt,
                     "deliveredQuantity" to null,
                     "deliverySubmittedAt" to null,
                     "rejectionReason" to ""
                 )
             ).await()
+
+            val approvalRecord = OrderApprovalRecord(
+                orderId = order.id,
+                productName = order.productName,
+                kaarigerId = order.kaarigerId,
+                kaarigerName = order.kaarigerName,
+                batchQuantity = batchQty,
+                approvedTotalAfter = newApproved,
+                targetQuantity = order.targetQuantity,
+                color = order.deliveryColor ?: order.color,
+                verifiedByName = verifiedBy,
+                verifiedByPhone = normalizePhone(verifiedByPhone),
+                verifiedAt = verifiedAt
+            )
+            firestore.collection("order_approval_records").document(approvalRecord.id).set(
+                mapOf(
+                    "id" to approvalRecord.id,
+                    "orderId" to approvalRecord.orderId,
+                    "productName" to approvalRecord.productName,
+                    "kaarigerId" to approvalRecord.kaarigerId,
+                    "kaarigerName" to approvalRecord.kaarigerName,
+                    "batchQuantity" to approvalRecord.batchQuantity,
+                    "approvedTotalAfter" to approvalRecord.approvedTotalAfter,
+                    "targetQuantity" to approvalRecord.targetQuantity,
+                    "color" to approvalRecord.color,
+                    "verifiedByName" to approvalRecord.verifiedByName,
+                    "verifiedByPhone" to approvalRecord.verifiedByPhone,
+                    "verifiedAt" to approvalRecord.verifiedAt
+                )
+            ).await()
+
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to approve order"))
@@ -236,6 +268,27 @@ class OrderRepositoryImpl @Inject constructor(
     override fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>> = paymentsFlow(
         firestore.collection("kaariger_payments").whereEqualTo("orderId", orderId)
     )
+
+    override fun getApprovalHistoryForStaff(staffPhone: String): Flow<List<OrderApprovalRecord>> {
+        val normalizedPhone = normalizePhone(staffPhone)
+        return callbackFlow {
+            val listener = firestore.collection("order_approval_records")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Approval history query failed for $staffPhone", error)
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val records = snapshot?.documents?.mapNotNull { doc ->
+                        docToApprovalRecord(doc.data ?: emptyMap(), doc.id)
+                    }?.filter { normalizePhone(it.verifiedByPhone) == normalizedPhone }
+                        ?.sortedByDescending { it.verifiedAt }
+                        ?: emptyList()
+                    trySend(records)
+                }
+            awaitClose { listener.remove() }
+        }
+    }
 
     override fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>> {
         val normalizedId = normalizePhone(kaarigerId)
@@ -418,6 +471,23 @@ class OrderRepositoryImpl @Inject constructor(
             createdBy = data["createdBy"] as? String ?: "",
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
             notes = data["notes"] as? String
+        )
+    }
+
+    private fun docToApprovalRecord(data: Map<String, Any>, id: String): OrderApprovalRecord {
+        return OrderApprovalRecord(
+            id = data["id"] as? String ?: id,
+            orderId = data["orderId"] as? String ?: "",
+            productName = data["productName"] as? String ?: "",
+            kaarigerId = data["kaarigerId"] as? String ?: "",
+            kaarigerName = data["kaarigerName"] as? String ?: "",
+            batchQuantity = (data["batchQuantity"] as? Number)?.toInt() ?: 0,
+            approvedTotalAfter = (data["approvedTotalAfter"] as? Number)?.toInt() ?: 0,
+            targetQuantity = (data["targetQuantity"] as? Number)?.toInt() ?: 0,
+            color = data["color"] as? String ?: "",
+            verifiedByName = data["verifiedByName"] as? String ?: "",
+            verifiedByPhone = data["verifiedByPhone"] as? String ?: "",
+            verifiedAt = (data["verifiedAt"] as? Number)?.toLong() ?: 0L
         )
     }
 

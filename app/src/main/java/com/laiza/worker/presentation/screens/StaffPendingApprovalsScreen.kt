@@ -20,24 +20,31 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.domain.models.KaarigerOrder
-import com.laiza.worker.presentation.components.KaarigerOrderDetailSheet
+import com.laiza.worker.domain.models.OrderApprovalRecord
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.formatOrderDate
+import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 
 private enum class ApprovalTab { Pending, History }
 
 @Composable
 fun StaffPendingApprovalsScreen(
-    viewModel: OrderViewModel = hiltViewModel()
+    viewModel: OrderViewModel = hiltViewModel(),
+    authViewModel: AuthViewModel = hiltViewModel()
 ) {
+    val session by authViewModel.userSession.collectAsState()
     val pending by viewModel.pendingApprovals.collectAsState()
-    val history by viewModel.approvalHistory.collectAsState()
+    val history by viewModel.staffApprovalHistory.collectAsState()
     var tab by remember { mutableStateOf(ApprovalTab.Pending) }
     var search by remember { mutableStateOf("") }
     var rejectOrderId by remember { mutableStateOf<String?>(null) }
     var rejectReason by remember { mutableStateOf("") }
-    var detailOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
+    var detailRecord by remember { mutableStateOf<OrderApprovalRecord?>(null) }
+
+    LaunchedEffect(session?.phone) {
+        session?.phone?.let { viewModel.loadStaffApprovalHistory(it) }
+    }
 
     val filteredHistory = remember(history, search) {
         val q = search.trim().lowercase()
@@ -76,18 +83,24 @@ fun StaffPendingApprovalsScreen(
             Tab(
                 selected = tab == ApprovalTab.History,
                 onClick = { tab = ApprovalTab.History },
-                text = { Text("Approval History") }
+                text = { Text("My Approvals") }
             )
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         if (tab == ApprovalTab.History) {
+            Text(
+                "Only deliveries you approved appear here",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             OutlinedTextField(
                 value = search,
                 onValueChange = { search = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search product or kaariger...") },
+                placeholder = { Text("Search your approvals...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp)
@@ -127,15 +140,15 @@ fun StaffPendingApprovalsScreen(
                             Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                if (search.isBlank()) "No approvals yet" else "No matches found",
+                                if (search.isBlank()) "You haven't approved any deliveries yet" else "No matches found",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        items(filteredHistory, key = { it.id }) { order ->
-                            HistoryOrderCard(order = order, onClick = { detailOrder = order })
+                        items(filteredHistory, key = { it.id }) { record ->
+                            HistoryApprovalCard(record = record, onClick = { detailRecord = record })
                         }
                     }
                 }
@@ -172,8 +185,31 @@ fun StaffPendingApprovalsScreen(
         )
     }
 
-    detailOrder?.let { order ->
-        KaarigerOrderDetailSheet(order = order, onDismiss = { detailOrder = null })
+    detailRecord?.let { record ->
+        AlertDialog(
+            onDismissRequest = { detailRecord = null },
+            title = { Text(record.productName, fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    DetailLine("Kaariger", record.kaarigerName)
+                    DetailLine("You approved", "${record.batchQuantity} pcs")
+                    DetailLine("Order progress", "${record.approvedTotalAfter}/${record.targetQuantity} pcs")
+                    if (record.color.isNotBlank()) DetailLine("Color", record.color)
+                    DetailLine("Approved on", formatOrderDate(record.verifiedAt))
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { detailRecord = null }) { Text("Close") }
+            }
+        )
+    }
+}
+
+@Composable
+private fun DetailLine(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
     }
 }
 
@@ -223,14 +259,14 @@ private fun PendingOrderCard(
 }
 
 @Composable
-private fun HistoryOrderCard(order: KaarigerOrder, onClick: () -> Unit) {
+private fun HistoryApprovalCard(record: OrderApprovalRecord, onClick: () -> Unit) {
     PremiumCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-            Text("${order.kaarigerName} · ${order.approvedQuantity}/${order.targetQuantity} pcs approved", style = MaterialTheme.typography.bodySmall)
+            Text(record.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text("${record.kaarigerName} · You approved ${record.batchQuantity} pcs", style = MaterialTheme.typography.bodySmall)
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                "Verified by ${order.verifiedBy ?: "Staff"} · ${formatOrderDate(order.verifiedAt)}",
+                "Order now ${record.approvedTotalAfter}/${record.targetQuantity} · ${formatOrderDate(record.verifiedAt)}",
                 style = MaterialTheme.typography.labelSmall,
                 color = Color(0xFF10B981)
             )
