@@ -1,14 +1,11 @@
 <resources>
     <style name="Theme.LaizaWorker.Splash" parent="Theme.SplashScreen">
-        <!-- Set the splash screen background, primary blue -->
-        <item name="windowSplashScreenBackground">#2563EB</item>
-        <!-- Theme to apply after the splash screen is dismissed -->
+        <item name="windowSplashScreenBackground">#0A0A0A</item>
         <item name="postSplashScreenTheme">@style/Theme.LaizaWorker</item>
     </style>
 
     <style name="Theme.LaizaWorker" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Status bar coloring matching primary corporate theme -->
-        <item name="android:statusBarColor">#2563EB</item>
-        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">#FAFAF8</item>
+        <item name="android:windowLightStatusBar">true</item>
     </style>
 </resources>

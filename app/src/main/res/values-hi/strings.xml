@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Laiza Worker</string>
+    <string name="app_name">Bliss Worker</string>
 
     <!-- Kaariger section -->
     <string name="kaariger_nav_home">होम</string>
@@ -9,7 +9,7 @@
     <string name="kaariger_title_dashboard">कारीगर डैशबोर्ड</string>
     <string name="kaariger_title_orders">मेरे ऑर्डर</string>
     <string name="kaariger_title_payments">भुगतान</string>
-    <string name="kaariger_title_app">Laiza Bags</string>
+    <string name="kaariger_title_app">Bliss Bombay</string>
     <string name="kaariger_default_name">कारीगर</string>
     <string name="kaariger_language">भाषा</string>
     <string name="kaariger_english">English</string>

@@ -110,8 +110,8 @@ fun DashboardScreen(
                         .background(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
-                                    Color(0xFF0C1B40), // Dark Navy
-                                    Color(0xFF1E3A8A)  // Slate Navy Blue
+                                    Color(0xFF0A0A0A),
+                                    Color(0xFF1A1F14)
                                 )
                             )
                         )

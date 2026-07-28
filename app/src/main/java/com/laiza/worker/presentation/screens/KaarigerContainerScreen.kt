@@ -1,8 +1,16 @@
 package com.laiza.worker.presentation.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Brush
+import com.laiza.worker.core.theme.BlissBlack
+import com.laiza.worker.core.theme.BlissGold
+import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.presentation.components.KaarigerLocalizedContent
+import com.laiza.worker.presentation.components.LaizaTopAppBar
+import com.laiza.worker.presentation.components.PremiumCard
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
@@ -32,8 +40,8 @@ import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.components.DrawerHeader
 import com.laiza.worker.presentation.components.DrawerItem
 import com.laiza.worker.presentation.components.KaarigerLanguageSwitch
-import com.laiza.worker.presentation.components.KaarigerLocalizedContent
-import com.laiza.worker.presentation.components.LaizaTopAppBar
+import com.laiza.worker.presentation.components.BlissFloatingBottomNav
+import com.laiza.worker.presentation.components.BlissNavTab
 import com.laiza.worker.presentation.components.SessionGuard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.KaarigerLanguageViewModel
@@ -152,24 +160,23 @@ private fun KaarigerContainerContent(
                 )
             },
             bottomBar = {
-                NavigationBar {
-                    listOf(KaarigerNav.Home, KaarigerNav.Orders, KaarigerNav.Payments).forEach { item ->
-                        NavigationBarItem(
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                if (currentRoute != item.route) {
-                                    childNavController.navigate(item.route) {
-                                        popUpTo(KaarigerNav.Home.route) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = { Icon(item.icon, contentDescription = stringResource(item.titleRes)) },
-                            label = { Text(stringResource(item.titleRes), fontSize = 11.sp) }
-                        )
+                BlissFloatingBottomNav(
+                    tabs = listOf(
+                        BlissNavTab(KaarigerNav.Home.route, stringResource(R.string.kaariger_nav_home), Icons.Default.Home),
+                        BlissNavTab(KaarigerNav.Orders.route, stringResource(R.string.kaariger_nav_orders), Icons.Default.Task),
+                        BlissNavTab(KaarigerNav.Payments.route, stringResource(R.string.kaariger_nav_payments), Icons.Default.Payments)
+                    ),
+                    currentRoute = currentRoute,
+                    onTabSelected = { route ->
+                        if (currentRoute != route) {
+                            childNavController.navigate(route) {
+                                popUpTo(KaarigerNav.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     }
-                }
+                )
             }
         ) { padding ->
             NavHost(
@@ -230,26 +237,36 @@ private fun KaarigerDashboardContent(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(
-                    stringResource(R.string.kaariger_welcome, name),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleLarge
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    stringResource(R.string.kaariger_active_summary, activeOrders, totalRemaining),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                if (pendingBatches > 0) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        stringResource(R.string.kaariger_pending_batches, pendingBatches),
-                        color = Color(0xFFB45309),
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = FontWeight.SemiBold
+        PremiumCard(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(listOf(BlissBlack, Color(0xFF1A1F14)))
                     )
+                    .padding(20.dp)
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.kaariger_welcome, name),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = BlissLime
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.kaariger_active_summary, activeOrders, totalRemaining),
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                    if (pendingBatches > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.kaariger_pending_batches, pendingBatches),
+                            color = BlissGold,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
             }
         }
@@ -274,7 +291,10 @@ private fun KaarigerDashboardContent(
             }
         }
 
-        Card(modifier = Modifier.fillMaxWidth()) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+        ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(stringResource(R.string.kaariger_how_it_works), fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))

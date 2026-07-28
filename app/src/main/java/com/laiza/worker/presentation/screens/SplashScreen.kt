@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +29,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.laiza.worker.core.navigation.Screen
+import com.laiza.worker.core.theme.BlissGold
+import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.presentation.components.BlissLogoImage
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
 
@@ -44,20 +45,12 @@ fun SplashScreen(
     val pulseScale = remember { Animatable(1f) }
 
     LaunchedEffect(key1 = true) {
-        alpha.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = 800, easing = FastOutSlowInEasing)
-        )
-        scale.animateTo(
-            targetValue = 1.0f,
-            animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing)
-        )
-        
-        // Start infinite breathing animation for logo/text
+        alpha.animateTo(1f, animationSpec = tween(800, easing = FastOutSlowInEasing))
+        scale.animateTo(1f, animationSpec = tween(1000, easing = FastOutSlowInEasing))
         pulseScale.animateTo(
-            targetValue = 1.05f,
+            targetValue = 1.04f,
             animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 1200, easing = FastOutSlowInEasing),
+                animation = tween(1400, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse
             )
         )
@@ -82,10 +75,7 @@ fun SplashScreen(
             .fillMaxSize()
             .background(
                 brush = Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF021024), // Dark Navy
-                        Color(0xFF052659)  // Deep Blue
-                    )
+                    colors = listOf(Color(0xFF0A0A0A), Color(0xFF121417), Color(0xFF1A1F14))
                 )
             ),
         contentAlignment = Alignment.Center
@@ -97,45 +87,27 @@ fun SplashScreen(
                 .scale(scale.value * pulseScale.value)
                 .alpha(alpha.value)
         ) {
-            // Elegant "L" Logo block in the starting animation
-            Box(
-                modifier = Modifier
-                    .size(100.dp)
-                    .background(Color.White.copy(alpha = 0.08f), shape = CircleShape)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFC1E8FF).copy(alpha = 0.3f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "L",
-                    fontSize = 58.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFFC1E8FF),
-                    letterSpacing = 1.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
+            BlissLogoImage(size = 120.dp)
+            Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "LAIZA BAGS",
-                fontSize = 40.sp,
+                text = "BLISS",
+                fontSize = 42.sp,
                 fontWeight = FontWeight.Black,
-                color = Color.White,
-                letterSpacing = 5.sp
+                color = BlissLime,
+                letterSpacing = 6.sp
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "BOMBAY",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = BlissGold,
+                letterSpacing = 8.sp
+            )
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
                 text = "Premium Quality & Style",
-                fontSize = 14.sp,
-                color = Color(0xFFC1E8FF).copy(alpha = 0.7f),
+                fontSize = 13.sp,
+                color = BlissGold.copy(alpha = 0.7f),
                 fontWeight = FontWeight.Medium,
                 letterSpacing = 2.sp
             )

@@ -134,7 +134,7 @@ fun SetupNavGraph(
             PlaceholderScreen(title = "Advance Payments", icon = Icons.Default.AccountBalanceWallet)
         }
         composable(route = Screen.About.route) {
-            PlaceholderScreen(title = "About Laiza", icon = Icons.Default.Info)
+            PlaceholderScreen(title = "About Bliss Bombay", icon = Icons.Default.Info)
         }
         composable(route = Screen.Settings.route) {
             PlaceholderScreen(title = "Settings", icon = Icons.Default.Settings)

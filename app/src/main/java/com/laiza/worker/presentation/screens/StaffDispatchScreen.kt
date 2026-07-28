@@ -39,7 +39,7 @@ fun StaffDispatchScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAF9F6))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         TabRow(selectedTabIndex = activeTab) {
             Tab(selected = activeTab == 0, onClick = { activeTab = 0 }, text = { Text("Pickup") })

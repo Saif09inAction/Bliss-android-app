@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Laiza Worker</string>
+    <string name="app_name">Bliss Worker</string>
 
     <!-- Admin navigation -->
     <string name="admin_nav_overview">Overview</string>
@@ -14,7 +14,7 @@
     <string name="admin_title_workers">Worker Management</string>
     <string name="admin_title_production">Production Control</string>
     <string name="admin_title_reports">Reports &amp; Analytics</string>
-    <string name="admin_title_default">Laiza Admin</string>
+    <string name="admin_title_default">Bliss Admin</string>
 
     <!-- Admin dashboard -->
     <string name="admin_welcome">Welcome, %1$s</string>
@@ -47,7 +47,7 @@
     <string name="kaariger_title_dashboard">Kaariger Dashboard</string>
     <string name="kaariger_title_orders">My Orders</string>
     <string name="kaariger_title_payments">Payments</string>
-    <string name="kaariger_title_app">Laiza Bags</string>
+    <string name="kaariger_title_app">Bliss Bombay</string>
     <string name="kaariger_default_name">Kaariger</string>
     <string name="kaariger_language">Language</string>
     <string name="kaariger_english">English</string>

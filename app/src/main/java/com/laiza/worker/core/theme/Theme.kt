@@ -21,10 +21,13 @@ private val LightColorScheme = lightColorScheme(
     onPrimary = LightOnPrimary,
     secondary = LightSecondary,
     onSecondary = LightOnSecondary,
+    tertiary = BlissGold,
     background = LightBackground,
     onBackground = LightOnBackground,
     surface = LightSurface,
     onSurface = LightOnSurface,
+    surfaceVariant = BlissWarmWhite,
+    outlineVariant = BlissGold.copy(alpha = 0.35f),
     error = ErrorColor
 )
 
@@ -33,10 +36,13 @@ private val DarkColorScheme = darkColorScheme(
     onPrimary = DarkOnPrimary,
     secondary = DarkSecondary,
     onSecondary = DarkOnSecondary,
+    tertiary = BlissGold,
     background = DarkBackground,
     onBackground = DarkOnBackground,
     surface = DarkSurface,
     onSurface = DarkOnSurface,
+    surfaceVariant = BlissDarkElevated,
+    outlineVariant = BlissGold.copy(alpha = 0.25f),
     error = ErrorColor
 )
 

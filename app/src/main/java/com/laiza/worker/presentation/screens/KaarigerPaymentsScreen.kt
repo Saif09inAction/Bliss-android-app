@@ -37,7 +37,7 @@ fun KaarigerPaymentsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(androidx.compose.ui.graphics.Color(0xFFFAF9F6))
+            .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
         Text(stringResource(R.string.kaariger_payments_title), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)

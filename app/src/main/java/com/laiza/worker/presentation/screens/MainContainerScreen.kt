@@ -242,7 +242,7 @@ fun StaffContainerScreen(
                             BottomNavItem.Attendance.route -> "Attendance"
                             BottomNavItem.Approvals.route -> "Verify Orders"
                             "employee_profile" -> "My Profile"
-                            else -> "Laiza Bags"
+                            else -> "Bliss Bombay"
                         },
                         subtitle = when (currentRoute) {
                             BottomNavItem.Home.route -> "Good Morning • ${java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())}"
@@ -305,10 +305,15 @@ fun StaffContainerScreen(
                                     translationY = navbarOffsetY.toPx()
                                 },
                             shape = RoundedCornerShape(100.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A).copy(alpha = 0.88f)),
                             border = androidx.compose.foundation.BorderStroke(
                                 width = 1.dp,
-                                color = Color.White.copy(alpha = 0.25f)
+                                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFD4AF37).copy(alpha = 0.5f),
+                                        Color(0xFFC8FF00).copy(alpha = 0.25f)
+                                    )
+                                )
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = navbarElevation)
                         ) {
@@ -364,12 +369,12 @@ fun StaffContainerScreen(
                                                     scaleY = activePillScale
                                                 }
                                                 .background(
-                                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                                                    color = Color(0xFFC8FF00).copy(alpha = 0.18f),
                                                     shape = RoundedCornerShape(100.dp)
                                                 )
                                                 .border(
                                                     width = 1.dp,
-                                                    color = Color.White.copy(alpha = 0.35f),
+                                                    color = Color(0xFFD4AF37).copy(alpha = 0.45f),
                                                     shape = RoundedCornerShape(100.dp)
                                                 )
                                         )
