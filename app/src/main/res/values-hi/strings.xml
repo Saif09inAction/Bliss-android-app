@@ -81,4 +81,36 @@
     <string name="kaariger_logout_message">क्या आप लॉग आउट करना चाहते हैं?</string>
     <string name="kaariger_logout_confirm">लॉग आउट</string>
     <string name="kaariger_em_dash">—</string>
+
+    <string name="receipt_brand">BLISS BOMBAY</string>
+    <string name="receipt_title">ऑर्डर रसीद</string>
+    <string name="receipt_order_ref">रेफ: %1$s</string>
+    <string name="receipt_section_order">ऑर्डर विवरण</string>
+    <string name="receipt_section_payment">भुगतान सारांश</string>
+    <string name="receipt_section_materials">कच्चे माल का उपयोग</string>
+    <string name="receipt_kaariger">कारीगर</string>
+    <string name="receipt_product">प्रोडक्ट</string>
+    <string name="receipt_color">रंग</string>
+    <string name="receipt_quantity">पूरी मात्रा</string>
+    <string name="receipt_qty_detail">%1$d / %2$d पीस</string>
+    <string name="receipt_order_date">ऑर्डर तारीख</string>
+    <string name="receipt_verified_on">जांच की तारीख</string>
+    <string name="receipt_verified_by">जांच की</string>
+    <string name="receipt_total_deal">कुल डील</string>
+    <string name="receipt_deal_per_piece">₹%1$d (₹%2$d/पीस)</string>
+    <string name="receipt_deal_total">₹%1$d</string>
+    <string name="receipt_advance_paid">एडवांस दिया</string>
+    <string name="receipt_balance_due">बाकी राशि</string>
+    <string name="receipt_payment_history">भुगतान इतिहास</string>
+    <string name="receipt_no_payments">कोई एडवांस भुगतान नहीं</string>
+    <string name="receipt_material_line">दिया: %1$d %2$s · उपयोग: %3$s · बचा: %4$s</string>
+    <string name="receipt_generated_on">बनाई गई: %1$s</string>
+    <string name="receipt_dialog_title">ऑर्डर रसीद</string>
+    <string name="receipt_download">डाउनलोड</string>
+    <string name="receipt_share">शेयर</string>
+    <string name="receipt_close">बंद</string>
+    <string name="receipt_saved">रसीद गैलरी में सेव हो गई → BlissBombay/Receipts</string>
+    <string name="receipt_save_failed">रसीद सेव नहीं हो सकी। फिर कोशिश करें।</string>
+    <string name="receipt_view">रसीद देखें</string>
+    <string name="receipt_available_hint">रसीद उपलब्ध — ऑर्डर खोलकर देखें</string>
 </resources>

@@ -30,7 +30,8 @@ fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
     onDismiss: () -> Unit,
     onSubmitDelivery: (() -> Unit)? = null,
-    onReportMaterials: (() -> Unit)? = null
+    onReportMaterials: (() -> Unit)? = null,
+    onViewReceipt: (() -> Unit)? = null
 ) {
     val remaining = order.remainingQuantity()
     val awaiting = if (order.status == OrderStatus.PENDING_APPROVAL) order.deliveredQuantity ?: 0 else 0
@@ -102,6 +103,11 @@ fun KaarigerOrderDetailSheet(
             if (order.status == OrderStatus.COMPLETED && !order.materialUsageReported && onReportMaterials != null) {
                 OutlinedButton(onClick = onReportMaterials, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.kaariger_report_materials))
+                }
+            }
+            if (order.status == OrderStatus.COMPLETED && order.materialUsageReported && onViewReceipt != null) {
+                Button(onClick = onViewReceipt, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.receipt_view))
                 }
             }
         }

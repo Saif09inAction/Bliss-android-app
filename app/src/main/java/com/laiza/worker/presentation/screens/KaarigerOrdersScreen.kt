@@ -24,9 +24,12 @@ import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.OrderMaterial
 import com.laiza.worker.domain.models.OrderStatus
+import com.laiza.worker.domain.models.OrderReceiptData
+import com.laiza.worker.domain.models.buildOrderReceiptData
 import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.KaarigerOrderDetailSheet
 import com.laiza.worker.presentation.components.OrderProgressChips
+import com.laiza.worker.presentation.components.OrderReceiptDialog
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.formatOrderDate
@@ -41,10 +44,12 @@ fun KaarigerOrdersScreen(
 ) {
     val session by authViewModel.userSession.collectAsState()
     val orders by orderViewModel.kaarigerOrders.collectAsState()
+    val payments by orderViewModel.kaarigerPayments.collectAsState()
     var search by remember { mutableStateOf("") }
     var detailOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
     var deliveryOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
     var materialOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
+    var receiptData by remember { mutableStateOf<OrderReceiptData?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(session?.phone) {
@@ -115,7 +120,13 @@ fun KaarigerOrdersScreen(
             onReportMaterials = {
                 detailOrder = null
                 materialOrder = order
-            }
+            },
+            onViewReceipt = if (order.status == OrderStatus.COMPLETED && order.materialUsageReported) {
+                {
+                    detailOrder = null
+                    receiptData = buildOrderReceiptData(order, payments)
+                }
+            } else null
         )
     }
 
@@ -141,11 +152,23 @@ fun KaarigerOrdersScreen(
             onDismiss = { materialOrder = null },
             onSubmit = { materials ->
                 orderViewModel.submitMaterialUsage(order.id, materials,
-                    onSuccess = { materialOrder = null },
+                    onSuccess = {
+                        materialOrder = null
+                        errorMsg = null
+                        val updatedOrder = order.copy(
+                            rawMaterials = materials,
+                            materialUsageReported = true
+                        )
+                        receiptData = buildOrderReceiptData(updatedOrder, payments)
+                    },
                     onError = { msg -> errorMsg = msg }
                 )
             }
         )
+    }
+
+    receiptData?.let { data ->
+        OrderReceiptDialog(data = data, onDismiss = { receiptData = null })
     }
 }
 
@@ -196,6 +219,14 @@ fun KaarigerOrderCard(
             if (!compact && (order.status == OrderStatus.ASSIGNED || order.status == OrderStatus.REJECTED) && remaining > 0) {
                 Spacer(modifier = Modifier.height(12.dp))
                 PrimaryButton(text = stringResource(R.string.kaariger_submit_delivery, remaining), onClick = onSubmitDelivery)
+            }
+            if (!compact && order.status == OrderStatus.COMPLETED && order.materialUsageReported) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    stringResource(R.string.receipt_available_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
             if (!compact && order.status == OrderStatus.COMPLETED && !order.materialUsageReported) {
                 Spacer(modifier = Modifier.height(12.dp))

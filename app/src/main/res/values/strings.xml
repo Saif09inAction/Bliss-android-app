@@ -119,4 +119,37 @@
     <string name="kaariger_logout_message">Are you sure you want to log out?</string>
     <string name="kaariger_logout_confirm">Logout</string>
     <string name="kaariger_em_dash">—</string>
+
+    <!-- Order receipt -->
+    <string name="receipt_brand">BLISS BOMBAY</string>
+    <string name="receipt_title">Order Receipt</string>
+    <string name="receipt_order_ref">Ref: %1$s</string>
+    <string name="receipt_section_order">Order Details</string>
+    <string name="receipt_section_payment">Payment Summary</string>
+    <string name="receipt_section_materials">Raw Material Usage</string>
+    <string name="receipt_kaariger">Kaariger</string>
+    <string name="receipt_product">Product</string>
+    <string name="receipt_color">Color</string>
+    <string name="receipt_quantity">Quantity Completed</string>
+    <string name="receipt_qty_detail">%1$d / %2$d pcs</string>
+    <string name="receipt_order_date">Order Date</string>
+    <string name="receipt_verified_on">Verified On</string>
+    <string name="receipt_verified_by">Verified By</string>
+    <string name="receipt_total_deal">Total Deal</string>
+    <string name="receipt_deal_per_piece">₹%1$d (₹%2$d/pc)</string>
+    <string name="receipt_deal_total">₹%1$d</string>
+    <string name="receipt_advance_paid">Advance Paid</string>
+    <string name="receipt_balance_due">Balance Due</string>
+    <string name="receipt_payment_history">Payment History</string>
+    <string name="receipt_no_payments">No advance payments recorded</string>
+    <string name="receipt_material_line">Assigned: %1$d %2$s · Used: %3$s · Remaining: %4$s</string>
+    <string name="receipt_generated_on">Generated on %1$s</string>
+    <string name="receipt_dialog_title">Order Receipt</string>
+    <string name="receipt_download">Download</string>
+    <string name="receipt_share">Share</string>
+    <string name="receipt_close">Close</string>
+    <string name="receipt_saved">Receipt saved to Gallery → BlissBombay/Receipts</string>
+    <string name="receipt_save_failed">Could not save receipt. Please try again.</string>
+    <string name="receipt_view">View Receipt</string>
+    <string name="receipt_available_hint">Receipt available — open order to view</string>
 </resources>
