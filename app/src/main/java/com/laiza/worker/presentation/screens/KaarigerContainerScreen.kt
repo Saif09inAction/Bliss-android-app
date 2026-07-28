@@ -147,6 +147,7 @@ private fun KaarigerContainerContent(
     ) {
         Scaffold(
             topBar = {
+                val onHome = currentRoute == KaarigerNav.Home.route
                 LaizaTopAppBar(
                     title = when (currentRoute) {
                         KaarigerNav.Home.route -> stringResource(R.string.kaariger_title_dashboard)
@@ -155,7 +156,15 @@ private fun KaarigerContainerContent(
                         else -> stringResource(R.string.kaariger_title_app)
                     },
                     subtitle = session?.name,
+                    showBackButton = !onHome,
                     showMenuButton = true,
+                    onBackClick = {
+                        childNavController.navigate(KaarigerNav.Home.route) {
+                            popUpTo(KaarigerNav.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     onMenuClick = { scope.launch { drawerState.open() } }
                 )
             },

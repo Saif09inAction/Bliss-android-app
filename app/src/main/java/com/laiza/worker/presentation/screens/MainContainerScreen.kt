@@ -234,6 +234,7 @@ fun StaffContainerScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
+                    val onHome = currentRoute == BottomNavItem.Home.route
                     LaizaTopAppBar(
                         title = when (currentRoute) {
                             BottomNavItem.Home.route -> "Staff Dashboard"
@@ -253,7 +254,19 @@ fun StaffContainerScreen(
                             "employee_profile" -> "Manage Bank & Account Settings"
                             else -> null
                         },
+                        showBackButton = !onHome && currentRoute != "employee_profile",
                         showMenuButton = true,
+                        onBackClick = {
+                            if (currentRoute == "employee_profile") {
+                                childNavController.popBackStack()
+                            } else {
+                                childNavController.navigate(BottomNavItem.Home.route) {
+                                    popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
                         onMenuClick = {
                             scope.launch { drawerState.open() }
                         }
