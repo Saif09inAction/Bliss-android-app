@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
@@ -36,50 +37,45 @@ fun BlissBBMonogram(
     size: Dp = 96.dp
 ) {
     Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.size(size * 0.85f)) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
             val w = this.size.width
             val h = this.size.height
-            val stroke = w * 0.11f
+            val stroke = minOf(w, h) * 0.088f
+            val inset = stroke * 0.9f
+            val top = inset
+            val bottom = h - inset
+            val mid = h / 2f
             val gold = Brush.linearGradient(
                 colors = listOf(Color(0xFFF5E6A8), Color(0xFFD4AF37), Color(0xFFB8860B))
             )
 
-            fun bPath(offsetX: Float, mirror: Boolean = false): Path {
+            fun bPath(offsetX: Float): Path {
                 val p = Path()
-                val top = h * 0.08f
-                val bottom = h * 0.92f
-                val mid = h * 0.5f
                 val left = offsetX
-                val right = offsetX + w * 0.38f
+                val right = offsetX + w * 0.36f
                 p.moveTo(left, top)
                 p.lineTo(left, bottom)
                 p.moveTo(left, top)
-                p.cubicTo(right, top, right, mid - h * 0.06f, left + w * 0.02f, mid)
-                p.cubicTo(right + w * 0.04f, mid, right, bottom, left, bottom)
-                if (mirror) {
-                    val mirrored = Path()
-                    mirrored.addPath(p, Offset(w - offsetX * 2 - w * 0.38f, 0f))
-                    return mirrored
-                }
+                p.cubicTo(right, top, right, mid - h * 0.05f, left + w * 0.015f, mid)
+                p.cubicTo(right + w * 0.035f, mid, right, bottom, left, bottom)
                 return p
             }
 
             drawPath(
-                path = bPath(w * 0.08f),
+                path = bPath(w * 0.11f),
                 brush = gold,
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
             drawPath(
-                path = bPath(w * 0.48f),
+                path = bPath(w * 0.51f),
                 brush = gold,
                 style = Stroke(width = stroke, cap = StrokeCap.Round)
             )
-            // Interlock accent bar
             drawRoundRect(
                 brush = gold,
-                topLeft = Offset(w * 0.36f, h * 0.42f),
-                size = Size(w * 0.28f, stroke * 0.9f),
-                cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke)
+                topLeft = Offset(w * 0.37f, h * 0.43f),
+                size = Size(w * 0.26f, stroke * 0.85f),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(stroke * 0.85f)
             )
         }
     }
@@ -93,7 +89,7 @@ fun BlissLogoImage(
 ) {
     BlissBBMonogram(
         modifier = modifier,
-        size = if (small) size * 0.85f else size
+        size = size
     )
 }
 
