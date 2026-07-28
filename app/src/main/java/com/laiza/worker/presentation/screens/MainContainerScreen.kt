@@ -99,16 +99,20 @@ import com.laiza.worker.presentation.components.DrawerItem
 import com.laiza.worker.presentation.components.LaizaTopAppBar
 import com.laiza.worker.presentation.components.SessionGuard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
+import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StaffContainerScreen(
     rootNavController: NavController,
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    orderViewModel: OrderViewModel = hiltViewModel()
 ) {
     val childNavController = rememberNavController()
     val session by authViewModel.userSession.collectAsState()
+    val pendingApprovals by orderViewModel.pendingApprovals.collectAsState()
+    val pendingCount = pendingApprovals.size
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -175,6 +179,7 @@ fun StaffContainerScreen(
                         title = "Verify Orders",
                         icon = Icons.Default.Task,
                         selected = currentRoute == BottomNavItem.Approvals.route,
+                        badgeCount = pendingCount,
                         onClick = {
                             scope.launch { drawerState.close() }
                             childNavController.navigate(BottomNavItem.Approvals.route) {
@@ -235,6 +240,7 @@ fun StaffContainerScreen(
                             BottomNavItem.Inventory.route -> "Store Inventory"
                             BottomNavItem.Dispatch.route -> "Pickup & Return"
                             BottomNavItem.Attendance.route -> "Attendance"
+                            BottomNavItem.Approvals.route -> "Verify Orders"
                             "employee_profile" -> "My Profile"
                             else -> "Laiza Bags"
                         },
@@ -243,6 +249,7 @@ fun StaffContainerScreen(
                             BottomNavItem.Inventory.route -> "Approved products at store"
                             BottomNavItem.Dispatch.route -> "E-commerce partner handoffs"
                             BottomNavItem.Attendance.route -> "Today's Shift"
+                            BottomNavItem.Approvals.route -> if (pendingCount > 0) "$pendingCount pending verification(s)" else "Kaariger delivery approvals"
                             "employee_profile" -> "Manage Bank & Account Settings"
                             else -> null
                         },
@@ -484,7 +491,17 @@ fun StaffContainerScreen(
                         }
                     ) {
                         composable(route = BottomNavItem.Home.route) {
-                            DashboardScreen(navController = rootNavController)
+                            DashboardScreen(
+                                navController = rootNavController,
+                                pendingApprovalCount = pendingCount,
+                                onNavigateToApprovals = {
+                                    childNavController.navigate(BottomNavItem.Approvals.route) {
+                                        popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = false
+                                    }
+                                }
+                            )
                         }
                         composable(route = BottomNavItem.Inventory.route) {
                             StoreInventoryScreen(readOnly = true)
@@ -493,7 +510,7 @@ fun StaffContainerScreen(
                             StaffDispatchScreen()
                         }
                         composable(route = BottomNavItem.Approvals.route) {
-                            StaffPendingApprovalsScreen()
+                            StaffPendingApprovalsScreen(viewModel = orderViewModel)
                         }
                         composable(route = BottomNavItem.Attendance.route) {
                             AttendanceHomeScreen(navController = rootNavController)

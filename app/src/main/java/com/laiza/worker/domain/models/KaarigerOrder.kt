@@ -14,6 +14,7 @@ data class KaarigerOrder(
     val pricePerPiece: Double? = null,
     val pricingType: OrderPricingType = OrderPricingType.OVERALL,
     val status: OrderStatus = OrderStatus.ASSIGNED,
+    val approvedQuantity: Int = 0,
     val deliveredQuantity: Int? = null,
     val deliveryColor: String? = null,
     val deliveryNotes: String? = null,
@@ -21,16 +22,21 @@ data class KaarigerOrder(
     val verifiedBy: String? = null,
     val verifiedAt: Long? = null,
     val rejectionReason: String? = null,
+    val materialUsageReported: Boolean = false,
     val createdBy: String,
     val createdAt: Long = System.currentTimeMillis(),
     val notes: String? = null
-)
+) {
+    fun remainingQuantity(): Int = (targetQuantity - approvedQuantity).coerceAtLeast(0)
+}
 
 data class OrderMaterial(
     val materialId: String,
     val materialName: String,
     val quantity: Double,
-    val unit: String
+    val unit: String,
+    val usedQuantity: Double? = null,
+    val remainingQuantity: Double? = null
 )
 
 data class KaarigerOrderPayment(
@@ -51,13 +57,13 @@ enum class OrderPricingType {
 enum class OrderStatus {
     ASSIGNED,
     PENDING_APPROVAL,
-    APPROVED,
+    COMPLETED,
     REJECTED;
 
     fun displayName(): String = when (this) {
-        ASSIGNED -> "Assigned"
+        ASSIGNED -> "In Progress"
         PENDING_APPROVAL -> "Pending Approval"
-        APPROVED -> "Approved"
+        COMPLETED -> "Completed"
         REJECTED -> "Rejected"
     }
 }

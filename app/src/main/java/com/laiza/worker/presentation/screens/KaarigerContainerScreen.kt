@@ -10,7 +10,9 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Task
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,9 @@ import com.laiza.worker.presentation.components.DrawerItem
 import com.laiza.worker.presentation.components.LaizaTopAppBar
 import com.laiza.worker.presentation.components.SessionGuard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
+import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.domain.models.OrderStatus
+import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
 
@@ -140,13 +145,23 @@ fun KaarigerContainerScreen(
                 modifier = Modifier.padding(top = padding.calculateTopPadding())
             ) {
                 composable(KaarigerNav.Home.route) {
-                    KaarigerDashboardContent(session?.name ?: "Kaariger", orders.size)
+                    KaarigerDashboardContent(
+                        name = session?.name ?: "Kaariger",
+                        orders = orders,
+                        onViewAllOrders = {
+                            childNavController.navigate(KaarigerNav.Orders.route) {
+                                popUpTo(KaarigerNav.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
                 }
                 composable(KaarigerNav.Orders.route) {
-                    KaarigerOrdersScreen()
+                    KaarigerOrdersScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
                 }
                 composable(KaarigerNav.Payments.route) {
-                    KaarigerPaymentsScreen()
+                    KaarigerPaymentsScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
                 }
             }
         }
@@ -165,29 +180,63 @@ fun KaarigerContainerScreen(
 }
 
 @Composable
-private fun KaarigerDashboardContent(name: String, activeOrders: Int) {
+private fun KaarigerDashboardContent(
+    name: String,
+    orders: List<KaarigerOrder>,
+    onViewAllOrders: () -> Unit
+) {
+    val activeOrders = orders.count { it.status != OrderStatus.COMPLETED }
+    val pendingBatches = orders.count { it.status == OrderStatus.PENDING_APPROVAL }
+    val totalRemaining = orders.sumOf { it.remainingQuantity() }
+    val recentOrders = orders.take(3)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text("Welcome, $name", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("You have $activeOrders active order(s)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("$activeOrders active order(s) · $totalRemaining pcs remaining", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (pendingBatches > 0) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("$pendingBatches batch(es) awaiting staff approval", color = Color(0xFFB45309), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
+
+        if (recentOrders.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Recent Orders", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = onViewAllOrders) { Text("View all") }
+            }
+            recentOrders.forEach { order ->
+                KaarigerOrderCard(
+                    order = order,
+                    onClick = onViewAllOrders,
+                    onSubmitDelivery = onViewAllOrders,
+                    onReportMaterials = onViewAllOrders,
+                    compact = true
+                )
+            }
+        }
+
         Card(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text("How it works", fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
                 Text("1. Admin assigns you an order with raw materials")
-                Text("2. You manufacture and submit delivery details")
-                Text("3. Store staff verifies and adds to inventory")
-                Text("4. Track your payments and remaining balance here")
+                Text("2. Submit partial deliveries from My Orders")
+                Text("3. Staff verifies before stock is added")
+                Text("4. Report material usage when order completes")
             }
         }
     }

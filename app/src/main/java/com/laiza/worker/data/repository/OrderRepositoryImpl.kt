@@ -1,5 +1,6 @@
 package com.laiza.worker.data.repository
 
+import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.laiza.worker.core.local.dao.InventoryDao
@@ -32,16 +33,31 @@ class OrderRepositoryImpl @Inject constructor(
         firestore.collection("kaariger_orders").orderBy("createdAt", Query.Direction.DESCENDING)
     )
 
-    override fun getOrdersForKaariger(kaarigerId: String): Flow<List<KaarigerOrder>> = ordersFlow(
-        firestore.collection("kaariger_orders")
-            .whereEqualTo("kaarigerId", kaarigerId)
-            .orderBy("createdAt", Query.Direction.DESCENDING)
-    )
+    override fun getOrdersForKaariger(kaarigerId: String): Flow<List<KaarigerOrder>> {
+        val normalizedId = normalizePhone(kaarigerId)
+        return callbackFlow {
+            val listener = firestore.collection("kaariger_orders")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Kaariger orders query failed for $kaarigerId", error)
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val orders = snapshot?.documents?.mapNotNull { doc ->
+                        docToOrder(doc.data ?: emptyMap(), doc.id)
+                    }?.filter { normalizePhone(it.kaarigerId) == normalizedId }
+                        ?.sortedByDescending { it.createdAt }
+                        ?: emptyList()
+                    trySend(orders)
+                }
+            awaitClose { listener.remove() }
+        }
+    }
 
     override fun getPendingApprovalOrders(): Flow<List<KaarigerOrder>> = ordersFlow(
         firestore.collection("kaariger_orders")
-            .whereEqualTo("status", OrderStatus.PENDING_APPROVAL.name)
-            .orderBy("deliverySubmittedAt", Query.Direction.DESCENDING)
+            .whereEqualTo("status", OrderStatus.PENDING_APPROVAL.name),
+        sortBy = { it.deliverySubmittedAt ?: 0L }
     )
 
     override fun createOrder(order: KaarigerOrder): Flow<Resource<Unit>> = flow {
@@ -63,13 +79,37 @@ class OrderRepositoryImpl @Inject constructor(
     ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
+            val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
+            if (!doc.exists()) {
+                emit(Resource.Error("Order not found"))
+                return@flow
+            }
+            val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+            if (order.status == OrderStatus.PENDING_APPROVAL) {
+                emit(Resource.Error("Previous delivery is awaiting staff approval"))
+                return@flow
+            }
+            if (order.status == OrderStatus.COMPLETED) {
+                emit(Resource.Error("Order is already completed"))
+                return@flow
+            }
+            val remaining = order.remainingQuantity()
+            if (quantity <= 0) {
+                emit(Resource.Error("Enter a valid quantity"))
+                return@flow
+            }
+            if (quantity > remaining) {
+                emit(Resource.Error("Cannot send more than $remaining remaining pcs"))
+                return@flow
+            }
             val updates = mapOf(
                 "deliveredQuantity" to quantity,
                 "deliveryColor" to color,
                 "productName" to productName,
                 "deliveryNotes" to (notes ?: ""),
                 "deliverySubmittedAt" to System.currentTimeMillis(),
-                "status" to OrderStatus.PENDING_APPROVAL.name
+                "status" to OrderStatus.PENDING_APPROVAL.name,
+                "rejectionReason" to ""
             )
             firestore.collection("kaariger_orders").document(orderId).update(updates).await()
             emit(Resource.Success(Unit))
@@ -87,11 +127,20 @@ class OrderRepositoryImpl @Inject constructor(
                 return@flow
             }
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
-            val qty = order.deliveredQuantity ?: order.targetQuantity
+            if (order.status != OrderStatus.PENDING_APPROVAL) {
+                emit(Resource.Error("No delivery pending approval"))
+                return@flow
+            }
+            val batchQty = order.deliveredQuantity ?: 0
+            if (batchQty <= 0) {
+                emit(Resource.Error("Invalid delivery quantity"))
+                return@flow
+            }
+            val newApproved = order.approvedQuantity + batchQty
             val product = FinishedProduct(
                 id = UUID.randomUUID().toString(),
                 name = order.productName,
-                quantity = qty,
+                quantity = batchQty,
                 lastUpdatedBy = verifiedBy,
                 lastUpdatedTime = System.currentTimeMillis(),
                 unitPrice = order.pricePerPiece ?: (order.totalDealAmount / order.targetQuantity.coerceAtLeast(1)),
@@ -112,11 +161,16 @@ class OrderRepositoryImpl @Inject constructor(
                     "imagePath" to ""
                 )
             ).await()
+            val isComplete = newApproved >= order.targetQuantity
             firestore.collection("kaariger_orders").document(orderId).update(
                 mapOf(
-                    "status" to OrderStatus.APPROVED.name,
+                    "approvedQuantity" to newApproved,
+                    "status" to if (isComplete) OrderStatus.COMPLETED.name else OrderStatus.ASSIGNED.name,
                     "verifiedBy" to verifiedBy,
-                    "verifiedAt" to System.currentTimeMillis()
+                    "verifiedAt" to System.currentTimeMillis(),
+                    "deliveredQuantity" to null,
+                    "deliverySubmittedAt" to null,
+                    "rejectionReason" to ""
                 )
             ).await()
             emit(Resource.Success(Unit))
@@ -130,10 +184,12 @@ class OrderRepositoryImpl @Inject constructor(
         try {
             firestore.collection("kaariger_orders").document(orderId).update(
                 mapOf(
-                    "status" to OrderStatus.REJECTED.name,
+                    "status" to OrderStatus.ASSIGNED.name,
                     "verifiedBy" to verifiedBy,
                     "verifiedAt" to System.currentTimeMillis(),
-                    "rejectionReason" to reason
+                    "rejectionReason" to reason,
+                    "deliveredQuantity" to null,
+                    "deliverySubmittedAt" to null
                 )
             ).await()
             emit(Resource.Success(Unit))
@@ -142,15 +198,75 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun submitMaterialUsage(orderId: String, materials: List<OrderMaterial>): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
+            if (!doc.exists()) {
+                emit(Resource.Error("Order not found"))
+                return@flow
+            }
+            val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+            if (order.approvedQuantity < order.targetQuantity) {
+                emit(Resource.Error("Complete all deliveries before reporting materials"))
+                return@flow
+            }
+            val updatedMaterials = materials.map {
+                mapOf(
+                    "materialId" to it.materialId,
+                    "materialName" to it.materialName,
+                    "quantity" to it.quantity,
+                    "unit" to it.unit,
+                    "usedQuantity" to (it.usedQuantity ?: 0.0),
+                    "remainingQuantity" to (it.remainingQuantity ?: 0.0)
+                )
+            }
+            firestore.collection("kaariger_orders").document(orderId).update(
+                mapOf(
+                    "rawMaterials" to updatedMaterials,
+                    "materialUsageReported" to true
+                )
+            ).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to save material usage"))
+        }
+    }
+
     override fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>> = paymentsFlow(
         firestore.collection("kaariger_payments").whereEqualTo("orderId", orderId)
     )
 
-    override fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>> = paymentsFlow(
-        firestore.collection("kaariger_payments")
-            .whereEqualTo("kaarigerId", kaarigerId)
-            .orderBy("date", Query.Direction.DESCENDING)
-    )
+    override fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>> {
+        val normalizedId = normalizePhone(kaarigerId)
+        return callbackFlow {
+            val listener = firestore.collection("kaariger_payments")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Kaariger payments query failed for $kaarigerId", error)
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val payments = snapshot?.documents?.mapNotNull { doc ->
+                        val data = doc.data ?: return@mapNotNull null
+                        KaarigerOrderPayment(
+                            id = data["id"] as? String ?: doc.id,
+                            orderId = data["orderId"] as? String ?: "",
+                            kaarigerId = data["kaarigerId"] as? String ?: "",
+                            amount = (data["amount"] as? Number)?.toDouble() ?: 0.0,
+                            date = data["date"] as? String ?: "",
+                            time = data["time"] as? String ?: "",
+                            remarks = data["remarks"] as? String,
+                            createdBy = data["createdBy"] as? String ?: ""
+                        )
+                    }?.filter { normalizePhone(it.kaarigerId) == normalizedId }
+                        ?.sortedByDescending { it.date }
+                        ?: emptyList()
+                    trySend(payments)
+                }
+            awaitClose { listener.remove() }
+        }
+    }
 
     override fun addPayment(payment: KaarigerOrderPayment): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
@@ -173,19 +289,26 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
-    private fun ordersFlow(query: Query): Flow<List<KaarigerOrder>> = callbackFlow {
+    private fun ordersFlow(
+        query: Query,
+        sortBy: (KaarigerOrder) -> Long = { it.createdAt }
+    ): Flow<List<KaarigerOrder>> = callbackFlow {
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
+                Log.e(TAG, "Orders query failed", error)
                 trySend(emptyList())
                 return@addSnapshotListener
             }
             val orders = snapshot?.documents?.mapNotNull { doc ->
                 docToOrder(doc.data ?: emptyMap(), doc.id)
-            } ?: emptyList()
+            }?.sortedByDescending(sortBy) ?: emptyList()
             trySend(orders)
         }
         awaitClose { listener.remove() }
     }
+
+    private fun normalizePhone(phone: String): String =
+        phone.trim().replace(Regex("[\\s-]"), "")
 
     private fun paymentsFlow(query: Query): Flow<List<KaarigerOrderPayment>> = callbackFlow {
         val listener = query.addSnapshotListener { snapshot, error ->
@@ -219,17 +342,20 @@ class OrderRepositoryImpl @Inject constructor(
         "targetQuantity" to order.targetQuantity,
         "color" to order.color,
         "rawMaterials" to order.rawMaterials.map {
-            mapOf(
-                "materialId" to it.materialId,
-                "materialName" to it.materialName,
-                "quantity" to it.quantity,
-                "unit" to it.unit
-            )
+                mapOf(
+                    "materialId" to it.materialId,
+                    "materialName" to it.materialName,
+                    "quantity" to it.quantity,
+                    "unit" to it.unit,
+                    "usedQuantity" to it.usedQuantity,
+                    "remainingQuantity" to it.remainingQuantity
+                )
         },
         "totalDealAmount" to order.totalDealAmount,
         "pricePerPiece" to order.pricePerPiece,
         "pricingType" to order.pricingType.name,
         "status" to order.status.name,
+        "approvedQuantity" to order.approvedQuantity,
         "deliveredQuantity" to order.deliveredQuantity,
         "deliveryColor" to order.deliveryColor,
         "deliveryNotes" to order.deliveryNotes,
@@ -237,6 +363,7 @@ class OrderRepositoryImpl @Inject constructor(
         "verifiedBy" to order.verifiedBy,
         "verifiedAt" to order.verifiedAt,
         "rejectionReason" to order.rejectionReason,
+        "materialUsageReported" to order.materialUsageReported,
         "createdBy" to order.createdBy,
         "createdAt" to order.createdAt,
         "notes" to order.notes
@@ -249,9 +376,20 @@ class OrderRepositoryImpl @Inject constructor(
                 materialId = it["materialId"] as? String ?: "",
                 materialName = it["materialName"] as? String ?: "",
                 quantity = (it["quantity"] as? Number)?.toDouble() ?: 0.0,
-                unit = it["unit"] as? String ?: ""
+                unit = it["unit"] as? String ?: "",
+                usedQuantity = (it["usedQuantity"] as? Number)?.toDouble(),
+                remainingQuantity = (it["remainingQuantity"] as? Number)?.toDouble()
             )
         } ?: emptyList()
+        val statusRaw = data["status"] as? String ?: OrderStatus.ASSIGNED.name
+        val status = try {
+            when (statusRaw) {
+                "APPROVED" -> OrderStatus.COMPLETED
+                else -> OrderStatus.valueOf(statusRaw)
+            }
+        } catch (_: Exception) {
+            OrderStatus.ASSIGNED
+        }
         return KaarigerOrder(
             id = data["id"] as? String ?: id,
             kaarigerId = data["kaarigerId"] as? String ?: "",
@@ -267,11 +405,8 @@ class OrderRepositoryImpl @Inject constructor(
             } catch (_: Exception) {
                 OrderPricingType.OVERALL
             },
-            status = try {
-                OrderStatus.valueOf(data["status"] as? String ?: OrderStatus.ASSIGNED.name)
-            } catch (_: Exception) {
-                OrderStatus.ASSIGNED
-            },
+            status = status,
+            approvedQuantity = (data["approvedQuantity"] as? Number)?.toInt() ?: 0,
             deliveredQuantity = (data["deliveredQuantity"] as? Number)?.toInt(),
             deliveryColor = data["deliveryColor"] as? String,
             deliveryNotes = data["deliveryNotes"] as? String,
@@ -279,9 +414,14 @@ class OrderRepositoryImpl @Inject constructor(
             verifiedBy = data["verifiedBy"] as? String,
             verifiedAt = (data["verifiedAt"] as? Number)?.toLong(),
             rejectionReason = data["rejectionReason"] as? String,
+            materialUsageReported = data["materialUsageReported"] as? Boolean ?: false,
             createdBy = data["createdBy"] as? String ?: "",
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
             notes = data["notes"] as? String
         )
+    }
+
+    companion object {
+        private const val TAG = "OrderRepository"
     }
 }

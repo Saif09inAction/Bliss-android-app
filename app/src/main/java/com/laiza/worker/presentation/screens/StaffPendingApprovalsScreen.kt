@@ -1,6 +1,7 @@
 package com.laiza.worker.presentation.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -8,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,16 +20,34 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.presentation.components.KaarigerOrderDetailSheet
 import com.laiza.worker.presentation.components.PremiumCard
+import com.laiza.worker.presentation.components.formatOrderDate
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
+
+private enum class ApprovalTab { Pending, History }
 
 @Composable
 fun StaffPendingApprovalsScreen(
     viewModel: OrderViewModel = hiltViewModel()
 ) {
     val pending by viewModel.pendingApprovals.collectAsState()
+    val history by viewModel.approvalHistory.collectAsState()
+    var tab by remember { mutableStateOf(ApprovalTab.Pending) }
+    var search by remember { mutableStateOf("") }
     var rejectOrderId by remember { mutableStateOf<String?>(null) }
     var rejectReason by remember { mutableStateOf("") }
+    var detailOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
+
+    val filteredHistory = remember(history, search) {
+        val q = search.trim().lowercase()
+        if (q.isEmpty()) history
+        else history.filter {
+            it.productName.lowercase().contains(q) ||
+                it.kaarigerName.lowercase().contains(q) ||
+                it.color.lowercase().contains(q)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -34,29 +55,89 @@ fun StaffPendingApprovalsScreen(
             .background(Color(0xFFFAF9F6))
             .padding(16.dp)
     ) {
-        Text("Pending Verifications", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            "Review deliveries from Kaarigers before adding to inventory",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        TabRow(selectedTabIndex = tab.ordinal) {
+            Tab(
+                selected = tab == ApprovalTab.Pending,
+                onClick = { tab = ApprovalTab.Pending },
+                text = {
+                    BadgedBox(
+                        badge = {
+                            if (pending.isNotEmpty()) {
+                                Badge(containerColor = Color(0xFFDC2626)) {
+                                    Text(pending.size.toString())
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Pending")
+                    }
+                }
+            )
+            Tab(
+                selected = tab == ApprovalTab.History,
+                onClick = { tab = ApprovalTab.History },
+                text = { Text("Approval History") }
+            )
+        }
 
-        if (pending.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("No pending deliveries", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (tab == ApprovalTab.History) {
+            OutlinedTextField(
+                value = search,
+                onValueChange = { search = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Search product or kaariger...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
         } else {
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(pending) { order ->
-                    PendingOrderCard(
-                        order = order,
-                        onApprove = {
-                            viewModel.approveOrder(order.id, onSuccess = {}, onError = {})
-                        },
-                        onReject = { rejectOrderId = order.id }
-                    )
+            Text(
+                "Review deliveries before adding to inventory",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        when (tab) {
+            ApprovalTab.Pending -> {
+                if (pending.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("No pending deliveries", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(pending, key = { it.id }) { order ->
+                            PendingOrderCard(
+                                order = order,
+                                onApprove = { viewModel.approveOrder(order.id, onSuccess = {}, onError = {}) },
+                                onReject = { rejectOrderId = order.id }
+                            )
+                        }
+                    }
+                }
+            }
+            ApprovalTab.History -> {
+                if (filteredHistory.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.History, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                if (search.isBlank()) "No approvals yet" else "No matches found",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                } else {
+                    LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        items(filteredHistory, key = { it.id }) { order ->
+                            HistoryOrderCard(order = order, onClick = { detailOrder = order })
+                        }
+                    }
                 }
             }
         }
@@ -90,6 +171,10 @@ fun StaffPendingApprovalsScreen(
             }
         )
     }
+
+    detailOrder?.let { order ->
+        KaarigerOrderDetailSheet(order = order, onDismiss = { detailOrder = null })
+    }
 }
 
 @Composable
@@ -102,9 +187,14 @@ private fun PendingOrderCard(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             Text("From: ${order.kaarigerName}", style = MaterialTheme.typography.bodySmall)
+            Text(
+                "Progress: ${order.approvedQuantity} / ${order.targetQuantity} approved",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                DetailChip("Qty", "${order.deliveredQuantity ?: order.targetQuantity}")
+                DetailChip("This batch", "${order.deliveredQuantity ?: 0} pcs")
                 DetailChip("Color", order.deliveryColor ?: order.color)
             }
             order.deliveryNotes?.takeIf { it.isNotBlank() }?.let {
@@ -128,6 +218,22 @@ private fun PendingOrderCard(
                     Text("Reject")
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun HistoryOrderCard(order: KaarigerOrder, onClick: () -> Unit) {
+    PremiumCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+            Text("${order.kaarigerName} · ${order.approvedQuantity}/${order.targetQuantity} pcs approved", style = MaterialTheme.typography.bodySmall)
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "Verified by ${order.verifiedBy ?: "Staff"} · ${formatOrderDate(order.verifiedAt)}",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF10B981)
+            )
         }
     }
 }

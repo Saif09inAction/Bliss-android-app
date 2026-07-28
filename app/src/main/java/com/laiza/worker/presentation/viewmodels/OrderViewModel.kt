@@ -36,6 +36,17 @@ class OrderViewModel @Inject constructor(
     val pendingApprovals: StateFlow<List<KaarigerOrder>> = orderRepository.getPendingApprovalOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val pendingApprovalCount: StateFlow<Int> = pendingApprovals
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    val approvalHistory: StateFlow<List<KaarigerOrder>> = allOrders
+        .map { orders ->
+            orders.filter { it.approvedQuantity > 0 }
+                .sortedByDescending { it.verifiedAt ?: it.createdAt }
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val kaarigers: StateFlow<List<Employee>> = employeeRepository.getAllEmployees()
         .map { list -> list.filter { it.role == Role.KAARIGER } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -141,6 +152,23 @@ class OrderViewModel @Inject constructor(
         viewModelScope.launch {
             val verifiedBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
             orderRepository.rejectOrder(orderId, verifiedBy, reason).collect { res ->
+                when (res) {
+                    is Resource.Success -> onSuccess()
+                    is Resource.Error -> onError(res.message ?: "Failed")
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun submitMaterialUsage(
+        orderId: String,
+        materials: List<OrderMaterial>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            orderRepository.submitMaterialUsage(orderId, materials).collect { res ->
                 when (res) {
                     is Resource.Success -> onSuccess()
                     is Resource.Error -> onError(res.message ?: "Failed")
