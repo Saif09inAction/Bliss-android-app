@@ -48,6 +48,18 @@ class StoreOperationsViewModel @Inject constructor(
         _inventorySearch.value = query
     }
 
+    fun refreshInventory(onComplete: ((Boolean) -> Unit)? = null) {
+        viewModelScope.launch {
+            inventoryRepository.refreshFinishedProducts().collect { res ->
+                when (res) {
+                    is Resource.Success -> onComplete?.invoke(true)
+                    is Resource.Error -> onComplete?.invoke(false)
+                    else -> {}
+                }
+            }
+        }
+    }
+
     fun recordPickup(
         product: FinishedProduct,
         quantity: Int,

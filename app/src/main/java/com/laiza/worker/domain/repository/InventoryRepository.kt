@@ -19,4 +19,5 @@ interface InventoryRepository {
     ): Flow<Resource<Unit>>
     fun deleteFinishedProduct(id: String): Flow<Resource<Unit>>
     fun adjustFinishedProductQuantity(productId: String, delta: Int): Flow<Resource<Unit>>
+    fun refreshFinishedProducts(): Flow<Resource<Unit>>
 }

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -236,11 +237,18 @@ class InventoryRepositoryImpl @Inject constructor(
     override fun adjustFinishedProductQuantity(productId: String, delta: Int): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            val existing = inventoryDao.getFinishedProductById(productId)
-                ?: run {
-                    emit(Resource.Error("Product not found in inventory"))
-                    return@flow
+            var existing = inventoryDao.getFinishedProductById(productId)
+            if (existing == null) {
+                val synced = syncFinishedProductFromFirestore(productId)
+                if (synced != null) {
+                    inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(synced))
+                    existing = inventoryDao.getFinishedProductById(productId)
                 }
+            }
+            if (existing == null) {
+                emit(Resource.Error("Product not found in inventory. Open Inventory tab to refresh."))
+                return@flow
+            }
             val newQty = existing.quantity + delta
             if (newQty < 0) {
                 emit(Resource.Error("Insufficient stock. Available: ${existing.quantity}"))
@@ -254,6 +262,7 @@ class InventoryRepositoryImpl @Inject constructor(
                 try {
                     firestore.collection("finished_products").document(productId)
                         .update("quantity", newQty, "lastUpdatedTime", System.currentTimeMillis())
+                        .await()
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -262,6 +271,44 @@ class InventoryRepositoryImpl @Inject constructor(
             emit(Resource.Error(e.message ?: "Failed to update inventory"))
         }
     }
+
+    override fun refreshFinishedProducts(): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val list = fetchFinishedProductsFromFirestore()
+            for (item in list) {
+                inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(item))
+            }
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to refresh inventory"))
+        }
+    }
+
+    private suspend fun syncFinishedProductFromFirestore(productId: String): FinishedProduct? =
+        suspendCancellableCoroutine { continuation ->
+            firestore.collection("finished_products").document(productId).get()
+                .addOnSuccessListener { doc ->
+                    if (!doc.exists()) {
+                        continuation.resume(null)
+                        return@addOnSuccessListener
+                    }
+                    continuation.resume(
+                        FinishedProduct(
+                            id = doc.getString("id") ?: doc.id,
+                            name = doc.getString("name") ?: "",
+                            quantity = doc.getLong("quantity")?.toInt() ?: 0,
+                            lastUpdatedBy = doc.getString("lastUpdatedBy") ?: "",
+                            lastUpdatedTime = doc.getLong("lastUpdatedTime") ?: 0L,
+                            imagePath = doc.getString("imagePath"),
+                            unitPrice = doc.getDouble("unitPrice") ?: 0.0,
+                            color = doc.getString("color") ?: "",
+                            orderId = doc.getString("orderId")
+                        )
+                    )
+                }
+                .addOnFailureListener { err -> continuation.resumeWithException(err) }
+        }
 
     private suspend fun fetchRawMaterialsFromFirestore(): List<RawMaterial> = suspendCancellableCoroutine { continuation ->
         firestore.collection("raw_materials").get()
