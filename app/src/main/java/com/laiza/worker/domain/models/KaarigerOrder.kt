@@ -27,7 +27,12 @@ data class KaarigerOrder(
     val createdAt: Long = System.currentTimeMillis(),
     val notes: String? = null,
     val originalDealAmount: Double? = null,
-    val repairDeductionTotal: Double = 0.0
+    val repairDeductionTotal: Double = 0.0,
+    val products: List<OrderProductLine> = emptyList(),
+    val productsTotal: Double = 0.0,
+    val materialDeductions: List<OrderRepairLine> = emptyList(),
+    val materialDeductionsTotal: Double = 0.0,
+    val kharchaGiven: Double = 0.0
 ) {
     fun remainingQuantity(): Int = (targetQuantity - approvedQuantity).coerceAtLeast(0)
 
@@ -44,6 +49,14 @@ data class OrderMaterial(
     val unit: String,
     val usedQuantity: Double? = null,
     val remainingQuantity: Double? = null
+)
+
+/** One product line on a Kaarigar bill — price is always per piece. */
+data class OrderProductLine(
+    val productName: String,
+    val quantity: Int,
+    val pricePerPiece: Double,
+    val lineTotal: Double
 )
 
 data class KaarigerOrderPayment(

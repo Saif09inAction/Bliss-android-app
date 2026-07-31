@@ -95,6 +95,10 @@ fun KaarigerOrderDetailSheet(
                 }
             }
 
+            if (order.products.isNotEmpty()) {
+                OrderHisaabBreakdown(order)
+            }
+
             if ((order.status == OrderStatus.ASSIGNED || order.status == OrderStatus.REJECTED) && remaining > 0 && onSubmitDelivery != null) {
                 Button(onClick = onSubmitDelivery, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.kaariger_submit_delivery, remaining))
@@ -119,6 +123,77 @@ private fun DetailRow(label: String, value: String) {
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text(value, style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private fun rupees(amount: Double): String = "₹${amount.toInt()}"
+
+@Composable
+private fun OrderHisaabBreakdown(order: KaarigerOrder) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                stringResource(R.string.kaariger_detail_products),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall
+            )
+            order.products.forEach { p ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(
+                        "${p.productName} · ${p.quantity} × ${rupees(p.pricePerPiece)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(rupees(p.lineTotal), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                }
+            }
+            DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))
+
+            if (order.materialDeductions.isNotEmpty()) {
+                Divider(modifier = Modifier.padding(vertical = 2.dp))
+                Text(
+                    stringResource(R.string.kaariger_detail_deductions),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                order.materialDeductions.forEach { it2 ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "${it2.label} · ${it2.quantity} × ${rupees(it2.pricePerPiece)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("−${rupees(it2.lineTotal)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                    }
+                }
+                DetailRow(stringResource(R.string.kaariger_detail_deductions_total), "−${rupees(order.materialDeductionsTotal)}")
+            }
+
+            if (order.kharchaGiven > 0) {
+                Divider(modifier = Modifier.padding(vertical = 2.dp))
+                DetailRow(stringResource(R.string.kaariger_detail_kharcha_given), "−${rupees(order.kharchaGiven)}")
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 2.dp))
+            val finalBalance = (order.productsTotal - order.materialDeductionsTotal - order.kharchaGiven).coerceAtLeast(0.0)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    stringResource(R.string.kaariger_detail_final_balance),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    rupees(finalBalance),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }
 

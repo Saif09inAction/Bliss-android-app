@@ -554,7 +554,29 @@ class OrderRepositoryImpl @Inject constructor(
         "materialUsageReported" to order.materialUsageReported,
         "createdBy" to order.createdBy,
         "createdAt" to order.createdAt,
-        "notes" to order.notes
+        "notes" to order.notes,
+        "originalDealAmount" to order.originalDealAmount,
+        "repairDeductionTotal" to order.repairDeductionTotal,
+        "products" to order.products.map {
+            mapOf(
+                "productName" to it.productName,
+                "quantity" to it.quantity,
+                "pricePerPiece" to it.pricePerPiece,
+                "lineTotal" to it.lineTotal
+            )
+        },
+        "productsTotal" to order.productsTotal,
+        "materialDeductions" to order.materialDeductions.map {
+            mapOf(
+                "type" to it.type,
+                "label" to it.label,
+                "quantity" to it.quantity,
+                "pricePerPiece" to it.pricePerPiece,
+                "lineTotal" to it.lineTotal
+            )
+        },
+        "materialDeductionsTotal" to order.materialDeductionsTotal,
+        "kharchaGiven" to order.kharchaGiven
     )
 
     @Suppress("UNCHECKED_CAST")
@@ -607,7 +629,27 @@ class OrderRepositoryImpl @Inject constructor(
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
             notes = data["notes"] as? String,
             originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble(),
-            repairDeductionTotal = (data["repairDeductionTotal"] as? Number)?.toDouble() ?: 0.0
+            repairDeductionTotal = (data["repairDeductionTotal"] as? Number)?.toDouble() ?: 0.0,
+            products = (data["products"] as? List<Map<String, Any>>)?.map {
+                OrderProductLine(
+                    productName = it["productName"] as? String ?: "",
+                    quantity = (it["quantity"] as? Number)?.toInt() ?: 0,
+                    pricePerPiece = (it["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                    lineTotal = (it["lineTotal"] as? Number)?.toDouble() ?: 0.0
+                )
+            } ?: emptyList(),
+            productsTotal = (data["productsTotal"] as? Number)?.toDouble() ?: 0.0,
+            materialDeductions = (data["materialDeductions"] as? List<Map<String, Any>>)?.map {
+                OrderRepairLine(
+                    type = it["type"] as? String ?: "",
+                    label = it["label"] as? String ?: "",
+                    quantity = (it["quantity"] as? Number)?.toInt() ?: 0,
+                    pricePerPiece = (it["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                    lineTotal = (it["lineTotal"] as? Number)?.toDouble() ?: 0.0
+                )
+            } ?: emptyList(),
+            materialDeductionsTotal = (data["materialDeductionsTotal"] as? Number)?.toDouble() ?: 0.0,
+            kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0
         )
     }
 

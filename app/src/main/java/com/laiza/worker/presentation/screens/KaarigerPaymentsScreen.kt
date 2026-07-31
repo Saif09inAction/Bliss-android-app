@@ -152,6 +152,17 @@ private fun OrderPaymentCard(summary: OrderPaymentSummary, showHistory: Boolean)
                 highlight = isPending
             )
 
+            if (summary.order.products.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Text(
+                    "Hisaab breakup",
+                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.labelMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                HisaabBreakupCard(summary.order)
+            }
+
             if (summary.repairs.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
@@ -213,6 +224,28 @@ private fun RepairBreakupCard(repair: OrderRepair) {
             PaymentRow("Remaining after this", "₹${repair.dealAfterThisRepair.toInt()}", highlight = true)
             repair.notes?.takeIf { it.isNotBlank() }?.let {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun HisaabBreakupCard(order: KaarigerOrder) {
+    Surface(shape = RoundedCornerShape(12.dp), color = Color(0xFFF0FDF4)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            order.products.forEach { p ->
+                PaymentRow("${p.productName} × ${p.quantity} @ ₹${p.pricePerPiece.toInt()}", "₹${p.lineTotal.toInt()}")
+            }
+            PaymentRow("Products total", "₹${order.productsTotal.toInt()}", highlight = true)
+            if (order.materialDeductions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                order.materialDeductions.forEach { d ->
+                    PaymentRow("${d.label} × ${d.quantity} @ ₹${d.pricePerPiece.toInt()}", "−₹${d.lineTotal.toInt()}", danger = true)
+                }
+                PaymentRow("Deductions total", "−₹${order.materialDeductionsTotal.toInt()}", danger = true)
+            }
+            if (order.kharchaGiven > 0) {
+                PaymentRow("Kharcha given", "−₹${order.kharchaGiven.toInt()}", danger = true)
             }
         }
     }
