@@ -522,7 +522,7 @@ fun StaffContainerScreen(
                             )
                         }
                         composable(route = BottomNavItem.Inventory.route) {
-                            StoreInventoryScreen(readOnly = true)
+                            StoreInventoryScreen(canAdd = true, canDelete = false)
                         }
                         composable(route = BottomNavItem.Dispatch.route) {
                             StaffDispatchScreen()

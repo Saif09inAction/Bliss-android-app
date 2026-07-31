@@ -5,7 +5,9 @@ import com.laiza.worker.domain.models.Attendance
 import com.laiza.worker.domain.models.AttendanceStatus
 import com.laiza.worker.domain.models.AttendanceType
 import com.laiza.worker.domain.repository.AttendanceRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import java.text.SimpleDateFormat
@@ -14,7 +16,6 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 import javax.inject.Inject
 
 class MarkAttendanceUseCase @Inject constructor(
@@ -31,10 +32,13 @@ class MarkAttendanceUseCase @Inject constructor(
         try {
             val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+            // Stable doc id so sign-in/out update the same Firestore document
+            val recordId = "${employeeId}_$dateStr"
 
-            val settings = attendanceRepository.getSettings().first()
+            val settings = attendanceRepository.getFreshSettings()
             val todayHistory = attendanceRepository.getEmployeeAttendanceHistory(employeeId).first()
             val existingToday = todayHistory.firstOrNull { it.date == dateStr }
+                ?: todayHistory.firstOrNull { it.id == recordId }
 
             val currentLocalTime = safeParseTime(timeStr, LocalTime.of(9, 0))
             val expectedSignIn = safeParseTime(settings.dailySignInTime, LocalTime.of(9, 0))
@@ -50,20 +54,20 @@ class MarkAttendanceUseCase @Inject constructor(
                 val status = if (lateMins > 0) AttendanceStatus.LATE else AttendanceStatus.ON_TIME
 
                 Attendance(
-                    id = UUID.randomUUID().toString(),
+                    id = existingToday?.id ?: recordId,
                     employeeId = employeeId,
                     date = dateStr,
                     signInTime = timeStr,
-                    signOutTime = null,
+                    signOutTime = existingToday?.signOutTime,
                     signInGps = gps,
-                    signOutGps = null,
+                    signOutGps = existingToday?.signOutGps,
                     signInAddress = address,
-                    signOutAddress = null,
+                    signOutAddress = existingToday?.signOutAddress,
                     signInImageLocalPath = imagePath,
-                    signOutImageLocalPath = null,
+                    signOutImageLocalPath = existingToday?.signOutImageLocalPath,
                     status = status,
                     lateMinutes = lateMins,
-                    workingHours = 0.0
+                    workingHours = existingToday?.workingHours ?: 0.0
                 )
             } else {
                 if (existingToday == null) {
@@ -82,6 +86,7 @@ class MarkAttendanceUseCase @Inject constructor(
                 }
 
                 existingToday.copy(
+                    id = if (existingToday.id.isBlank()) recordId else existingToday.id,
                     signOutTime = timeStr,
                     signOutGps = gps,
                     signOutAddress = address,
@@ -91,9 +96,14 @@ class MarkAttendanceUseCase @Inject constructor(
                 )
             }
 
-            attendanceRepository.saveAttendance(attendance).collect { resource ->
-                emit(resource)
-            }
+            val result = attendanceRepository
+                .saveAttendance(attendance)
+                .filter { it !is Resource.Loading }
+                .first()
+
+            emit(result)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to record attendance"))
         }
@@ -105,7 +115,8 @@ class MarkAttendanceUseCase @Inject constructor(
         for (fmt in formats) {
             try {
                 return LocalTime.parse(timeStr, DateTimeFormatter.ofPattern(fmt, Locale.US))
-            } catch (e: Exception) {}
+            } catch (_: Exception) {
+            }
         }
         return defaultTime
     }

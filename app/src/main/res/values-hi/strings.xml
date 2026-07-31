@@ -25,6 +25,14 @@
     <string name="kaariger_step_3">3. स्टॉक जोड़ने से पहले स्टाफ जांच करता है</string>
     <string name="kaariger_step_4">4. ऑर्डर पूरा होने पर माल का उपयोग रिपोर्ट करें</string>
     <string name="kaariger_search_orders">ऑर्डर खोजें…</string>
+    <string name="kaariger_tab_pending">लंबित</string>
+    <string name="kaariger_tab_completed">पूरा</string>
+    <string name="kaariger_no_pending_orders">कोई लंबित ऑर्डर नहीं</string>
+    <string name="kaariger_no_completed_orders">अभी कोई पूरा ऑर्डर नहीं</string>
+    <string name="kaariger_no_pending_payments">कोई लंबित भुगतान नहीं</string>
+    <string name="kaariger_no_completed_payments">अभी कोई पूरा भुगतान नहीं</string>
+    <string name="kaariger_payment_status_pending">भुगतान बाकी</string>
+    <string name="kaariger_payment_status_paid">पूरा भुगतान</string>
     <string name="kaariger_no_orders">अभी कोई ऑर्डर नहीं मिला</string>
     <string name="kaariger_no_matching_orders">कोई मेल खाता ऑर्डर नहीं</string>
     <string name="kaariger_received">मिला: %1$s</string>

@@ -9,9 +9,11 @@ import com.laiza.worker.domain.models.ReturnRecord
 import com.laiza.worker.domain.models.ReturnType
 import com.laiza.worker.domain.repository.InventoryRepository
 import com.laiza.worker.domain.repository.StoreOperationsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
@@ -79,14 +81,23 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordPickup(record: PickupRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            when (val adjust = inventoryRepository.adjustFinishedProductQuantity(record.productId, -record.quantity).first { it !is Resource.Loading }) {
+            val adjust = inventoryRepository
+                .adjustFinishedProductQuantity(record.productId, -record.quantity)
+                .filter { it !is Resource.Loading }
+                .first()
+
+            when (adjust) {
                 is Resource.Success -> {
-                    firestore.collection("pickup_records").document(record.id).set(pickupToMap(record)).await()
+                    firestore.collection("pickup_records").document(record.id)
+                        .set(pickupToMap(record))
+                        .await()
                     emit(Resource.Success(Unit))
                 }
                 is Resource.Error -> emit(Resource.Error(adjust.message ?: "Failed to deduct inventory"))
                 else -> emit(Resource.Error("Failed to deduct inventory"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to record pickup"))
         }
@@ -95,14 +106,23 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordReturn(record: ReturnRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            when (val adjust = inventoryRepository.adjustFinishedProductQuantity(record.productId, record.quantity).first { it !is Resource.Loading }) {
+            val adjust = inventoryRepository
+                .adjustFinishedProductQuantity(record.productId, record.quantity)
+                .filter { it !is Resource.Loading }
+                .first()
+
+            when (adjust) {
                 is Resource.Success -> {
-                    firestore.collection("return_records").document(record.id).set(returnToMap(record)).await()
+                    firestore.collection("return_records").document(record.id)
+                        .set(returnToMap(record))
+                        .await()
                     emit(Resource.Success(Unit))
                 }
                 is Resource.Error -> emit(Resource.Error(adjust.message ?: "Failed to restock inventory"))
                 else -> emit(Resource.Error("Failed to restock inventory"))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to record return"))
         }

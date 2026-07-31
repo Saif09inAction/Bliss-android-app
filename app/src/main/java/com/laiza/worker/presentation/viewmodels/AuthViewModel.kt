@@ -2,27 +2,25 @@ package com.laiza.worker.presentation.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.FirebaseNetworkException
-import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
-import com.google.firebase.auth.FirebaseAuthInvalidUserException
-import com.laiza.worker.core.network.NetworkErrorHandler
+import com.google.firebase.firestore.FirebaseFirestore
 import com.laiza.worker.core.session.SessionManager
-import com.laiza.worker.BuildConfig
 import com.laiza.worker.core.utils.Resource
-import com.laiza.worker.core.utils.TestCredentials
 import com.laiza.worker.core.utils.ValidationHelper
 import com.laiza.worker.domain.models.Role
-import com.laiza.worker.domain.models.UserSession
 import com.laiza.worker.domain.usecases.CheckSessionUseCase
 import com.laiza.worker.domain.usecases.LoginUseCase
 import com.laiza.worker.domain.usecases.LogoutUseCase
 import com.laiza.worker.presentation.uiState.AuthUiState
 import com.laiza.worker.presentation.uiState.LoginScreenState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -34,7 +32,8 @@ class AuthViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val checkSessionUseCase: CheckSessionUseCase,
-    sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val firestore: FirebaseFirestore
 ) : ViewModel() {
 
     private val _authUiState = MutableStateFlow<AuthUiState>(AuthUiState.Idle)
@@ -43,12 +42,37 @@ class AuthViewModel @Inject constructor(
     private val _loginScreenState = MutableStateFlow(LoginScreenState())
     val loginScreenState: StateFlow<LoginScreenState> = _loginScreenState.asStateFlow()
 
-    // Expose active user session to observe login states globally
     val userSession = sessionManager.userSession.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
         initialValue = null
     )
+
+    private var accountWatchJob: Job? = null
+
+    init {
+        // Real-time: if admin deletes this employee, force logout immediately
+        accountWatchJob = viewModelScope.launch {
+            sessionManager.userSession.collectLatest { session ->
+                if (session == null) return@collectLatest
+                callbackFlow {
+                    val registration = firestore.collection("employees")
+                        .document(session.phone)
+                        .addSnapshotListener { snap, error ->
+                            if (error != null) return@addSnapshotListener
+                            trySend(snap != null && snap.exists())
+                        }
+                    awaitClose { registration.remove() }
+                }.collect { exists ->
+                    if (!exists) {
+                        logoutUseCase().collect { }
+                        _authUiState.value = AuthUiState.Idle
+                        _loginScreenState.value = LoginScreenState()
+                    }
+                }
+            }
+        }
+    }
 
     suspend fun resolveStartupSession() = checkSessionUseCase().firstOrNull()
 
@@ -143,5 +167,10 @@ class AuthViewModel @Inject constructor(
 
     fun resetUiState() {
         _authUiState.value = AuthUiState.Idle
+    }
+
+    override fun onCleared() {
+        accountWatchJob?.cancel()
+        super.onCleared()
     }
 }

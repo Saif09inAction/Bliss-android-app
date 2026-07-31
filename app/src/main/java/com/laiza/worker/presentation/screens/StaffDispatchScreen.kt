@@ -4,10 +4,16 @@ import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +25,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.domain.models.EcommercePartner
 import com.laiza.worker.domain.models.FinishedProduct
+import com.laiza.worker.domain.models.PickupRecord
+import com.laiza.worker.domain.models.ReturnRecord
 import com.laiza.worker.domain.models.ReturnType
 import com.laiza.worker.presentation.components.AppSearchBar
 import com.laiza.worker.presentation.components.CustomTextField
@@ -34,8 +42,12 @@ fun StaffDispatchScreen(
     var activeTab by remember { mutableIntStateOf(0) }
     var showPickupDialog by remember { mutableStateOf(false) }
     var showReturnDialog by remember { mutableStateOf(false) }
+    var showAllPickups by remember { mutableStateOf(false) }
+    var showAllReturns by remember { mutableStateOf(false) }
     var isRefreshing by remember { mutableStateOf(false) }
     val storeInventory by viewModel.storeInventory.collectAsState()
+    val allPickups by viewModel.allPickups.collectAsState()
+    val allReturns by viewModel.allReturns.collectAsState()
 
     LaunchedEffect(Unit) {
         isRefreshing = true
@@ -53,24 +65,29 @@ fun StaffDispatchScreen(
         }
 
         if (activeTab == 0) {
-            DispatchTabContent(
+            DispatchHistoryTab(
                 title = "Handoff to delivery partner",
-                subtitle = "Select products given to Flipkart, Myntra, Amazon, Meesho, etc.",
+                subtitle = "Record products given to Flipkart, Myntra, Amazon, Meesho, etc.",
                 buttonText = "New Pickup",
                 inventoryHint = if (storeInventory.any { it.quantity > 0 }) {
                     "${storeInventory.count { it.quantity > 0 }} product(s) ready to pick up"
                 } else {
                     "No stock available. Verify kaariger orders first to add inventory."
                 },
+                historyTitle = "Pickup history",
+                emptyHistory = "No pickups recorded yet",
                 isRefreshing = isRefreshing,
                 onAction = {
-                    viewModel.refreshInventory {
-                        showPickupDialog = true
-                    }
-                }
-            )
+                    viewModel.refreshInventory { showPickupDialog = true }
+                },
+                recentItems = allPickups.take(3),
+                totalCount = allPickups.size,
+                onViewAll = { showAllPickups = true }
+            ) { record ->
+                PickupHistoryCard(record)
+            }
         } else {
-            DispatchTabContent(
+            DispatchHistoryTab(
                 title = "Product returns",
                 subtitle = "Restock items returned via RTO or DTO",
                 buttonText = "New Return",
@@ -79,13 +96,56 @@ fun StaffDispatchScreen(
                 } else {
                     "No products in catalog yet."
                 },
+                historyTitle = "Return history",
+                emptyHistory = "No returns recorded yet",
                 isRefreshing = isRefreshing,
                 onAction = {
-                    viewModel.refreshInventory {
-                        showReturnDialog = true
-                    }
+                    viewModel.refreshInventory { showReturnDialog = true }
+                },
+                recentItems = allReturns.take(3),
+                totalCount = allReturns.size,
+                onViewAll = { showAllReturns = true }
+            ) { record ->
+                ReturnHistoryCard(record)
+            }
+        }
+    }
+
+    if (showAllPickups) {
+        FullHistorySheet(
+            title = "All pickup history",
+            onDismiss = { showAllPickups = false }
+        ) {
+            if (allPickups.isEmpty()) {
+                item {
+                    Text(
+                        "No pickups recorded yet",
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
-            )
+            } else {
+                items(allPickups, key = { it.id }) { PickupHistoryCard(it) }
+            }
+        }
+    }
+
+    if (showAllReturns) {
+        FullHistorySheet(
+            title = "All return history",
+            onDismiss = { showAllReturns = false }
+        ) {
+            if (allReturns.isEmpty()) {
+                item {
+                    Text(
+                        "No returns recorded yet",
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(allReturns, key = { it.id }) { ReturnHistoryCard(it) }
+            }
         }
     }
 
@@ -138,32 +198,257 @@ fun StaffDispatchScreen(
 }
 
 @Composable
-private fun DispatchTabContent(
+private fun <T> DispatchHistoryTab(
     title: String,
     subtitle: String,
     buttonText: String,
     inventoryHint: String,
+    historyTitle: String,
+    emptyHistory: String,
     isRefreshing: Boolean,
-    onAction: () -> Unit
+    onAction: () -> Unit,
+    recentItems: List<T>,
+    totalCount: Int,
+    onViewAll: () -> Unit,
+    itemContent: @Composable (T) -> Unit
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(inventoryHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(24.dp))
-        PrimaryButton(
-            text = if (isRefreshing) "Loading..." else buttonText,
-            onClick = onAction,
-            enabled = !isRefreshing,
-            isLoading = isRefreshing
+        item {
+            PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Inventory,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        inventoryHint,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    PrimaryButton(
+                        text = if (isRefreshing) "Loading..." else buttonText,
+                        onClick = onAction,
+                        enabled = !isRefreshing,
+                        isLoading = isRefreshing
+                    )
+                }
+            }
+        }
+
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Default.History,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(historyTitle, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                }
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer
+                ) {
+                    Text(
+                        "$totalCount",
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
+        }
+
+        if (totalCount == 0) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 32.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(emptyHistory, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        } else {
+            items(recentItems.size) { index ->
+                itemContent(recentItems[index])
+            }
+            if (totalCount > 3) {
+                item {
+                    OutlinedButton(
+                        onClick = onViewAll,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("View all ($totalCount)")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullHistorySheet(
+    title: String,
+    onDismiss: () -> Unit,
+    content: androidx.compose.foundation.lazy.LazyListScope.() -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            title,
+            modifier = Modifier.padding(horizontal = 16.dp),
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxHeight(0.85f)
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun PickupHistoryCard(record: PickupRecord) {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        Icons.Default.LocalShipping,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(record.productName, fontWeight = FontWeight.Bold)
+                        if (record.color.isNotBlank()) {
+                            Text(
+                                "Color: ${record.color}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "${record.quantity} pcs",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HistoryChip(record.partner.displayName)
+                HistoryChip("${record.date} · ${record.time}")
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "By ${record.staffName.ifBlank { "Staff" }}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReturnHistoryCard(record: ReturnRecord) {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        Icons.Default.Undo,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(record.productName, fontWeight = FontWeight.Bold)
+                        if (record.color.isNotBlank()) {
+                            Text(
+                                "Color: ${record.color}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "+${record.quantity} pcs",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HistoryChip(record.returnType.displayName)
+                HistoryChip(record.partner.displayName)
+                HistoryChip("${record.date} · ${record.time}")
+            }
+            record.notes?.takeIf { it.isNotBlank() }?.let { note ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(note, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "By ${record.staffName.ifBlank { "Staff" }}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
         )
     }
 }

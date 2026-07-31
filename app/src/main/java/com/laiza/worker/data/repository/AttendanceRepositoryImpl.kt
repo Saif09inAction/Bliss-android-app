@@ -88,28 +88,55 @@ class AttendanceRepositoryImpl @Inject constructor(
     override fun saveAttendance(attendance: Attendance): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            // Save local record immediately for instant UI update
+            // Save local record immediately for offline resilience
             attendanceDao.insertAttendance(AttendanceEntity.fromDomain(attendance))
 
-            // Perform background upload and firestore sync asynchronously
-            CoroutineScope(Dispatchers.IO).launch {
+            var finalAttendance = attendance
+
+            // Upload selfie if needed — failure must NOT block Firestore write
+            val signInPath = attendance.signInImageLocalPath
+            if (!signInPath.isNullOrBlank() && !signInPath.startsWith("http")) {
                 try {
-                    var finalAttendance = attendance
-                    val localPath = attendance.signInImageLocalPath
-                    if (!localPath.isNullOrBlank() && !localPath.startsWith("http")) {
-                        val downloadUrl = storageHelper.uploadImage(context, localPath, "attendance_selfies")
-                        if (downloadUrl != null) {
-                            finalAttendance = attendance.copy(signInImageLocalPath = downloadUrl)
-                            // Update Room with storage URL
-                            attendanceDao.insertAttendance(AttendanceEntity.fromDomain(finalAttendance))
-                        }
+                    val downloadUrl = withTimeoutOrNull(45_000) {
+                        storageHelper.uploadImage(context, signInPath, "attendance_selfies")
                     }
-                    saveAttendanceToFirestore(finalAttendance)
+                    if (!downloadUrl.isNullOrBlank()) {
+                        finalAttendance = finalAttendance.copy(signInImageLocalPath = downloadUrl)
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
+
+            val signOutPath = finalAttendance.signOutImageLocalPath
+            if (!signOutPath.isNullOrBlank() && !signOutPath.startsWith("http")) {
+                try {
+                    val downloadUrl = withTimeoutOrNull(45_000) {
+                        storageHelper.uploadImage(context, signOutPath, "attendance_selfies")
+                    }
+                    if (!downloadUrl.isNullOrBlank()) {
+                        finalAttendance = finalAttendance.copy(signOutImageLocalPath = downloadUrl)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            attendanceDao.insertAttendance(AttendanceEntity.fromDomain(finalAttendance))
+
+            // Never write device-local file paths to Firestore (admin can't open them)
+            val cloudAttendance = finalAttendance.copy(
+                signInImageLocalPath = finalAttendance.signInImageLocalPath
+                    ?.takeIf { it.startsWith("http") },
+                signOutImageLocalPath = finalAttendance.signOutImageLocalPath
+                    ?.takeIf { it.startsWith("http") }
+            )
+
+            // Await cloud write so admin panel / Firestore always get the record
+            saveAttendanceToFirestore(cloudAttendance)
             emit(Resource.Success(Unit))
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to save attendance"))
         }
@@ -128,6 +155,24 @@ class AttendanceRepositoryImpl @Inject constructor(
         }
         return attendanceDao.getSettings().map {
             it?.toDomain() ?: AttendanceSettings("09:00", "18:00")
+        }
+    }
+
+    override suspend fun getFreshSettings(): AttendanceSettings {
+        return try {
+            val remote = fetchSettingsFromFirestore()
+            if (remote != null) {
+                attendanceDao.saveSettings(
+                    AttendanceSettingsEntity("settings_id", remote.dailySignInTime, remote.dailySignOutTime)
+                )
+                remote
+            } else {
+                attendanceDao.getSettings().first()?.toDomain()
+                    ?: AttendanceSettings("09:00", "18:00")
+            }
+        } catch (e: Exception) {
+            attendanceDao.getSettings().first()?.toDomain()
+                ?: AttendanceSettings("09:00", "18:00")
         }
     }
 

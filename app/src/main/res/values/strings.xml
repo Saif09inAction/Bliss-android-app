@@ -63,6 +63,14 @@
     <string name="kaariger_step_3">3. Staff verifies before stock is added</string>
     <string name="kaariger_step_4">4. Report material usage when order completes</string>
     <string name="kaariger_search_orders">Search orders…</string>
+    <string name="kaariger_tab_pending">Pending</string>
+    <string name="kaariger_tab_completed">Completed</string>
+    <string name="kaariger_no_pending_orders">No pending orders</string>
+    <string name="kaariger_no_completed_orders">No completed orders yet</string>
+    <string name="kaariger_no_pending_payments">No pending payments</string>
+    <string name="kaariger_no_completed_payments">No completed payments yet</string>
+    <string name="kaariger_payment_status_pending">Payment pending</string>
+    <string name="kaariger_payment_status_paid">Fully paid</string>
     <string name="kaariger_no_orders">No orders assigned yet</string>
     <string name="kaariger_no_matching_orders">No matching orders</string>
     <string name="kaariger_received">Received: %1$s</string>
