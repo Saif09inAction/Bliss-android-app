@@ -47,7 +47,7 @@ fun SalaryLedgerScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Payments & Advance Ledger",
+            text = "Payments & Kharcha Ledger",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
             color = MaterialTheme.colorScheme.onBackground,
@@ -184,7 +184,7 @@ fun SalarySummaryCard(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = "Advance Taken",
+                        text = "Kharcha Taken",
                         fontSize = 13.sp,
                         color = Color.White.copy(alpha = 0.7f)
                     )
@@ -240,7 +240,7 @@ fun LedgerItemCard(transaction: PaymentTransaction) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = if (transaction.type == PaymentType.SALARY_PAYMENT) "Salary Payout" else "Advance Payment",
+                    text = if (transaction.type == PaymentType.SALARY_PAYMENT) "Salary Payout" else "Kharcha",
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface

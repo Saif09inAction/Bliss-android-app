@@ -218,9 +218,16 @@ fun LoginScreen(
                             unfocusedLabelColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
+                            cursorColor = Color.White,
                             focusedLeadingIconColor = Color(0xFF15803D),
                             unfocusedLeadingIconColor = Color(0xFF15803D).copy(alpha = 0.6f),
-                            errorBorderColor = Color(0xFFEF4444)
+                            errorBorderColor = Color(0xFFEF4444),
+                            // Keep typed text white while length < 6 (isError) — default error text is dark and invisible on this screen
+                            errorTextColor = Color.White,
+                            errorCursorColor = Color.White,
+                            errorLabelColor = Color(0xFFEF4444),
+                            errorLeadingIconColor = Color(0xFFEF4444),
+                            errorSupportingTextColor = Color(0xFFEF4444),
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
@@ -272,9 +279,17 @@ fun LoginScreen(
                             unfocusedLabelColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
+                            cursorColor = Color.White,
                             focusedLeadingIconColor = Color(0xFF15803D),
                             unfocusedLeadingIconColor = Color(0xFF15803D).copy(alpha = 0.6f),
-                            errorBorderColor = Color(0xFFEF4444)
+                            errorBorderColor = Color(0xFFEF4444),
+                            // While password < 6 chars the field is in error state; without this, dots stay invisible
+                            errorTextColor = Color.White,
+                            errorCursorColor = Color.White,
+                            errorLabelColor = Color(0xFFEF4444),
+                            errorTrailingIconColor = Color(0xFFEF4444),
+                            errorLeadingIconColor = Color(0xFFEF4444),
+                            errorSupportingTextColor = Color(0xFFEF4444),
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)

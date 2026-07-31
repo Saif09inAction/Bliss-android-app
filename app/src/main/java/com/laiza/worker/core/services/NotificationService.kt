@@ -49,7 +49,7 @@ class NotificationService @Inject constructor(
                 "Salary Updates",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "Notifications about salary credit and advances."
+                description = "Notifications about salary credit and kharcha."
             }
 
             notificationManager.createNotificationChannel(attendanceChannel)

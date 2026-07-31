@@ -44,6 +44,10 @@ class StoreOperationsViewModel @Inject constructor(
     val allReturns: StateFlow<List<ReturnRecord>> = storeOperationsRepository.getAllReturns()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    val deliveryPartners: StateFlow<List<DeliveryPartner>> =
+        storeOperationsRepository.getDeliveryPartners()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     fun onInventorySearchChange(query: String) {
         _inventorySearch.value = query
     }
@@ -60,22 +64,53 @@ class StoreOperationsViewModel @Inject constructor(
         }
     }
 
+    fun addDeliveryPartner(
+        name: String,
+        onSuccess: (DeliveryPartner) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            storeOperationsRepository.addDeliveryPartner(name).collect { res ->
+                when (res) {
+                    is Resource.Success -> onSuccess(res.data!!)
+                    is Resource.Error -> onError(res.message ?: "Failed to add partner")
+                    else -> {}
+                }
+            }
+        }
+    }
+
     fun recordPickup(
-        product: FinishedProduct,
-        quantity: Int,
-        partner: EcommercePartner,
+        items: List<PickupLineItem>,
+        platform: String,
+        deliveryPartner: String,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
+            if (items.isEmpty()) {
+                onError("Select at least one product")
+                return@launch
+            }
+            if (platform.isBlank()) {
+                onError("Select a marketplace (Amazon, Flipkart…)")
+                return@launch
+            }
+            if (deliveryPartner.isBlank()) {
+                onError("Select or add a delivery partner")
+                return@launch
+            }
             val session = sessionManager.userSession.firstOrNull()
             val now = Date()
+            val first = items.first()
             val record = PickupRecord(
-                productId = product.id,
-                productName = product.name,
-                color = product.color,
-                quantity = quantity,
-                partner = partner,
+                items = items,
+                productId = first.productId,
+                productName = first.productName,
+                color = first.color,
+                quantity = items.sumOf { it.quantity },
+                partner = platform.trim(),
+                deliveryPartner = deliveryPartner.trim(),
                 staffId = session?.phone ?: "",
                 staffName = session?.name ?: "Staff",
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now),
@@ -94,7 +129,8 @@ class StoreOperationsViewModel @Inject constructor(
     fun recordReturn(
         product: FinishedProduct,
         quantity: Int,
-        partner: EcommercePartner,
+        platform: String,
+        deliveryPartner: String,
         returnType: ReturnType,
         notes: String?,
         onSuccess: () -> Unit,
@@ -108,7 +144,8 @@ class StoreOperationsViewModel @Inject constructor(
                 productName = product.name,
                 color = product.color,
                 quantity = quantity,
-                partner = partner,
+                partner = platform.trim().ifBlank { EcommercePlatform.FLIPKART },
+                deliveryPartner = deliveryPartner.trim(),
                 returnType = returnType,
                 staffId = session?.phone ?: "",
                 staffName = session?.name ?: "Staff",

@@ -527,7 +527,7 @@ fun OverviewTabContent(
                     border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
-                        Text(text = "Advance Balance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                        Text(text = "Kharcha Balance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(text = "₹${advanceRemaining.toInt()}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = if (advanceRemaining > 0) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                         Spacer(modifier = Modifier.height(4.dp))
@@ -733,7 +733,7 @@ fun SalaryTabContent(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(text = "Outstanding Advance", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = "Outstanding Kharcha", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(text = "₹${advanceRemaining.toInt()}", fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
                     }
 
@@ -825,8 +825,8 @@ fun PaymentItemRow(transaction: PaymentTransaction) {
                 Text(
                     text = when (transaction.type) {
                         PaymentType.SALARY_PAYMENT -> "Salary Payout"
-                        PaymentType.ADVANCE -> "Advance Taken"
-                        PaymentType.DEDUCTION -> "Advance Deduction"
+                        PaymentType.ADVANCE -> "Kharcha Taken"
+                        PaymentType.DEDUCTION -> "Kharcha Deduction"
                         PaymentType.EXTRA_PAYMENT -> "Bonus Payout"
                     },
                     fontWeight = FontWeight.Bold,
