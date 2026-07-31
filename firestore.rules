@@ -13,12 +13,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // -------------------------------------------------------------------------
-    // Admins (web panel login only)
-    // Login uses get on admins/{phone}. Manage accounts via Firebase Console.
+    // Admins (web panel login)
+    // Login uses get on admins/{phone}. Panel can list/create/update/delete.
     // -------------------------------------------------------------------------
     match /admins/{adminPhone} {
-      allow get: if true;
-      allow list, create, update, delete: if false;
+      allow read, write: if true;
     }
 
     // -------------------------------------------------------------------------
@@ -85,6 +84,10 @@ service cloud.firestore {
     }
 
     match /return_records/{recordId} {
+      allow read, write: if true;
+    }
+
+    match /delivery_partners/{partnerId} {
       allow read, write: if true;
     }
 
