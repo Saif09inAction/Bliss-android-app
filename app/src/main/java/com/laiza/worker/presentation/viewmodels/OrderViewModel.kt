@@ -242,4 +242,32 @@ class OrderViewModel @Inject constructor(
     fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>> {
         return orderRepository.getPaymentsForOrder(orderId)
     }
+
+    fun createRepair(
+        orderId: String,
+        productName: String,
+        faultyQuantity: Int,
+        faultyPricePerPiece: Double,
+        notes: String? = null,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
+            orderRepository.createRepair(
+                orderId = orderId,
+                productName = productName,
+                faultyQuantity = faultyQuantity,
+                faultyPricePerPiece = faultyPricePerPiece,
+                createdBy = createdBy,
+                notes = notes
+            ).collect { res ->
+                when (res) {
+                    is Resource.Success -> onSuccess()
+                    is Resource.Error -> onError(res.message ?: "Failed")
+                    else -> {}
+                }
+            }
+        }
+    }
 }

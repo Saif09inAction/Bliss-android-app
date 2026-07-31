@@ -430,6 +430,61 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun createRepair(
+        orderId: String,
+        productName: String,
+        faultyQuantity: Int,
+        faultyPricePerPiece: Double,
+        createdBy: String,
+        notes: String?
+    ): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            if (faultyQuantity <= 0) {
+                emit(Resource.Error("Enter a quantity greater than 0"))
+                return@flow
+            }
+            val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
+            if (!doc.exists()) {
+                emit(Resource.Error("Order not found"))
+                return@flow
+            }
+            val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+            val faultyTotal = faultyQuantity * faultyPricePerPiece
+            val original = order.originalDealAmount ?: order.totalDealAmount
+            val newDeduction = order.repairDeductionTotal + faultyTotal
+            val dealAfter = (original - newDeduction).coerceAtLeast(0.0)
+            val id = UUID.randomUUID().toString()
+            val repair = mapOf(
+                "id" to id,
+                "orderId" to order.id,
+                "kaarigerId" to order.kaarigerId,
+                "kaarigerName" to order.kaarigerName,
+                "productName" to productName,
+                "faultyQuantity" to faultyQuantity,
+                "faultyPricePerPiece" to faultyPricePerPiece,
+                "faultyTotal" to faultyTotal,
+                "items" to emptyList<Map<String, Any>>(),
+                "totalRepairCost" to faultyTotal,
+                "originalDealAmount" to original,
+                "dealAfterThisRepair" to dealAfter,
+                "notes" to (notes ?: ""),
+                "createdBy" to createdBy,
+                "createdAt" to System.currentTimeMillis()
+            )
+            firestore.collection("order_repairs").document(id).set(repair).await()
+            firestore.collection("kaariger_orders").document(order.id).update(
+                mapOf(
+                    "originalDealAmount" to original,
+                    "repairDeductionTotal" to newDeduction
+                )
+            ).await()
+            emit(Resource.Success(Unit))
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to save repairing deduction"))
+        }
+    }
+
     override fun getRepairsForOrder(orderId: String): Flow<List<OrderRepair>> = callbackFlow {
         val listener = firestore.collection("order_repairs")
             .whereEqualTo("orderId", orderId)

@@ -26,6 +26,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Home
@@ -190,6 +191,19 @@ fun StaffContainerScreen(
                         }
                     )
                     DrawerItem(
+                        title = "Repairing",
+                        icon = Icons.Default.Build,
+                        selected = currentRoute == "repairing_tab",
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            childNavController.navigate("repairing_tab") {
+                                popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = false
+                            }
+                        }
+                    )
+                    DrawerItem(
                         title = "Salary Ledger",
                         icon = Icons.Default.Payments,
                         selected = currentRoute == "salary_tab",
@@ -242,6 +256,7 @@ fun StaffContainerScreen(
                             BottomNavItem.Dispatch.route -> "Pickup & Return"
                             BottomNavItem.Attendance.route -> "Attendance"
                             BottomNavItem.Approvals.route -> "Verify Orders"
+                            "repairing_tab" -> "Repairing"
                             "employee_profile" -> "My Profile"
                             else -> "Bliss Bombay"
                         },
@@ -251,6 +266,7 @@ fun StaffContainerScreen(
                             BottomNavItem.Dispatch.route -> "E-commerce partner handoffs"
                             BottomNavItem.Attendance.route -> "Today's Shift"
                             BottomNavItem.Approvals.route -> if (pendingCount > 0) "$pendingCount pending verification(s)" else "Kaariger delivery approvals"
+                            "repairing_tab" -> "Deduct faulty pieces from kaariger hisaab"
                             "employee_profile" -> "Manage Bank & Account Settings"
                             else -> null
                         },
@@ -532,6 +548,9 @@ fun StaffContainerScreen(
                         }
                         composable(route = BottomNavItem.Attendance.route) {
                             AttendanceHomeScreen(navController = rootNavController)
+                        }
+                        composable("repairing_tab") {
+                            StaffRepairingScreen(orderViewModel = orderViewModel)
                         }
                         composable("salary_tab") {
                             SalaryLedgerScreen()
