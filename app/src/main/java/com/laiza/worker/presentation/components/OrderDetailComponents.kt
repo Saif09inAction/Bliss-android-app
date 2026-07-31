@@ -201,21 +201,33 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
             }
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))
-            val finalBalance = (
-                order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal - totalKharcha
-            ).coerceAtLeast(0.0)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            val netDeal = order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal
+            val finalBalance = (netDeal - totalKharcha).coerceAtLeast(0.0)
+            val isFullyPaid = order.status == OrderStatus.COMPLETED || finalBalance <= 0.0
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.kaariger_detail_final_balance),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    rupees(finalBalance),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                if (isFullyPaid) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFD1FAE5)) {
+                        Text(
+                            stringResource(R.string.kaariger_all_paid),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF047857)
+                        )
+                    }
+                } else {
+                    Text(
+                        rupees(finalBalance),
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }

@@ -68,6 +68,7 @@
     <string name="kaariger_detail_kharcha_given">खर्चा दिया गया</string>
     <string name="kaariger_detail_kharcha_timeline">प्राप्त खर्चा</string>
     <string name="kaariger_detail_kharcha_total">कुल खर्चा</string>
+    <string name="kaariger_all_paid">✓ पूरा भुगतान हुआ</string>
     <string name="kaariger_detail_repair_deduction">रिपेयरिंग कटौती</string>
     <string name="kaariger_detail_final_balance">अंतिम बकाया राशि</string>
     <string name="kaariger_pcs">%1$d पीस</string>

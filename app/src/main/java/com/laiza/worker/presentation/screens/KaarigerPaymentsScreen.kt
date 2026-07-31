@@ -31,6 +31,7 @@ fun KaarigerPaymentsScreen(
     val orders by orderViewModel.kaarigerOrders.collectAsState()
     val payments by orderViewModel.kaarigerPayments.collectAsState()
     val repairs by orderViewModel.kaarigerRepairs.collectAsState()
+    val kaarigers by orderViewModel.kaarigers.collectAsState()
     var showAllKharcha by remember { mutableStateOf(false) }
 
     LaunchedEffect(session?.phone) {
@@ -50,13 +51,16 @@ fun KaarigerPaymentsScreen(
             val repairTotal = order.repairDeductionTotal.takeIf { it > 0 }
                 ?: orderRepairs.sumOf { it.totalRepairCost }
             val netDeal = (originalDeal - repairTotal).coerceAtLeast(0.0)
-            val remaining = (netDeal - totalPaid).coerceAtLeast(0.0)
+            val remaining = if (order.status == OrderStatus.COMPLETED) 0.0 else (netDeal - totalPaid).coerceAtLeast(0.0)
             OrderPaymentSummary(orderPayments, order.productName, totalPaid, remaining)
         }
     }
 
     val totalKharchaPaid = remember(orderSummaries) { orderSummaries.sumOf { it.totalPaid } }
     val totalPending = remember(orderSummaries) { orderSummaries.sumOf { it.remaining } }
+    val creditBalance = remember(kaarigers, session?.phone) {
+        kaarigers.find { it.phone == session?.phone }?.creditBalance ?: 0.0
+    }
     val allPayments = remember(orderSummaries) {
         orderSummaries
             .flatMap { summary -> summary.payments.map { PaymentWithOrder(it, summary.productName) } }
@@ -78,6 +82,11 @@ fun KaarigerPaymentsScreen(
         Spacer(modifier = Modifier.height(12.dp))
 
         PaymentsSummaryCard(totalKharchaPaid, totalPending)
+
+        if (totalPending <= 0.0 && creditBalance > 0.0) {
+            Spacer(modifier = Modifier.height(10.dp))
+            CreditBalanceCard(creditBalance)
+        }
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
@@ -129,7 +138,7 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
             modifier = Modifier.weight(1f)
         ) {
             Column(modifier = Modifier.padding(14.dp)) {
-                Text("Total Kharcha Paid", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857))
+                Text("Kharcha Paid", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857))
                 Text(
                     "₹${totalPaid.toInt()}",
                     fontWeight = FontWeight.Bold,
@@ -152,6 +161,34 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
                     style = MaterialTheme.typography.titleMedium
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CreditBalanceCard(creditBalance: Double) {
+    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFDCFCE7)) {
+        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Extra paid — carried forward",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF047857),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "All bills paid in full. This extra amount will be adjusted in your next bill.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF047857)
+                )
+            }
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                "₹${creditBalance.toInt()}",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF047857),
+                style = MaterialTheme.typography.titleMedium
+            )
         }
     }
 }

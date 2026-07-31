@@ -15,7 +15,8 @@ data class EmployeeEntity(
     val monthlySalary: Double,
     val profilePhotoUrl: String?,
     val attendancePercentage: Double = 0.0,
-    val role: String = Role.STAFF.name
+    val role: String = Role.STAFF.name,
+    val creditBalance: Double = 0.0
 ) {
     fun toDomain(): Employee {
         return Employee(
@@ -26,7 +27,8 @@ data class EmployeeEntity(
             monthlySalary = monthlySalary,
             profilePhotoUrl = profilePhotoUrl,
             attendancePercentage = attendancePercentage,
-            role = Role.fromFirestore(role)
+            role = Role.fromFirestore(role),
+            creditBalance = creditBalance
         )
     }
 
@@ -40,7 +42,8 @@ data class EmployeeEntity(
                 monthlySalary = domain.monthlySalary,
                 profilePhotoUrl = domain.profilePhotoUrl,
                 attendancePercentage = domain.attendancePercentage,
-                role = domain.role.name
+                role = domain.role.name,
+                creditBalance = domain.creditBalance
             )
         }
     }

@@ -106,6 +106,7 @@
     <string name="kaariger_detail_kharcha_given">Kharcha Given</string>
     <string name="kaariger_detail_kharcha_timeline">Kharcha Received</string>
     <string name="kaariger_detail_kharcha_total">Kharcha Total</string>
+    <string name="kaariger_all_paid">✓ All Paid</string>
     <string name="kaariger_detail_repair_deduction">Repairing Deduction</string>
     <string name="kaariger_detail_final_balance">Final Balance To Get</string>
     <string name="kaariger_pcs">%1$d pcs</string>

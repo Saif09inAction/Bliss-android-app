@@ -8,7 +8,9 @@ data class Employee(
     val monthlySalary: Double,
     val profilePhotoUrl: String?,
     val attendancePercentage: Double = 0.0,
-    val role: Role = Role.STAFF
+    val role: Role = Role.STAFF,
+    /** Overpaid kharcha carried forward from a previous order — auto-applied to the next bill. */
+    val creditBalance: Double = 0.0
 )
 
 data class EmployeeExtraProfile(
