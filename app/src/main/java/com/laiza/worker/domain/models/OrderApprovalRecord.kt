@@ -9,9 +9,12 @@ data class OrderApprovalRecord(
     val kaarigerId: String,
     val kaarigerName: String,
     val batchQuantity: Int,
+    val rejectedQuantity: Int = 0,
     val approvedTotalAfter: Int,
     val targetQuantity: Int,
     val color: String = "",
+    /** e.g. "Red:10, Blue:20" */
+    val colorBreakdown: String = "",
     val verifiedByName: String,
     val verifiedByPhone: String,
     val verifiedAt: Long = System.currentTimeMillis()

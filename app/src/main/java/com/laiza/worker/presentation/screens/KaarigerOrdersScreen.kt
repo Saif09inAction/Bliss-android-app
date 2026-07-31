@@ -65,12 +65,34 @@ fun KaarigerOrdersScreen(
         }
     }
 
+    var activeTab by remember { mutableIntStateOf(0) }
+    val tabOrders = remember(filtered, activeTab) {
+        when (activeTab) {
+            0 -> filtered.filter { it.status != OrderStatus.COMPLETED }
+            else -> filtered.filter { it.status == OrderStatus.COMPLETED }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
             .padding(16.dp)
     ) {
+        TabRow(selectedTabIndex = activeTab) {
+            Tab(
+                selected = activeTab == 0,
+                onClick = { activeTab = 0 },
+                text = { Text(stringResource(R.string.kaariger_tab_pending)) }
+            )
+            Tab(
+                selected = activeTab == 1,
+                onClick = { activeTab = 1 },
+                text = { Text(stringResource(R.string.kaariger_tab_completed)) }
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
         OutlinedTextField(
             value = search,
             onValueChange = { search = it },
@@ -87,17 +109,21 @@ fun KaarigerOrdersScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        if (filtered.isEmpty()) {
+        if (tabOrders.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Text(
-                    if (orders.isEmpty()) stringResource(R.string.kaariger_no_orders)
-                    else stringResource(R.string.kaariger_no_matching_orders),
+                    when {
+                        orders.isEmpty() -> stringResource(R.string.kaariger_no_orders)
+                        search.isNotBlank() -> stringResource(R.string.kaariger_no_matching_orders)
+                        activeTab == 0 -> stringResource(R.string.kaariger_no_pending_orders)
+                        else -> stringResource(R.string.kaariger_no_completed_orders)
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(filtered, key = { it.id }) { order ->
+                items(tabOrders, key = { it.id }) { order ->
                     KaarigerOrderCard(
                         order = order,
                         onClick = { detailOrder = order },
@@ -244,7 +270,6 @@ private fun SubmitDeliveryDialog(
 ) {
     val remaining = order.remainingQuantity()
     var qty by remember { mutableStateOf(remaining.toString()) }
-    var color by remember { mutableStateOf(order.color) }
     var name by remember { mutableStateOf(order.productName) }
     var notes by remember { mutableStateOf("") }
 
@@ -256,9 +281,13 @@ private fun SubmitDeliveryDialog(
                 Text(stringResource(R.string.kaariger_submit_dialog_hint, remaining), style = MaterialTheme.typography.bodySmall)
                 Text(stringResource(R.string.kaariger_submit_dialog_progress, order.approvedQuantity, order.targetQuantity), style = MaterialTheme.typography.labelMedium)
                 CustomTextField(value = name, onValueChange = { name = it }, label = stringResource(R.string.kaariger_field_product_name))
-                CustomTextField(value = color, onValueChange = { color = it }, label = stringResource(R.string.kaariger_field_color))
                 CustomTextField(value = qty, onValueChange = { qty = it }, label = stringResource(R.string.kaariger_field_qty_sending), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number))
                 CustomTextField(value = notes, onValueChange = { notes = it }, label = stringResource(R.string.kaariger_field_notes))
+                Text(
+                    "Staff will set colours when approving",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         },
         confirmButton = {
@@ -267,7 +296,7 @@ private fun SubmitDeliveryDialog(
                 onClick = {
                     val q = qty.toIntOrNull()
                     if (q != null && q in 1..remaining && name.isNotBlank()) {
-                        onSubmit(q, color, name, notes.ifBlank { null })
+                        onSubmit(q, "", name, notes.ifBlank { null })
                     }
                 }
             )

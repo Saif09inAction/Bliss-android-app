@@ -91,6 +91,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /calendar_days/{dayId} {
+      allow read, write: if true;
+    }
+
     // Deny everything else by default
     match /{document=**} {
       allow read, write: if false;

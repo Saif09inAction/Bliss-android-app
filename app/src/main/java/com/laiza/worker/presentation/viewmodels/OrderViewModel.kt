@@ -139,12 +139,28 @@ class OrderViewModel @Inject constructor(
         }
     }
 
-    fun approveOrder(orderId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun approveOrder(
+        orderId: String,
+        acceptedQuantity: Int,
+        colorBreakdown: List<ColorQuantity>,
+        rejectedQuantity: Int,
+        rejectionNote: String?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
             val session = sessionManager.userSession.firstOrNull()
             val verifiedBy = session?.name ?: "Staff"
             val verifiedByPhone = session?.phone ?: ""
-            orderRepository.approveOrder(orderId, verifiedBy, verifiedByPhone).collect { res ->
+            orderRepository.approveOrder(
+                orderId = orderId,
+                acceptedQuantity = acceptedQuantity,
+                colorBreakdown = colorBreakdown,
+                rejectedQuantity = rejectedQuantity,
+                rejectionNote = rejectionNote,
+                verifiedBy = verifiedBy,
+                verifiedByPhone = verifiedByPhone
+            ).collect { res ->
                 when (res) {
                     is Resource.Success -> onSuccess()
                     is Resource.Error -> onError(res.message ?: "Failed")

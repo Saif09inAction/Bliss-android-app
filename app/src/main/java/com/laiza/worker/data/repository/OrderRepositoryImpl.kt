@@ -11,6 +11,7 @@ import com.laiza.worker.domain.repository.OrderRepository
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
@@ -118,7 +119,15 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun approveOrder(orderId: String, verifiedBy: String, verifiedByPhone: String): Flow<Resource<Unit>> = flow {
+    override fun approveOrder(
+        orderId: String,
+        acceptedQuantity: Int,
+        colorBreakdown: List<ColorQuantity>,
+        rejectedQuantity: Int,
+        rejectionNote: String?,
+        verifiedBy: String,
+        verifiedByPhone: String
+    ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
             val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
@@ -131,38 +140,87 @@ class OrderRepositoryImpl @Inject constructor(
                 emit(Resource.Error("No delivery pending approval"))
                 return@flow
             }
-            val batchQty = order.deliveredQuantity ?: 0
-            if (batchQty <= 0) {
+            val deliveredQty = order.deliveredQuantity ?: 0
+            if (deliveredQty <= 0) {
                 emit(Resource.Error("Invalid delivery quantity"))
                 return@flow
             }
-            val newApproved = order.approvedQuantity + batchQty
+            if (acceptedQuantity < 0 || rejectedQuantity < 0) {
+                emit(Resource.Error("Quantities cannot be negative"))
+                return@flow
+            }
+            if (acceptedQuantity + rejectedQuantity != deliveredQty) {
+                emit(Resource.Error("Accepted + rejected must equal delivered ($deliveredQty)"))
+                return@flow
+            }
+            if (acceptedQuantity > 0) {
+                if (colorBreakdown.isEmpty()) {
+                    emit(Resource.Error("Add at least one colour for accepted pieces"))
+                    return@flow
+                }
+                val colorSum = colorBreakdown.sumOf { it.quantity }
+                if (colorSum != acceptedQuantity) {
+                    emit(Resource.Error("Colour quantities must add up to accepted ($acceptedQuantity)"))
+                    return@flow
+                }
+                if (colorBreakdown.any { it.color.isBlank() || it.quantity <= 0 }) {
+                    emit(Resource.Error("Each colour needs a name and quantity > 0"))
+                    return@flow
+                }
+            }
+
+            val unitPrice = order.pricePerPiece
+                ?: (if (order.targetQuantity > 0) order.totalDealAmount / order.targetQuantity else 0.0)
+            val now = System.currentTimeMillis()
+
+            // Merge into inventory by SKU (name ignore-case) + colour (ignore-case)
+            for (line in colorBreakdown.filter { it.quantity > 0 }) {
+                val colorName = ProductColors.normalizeColor(line.color)
+                val existingList = inventoryDao.getAllFinishedProducts().first()
+                val existing = existingList.firstOrNull {
+                    ProductColors.normalizeSku(it.name) == ProductColors.normalizeSku(order.productName) &&
+                        it.color.equals(colorName, ignoreCase = true)
+                }
+                val product = if (existing != null) {
+                    existing.copy(
+                        quantity = existing.quantity + line.quantity,
+                        lastUpdatedBy = verifiedBy,
+                        lastUpdatedTime = now,
+                        unitPrice = if (unitPrice > 0) unitPrice else existing.unitPrice,
+                        orderId = order.id
+                    ).toDomain()
+                } else {
+                    FinishedProduct(
+                        id = UUID.randomUUID().toString(),
+                        name = order.productName.trim(),
+                        quantity = line.quantity,
+                        lastUpdatedBy = verifiedBy,
+                        lastUpdatedTime = now,
+                        unitPrice = unitPrice.coerceAtLeast(0.0),
+                        color = colorName,
+                        orderId = order.id
+                    )
+                }
+                inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(product))
+                firestore.collection("finished_products").document(product.id).set(
+                    hashMapOf(
+                        "id" to product.id,
+                        "name" to product.name,
+                        "quantity" to product.quantity,
+                        "lastUpdatedBy" to product.lastUpdatedBy,
+                        "lastUpdatedTime" to product.lastUpdatedTime,
+                        "unitPrice" to product.unitPrice,
+                        "color" to product.color,
+                        "orderId" to product.orderId,
+                        "imagePath" to ""
+                    )
+                ).await()
+            }
+
+            val newApproved = order.approvedQuantity + acceptedQuantity
             val verifiedAt = System.currentTimeMillis()
-            val product = FinishedProduct(
-                id = UUID.randomUUID().toString(),
-                name = order.productName,
-                quantity = batchQty,
-                lastUpdatedBy = verifiedBy,
-                lastUpdatedTime = System.currentTimeMillis(),
-                unitPrice = order.pricePerPiece ?: (order.totalDealAmount / order.targetQuantity.coerceAtLeast(1)),
-                color = order.deliveryColor ?: order.color,
-                orderId = order.id
-            )
-            inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(product))
-            firestore.collection("finished_products").document(product.id).set(
-                hashMapOf(
-                    "id" to product.id,
-                    "name" to product.name,
-                    "quantity" to product.quantity,
-                    "lastUpdatedBy" to product.lastUpdatedBy,
-                    "lastUpdatedTime" to product.lastUpdatedTime,
-                    "unitPrice" to product.unitPrice,
-                    "color" to product.color,
-                    "orderId" to product.orderId,
-                    "imagePath" to ""
-                )
-            ).await()
             val isComplete = newApproved >= order.targetQuantity
+            val note = rejectionNote?.trim().orEmpty()
             firestore.collection("kaariger_orders").document(orderId).update(
                 mapOf(
                     "approvedQuantity" to newApproved,
@@ -171,19 +229,26 @@ class OrderRepositoryImpl @Inject constructor(
                     "verifiedAt" to verifiedAt,
                     "deliveredQuantity" to null,
                     "deliverySubmittedAt" to null,
-                    "rejectionReason" to ""
+                    "rejectionReason" to if (rejectedQuantity > 0) {
+                        note.ifBlank { "Rejected $rejectedQuantity defective pcs" }
+                    } else ""
                 )
             ).await()
 
+            val breakdownStr = colorBreakdown
+                .filter { it.quantity > 0 }
+                .joinToString(", ") { "${it.color.trim()}:${it.quantity}" }
             val approvalRecord = OrderApprovalRecord(
                 orderId = order.id,
                 productName = order.productName,
                 kaarigerId = order.kaarigerId,
                 kaarigerName = order.kaarigerName,
-                batchQuantity = batchQty,
+                batchQuantity = acceptedQuantity,
+                rejectedQuantity = rejectedQuantity,
                 approvedTotalAfter = newApproved,
                 targetQuantity = order.targetQuantity,
-                color = order.deliveryColor ?: order.color,
+                color = breakdownStr,
+                colorBreakdown = breakdownStr,
                 verifiedByName = verifiedBy,
                 verifiedByPhone = normalizePhone(verifiedByPhone),
                 verifiedAt = verifiedAt
@@ -196,9 +261,11 @@ class OrderRepositoryImpl @Inject constructor(
                     "kaarigerId" to approvalRecord.kaarigerId,
                     "kaarigerName" to approvalRecord.kaarigerName,
                     "batchQuantity" to approvalRecord.batchQuantity,
+                    "rejectedQuantity" to approvalRecord.rejectedQuantity,
                     "approvedTotalAfter" to approvalRecord.approvedTotalAfter,
                     "targetQuantity" to approvalRecord.targetQuantity,
                     "color" to approvalRecord.color,
+                    "colorBreakdown" to approvalRecord.colorBreakdown,
                     "verifiedByName" to approvalRecord.verifiedByName,
                     "verifiedByPhone" to approvalRecord.verifiedByPhone,
                     "verifiedAt" to approvalRecord.verifiedAt
@@ -482,9 +549,12 @@ class OrderRepositoryImpl @Inject constructor(
             kaarigerId = data["kaarigerId"] as? String ?: "",
             kaarigerName = data["kaarigerName"] as? String ?: "",
             batchQuantity = (data["batchQuantity"] as? Number)?.toInt() ?: 0,
+            rejectedQuantity = (data["rejectedQuantity"] as? Number)?.toInt() ?: 0,
             approvedTotalAfter = (data["approvedTotalAfter"] as? Number)?.toInt() ?: 0,
             targetQuantity = (data["targetQuantity"] as? Number)?.toInt() ?: 0,
             color = data["color"] as? String ?: "",
+            colorBreakdown = data["colorBreakdown"] as? String
+                ?: (data["color"] as? String ?: ""),
             verifiedByName = data["verifiedByName"] as? String ?: "",
             verifiedByPhone = data["verifiedByPhone"] as? String ?: "",
             verifiedAt = (data["verifiedAt"] as? Number)?.toLong() ?: 0L
