@@ -22,6 +22,13 @@ data class OrderPaymentSummary(
     val remaining: Double
 )
 
+data class RepairSubmission(
+    val orderId: String,
+    val productName: String,
+    val faultyQuantity: Int,
+    val faultyPricePerPiece: Double
+)
+
 @HiltViewModel
 class OrderViewModel @Inject constructor(
     private val orderRepository: OrderRepository,
@@ -268,6 +275,40 @@ class OrderViewModel @Inject constructor(
                     else -> {}
                 }
             }
+        }
+    }
+
+    /**
+     * Records faulty/rejected quantities for one or more products in a single staff action.
+     * Each submission becomes its own repair record, processed sequentially so the
+     * running deduction total on each order stays consistent.
+     */
+    fun createRepairs(
+        submissions: List<RepairSubmission>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (submissions.isEmpty()) {
+            onError("Add at least one product to update.")
+            return
+        }
+        viewModelScope.launch {
+            val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
+            for (submission in submissions) {
+                val result = orderRepository.createRepair(
+                    orderId = submission.orderId,
+                    productName = submission.productName,
+                    faultyQuantity = submission.faultyQuantity,
+                    faultyPricePerPiece = submission.faultyPricePerPiece,
+                    createdBy = createdBy,
+                    notes = null
+                ).first { it !is Resource.Loading }
+                if (result is Resource.Error) {
+                    onError(result.message ?: "Failed to update ${submission.productName}")
+                    return@launch
+                }
+            }
+            onSuccess()
         }
     }
 }

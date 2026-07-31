@@ -4,20 +4,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,7 +33,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,7 +48,7 @@ import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.formatOrderDate
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
-import kotlin.math.roundToInt
+import com.laiza.worker.presentation.viewmodels.RepairSubmission
 
 private data class RepairProductOption(
     val order: KaarigerOrder,
@@ -51,7 +56,10 @@ private data class RepairProductOption(
     val pricePerPiece: Double
 )
 
-private fun rupees(amount: Double): String = "₹${amount.roundToInt()}"
+private data class RepairLineDraft(
+    val selectedProduct: RepairProductOption? = null,
+    val qtyText: String = ""
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,17 +74,13 @@ fun StaffRepairingScreen(
     var kaarigerQuery by remember { mutableStateOf("") }
     var kaarigerExpanded by remember { mutableStateOf(false) }
 
-    var selectedProduct by remember { mutableStateOf<RepairProductOption?>(null) }
-    var productExpanded by remember { mutableStateOf(false) }
-
-    var qtyText by remember { mutableStateOf("") }
+    var repairLines by remember { mutableStateOf(listOf(RepairLineDraft())) }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
 
     LaunchedEffect(selectedKaariger?.phone) {
-        selectedProduct = null
-        qtyText = ""
+        repairLines = listOf(RepairLineDraft())
         message = null
         val phone = selectedKaariger?.phone
         if (phone != null) {
@@ -108,10 +112,7 @@ fun StaffRepairingScreen(
         }
     }
 
-    val faultyQty = qtyText.toIntOrNull() ?: 0
-    val deduction = faultyQty * (selectedProduct?.pricePerPiece ?: 0.0)
-    val currentBalance = selectedProduct?.order?.effectiveDealAmount() ?: 0.0
-    val balanceAfter = (currentBalance - deduction).coerceAtLeast(0.0)
+    val validLines = repairLines.filter { it.selectedProduct != null && (it.qtyText.toIntOrNull() ?: 0) > 0 }
 
     Column(
         modifier = Modifier
@@ -126,7 +127,7 @@ fun StaffRepairingScreen(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Report faulty / rejected pieces to deduct from a kaariger's hisaab",
+            text = "Select the kaariger and faulty products to update — no pricing needed",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -181,118 +182,90 @@ fun StaffRepairingScreen(
         }
 
         if (selectedKaariger != null) {
-            PremiumCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (productOptions.isEmpty()) {
+                PremiumCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "Product",
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = FontWeight.SemiBold
+                        text = "No active bill found for this kaariger yet.",
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (productOptions.isEmpty()) {
-                        Text(
-                            text = "No active bill found for this kaariger yet.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    } else {
-                        ExposedDropdownMenuBox(
-                            expanded = productExpanded,
-                            onExpandedChange = { productExpanded = it }
-                        ) {
-                            OutlinedTextField(
-                                value = selectedProduct?.let { "${it.productName} · ${rupees(it.pricePerPiece)}/pc" } ?: "",
-                                onValueChange = {},
-                                readOnly = true,
-                                placeholder = { Text("Select product") },
-                                leadingIcon = { Icon(Icons.Default.Inventory2, contentDescription = null) },
-                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(productExpanded) },
-                                singleLine = true,
-                                modifier = Modifier
-                                    .menuAnchor()
-                                    .fillMaxWidth()
-                            )
-                            ExposedDropdownMenu(
-                                expanded = productExpanded,
-                                onDismissRequest = { productExpanded = false }
-                            ) {
-                                productOptions.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Column {
-                                                Text(option.productName, fontWeight = FontWeight.SemiBold)
-                                                Text(
-                                                    text = "${rupees(option.pricePerPiece)}/pc · bill of ${formatOrderDate(option.order.createdAt)} · balance ${rupees(option.order.effectiveDealAmount())}",
-                                                    style = MaterialTheme.typography.labelSmall,
-                                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                )
-                                            }
-                                        },
-                                        onClick = {
-                                            selectedProduct = option
-                                            productExpanded = false
-                                            message = null
-                                        }
-                                    )
-                                }
+                }
+            } else {
+                repairLines.forEachIndexed { index, line ->
+                    RepairLineRow(
+                        index = index,
+                        line = line,
+                        productOptions = productOptions,
+                        onProductSelected = { option ->
+                            repairLines = repairLines.toMutableList().also {
+                                it[index] = it[index].copy(selectedProduct = option)
                             }
+                        },
+                        onQtyChanged = { qty ->
+                            repairLines = repairLines.toMutableList().also {
+                                it[index] = it[index].copy(qtyText = qty)
+                            }
+                        },
+                        onRemove = if (repairLines.size > 1) {
+                            {
+                                repairLines = repairLines.toMutableList().also { it.removeAt(index) }
+                            }
+                        } else null
+                    )
+                }
+
+                OutlinedButton(
+                    onClick = { repairLines = repairLines + RepairLineDraft() },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Add more product")
+                }
+
+                message?.let {
+                    Text(
+                        text = it,
+                        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                }
+
+                PrimaryButton(
+                    text = if (saving) "Submitting…" else "Submit",
+                    enabled = validLines.isNotEmpty() && !saving,
+                    isLoading = saving,
+                    onClick = {
+                        saving = true
+                        message = null
+                        val submissions = validLines.map { line ->
+                            val product = line.selectedProduct!!
+                            RepairSubmission(
+                                orderId = product.order.id,
+                                productName = product.productName,
+                                faultyQuantity = line.qtyText.toInt(),
+                                faultyPricePerPiece = product.pricePerPiece
+                            )
                         }
+                        orderViewModel.createRepairs(
+                            submissions = submissions,
+                            onSuccess = {
+                                saving = false
+                                isError = false
+                                val count = submissions.size
+                                message = "Updated $count product${if (count == 1) "" else "s"} for ${selectedKaariger?.name}."
+                                repairLines = listOf(RepairLineDraft())
+                            },
+                            onError = { err ->
+                                saving = false
+                                isError = true
+                                message = err
+                            }
+                        )
                     }
-                }
-            }
-        }
-
-        if (selectedProduct != null) {
-            CustomTextField(
-                value = qtyText,
-                onValueChange = { input -> qtyText = input.filter { it.isDigit() }.take(6) },
-                label = "Faulty / rejected quantity",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
-
-            PremiumCard(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SummaryRow("Faulty qty × price/pc", "$faultyQty × ${rupees(selectedProduct?.pricePerPiece ?: 0.0)}")
-                    SummaryRow("Deduction", "− ${rupees(deduction)}")
-                    SummaryRow("Current balance", rupees(currentBalance))
-                    SummaryRow("Balance after update", rupees(balanceAfter), emphasize = true)
-                }
-            }
-
-            message?.let {
-                Text(
-                    text = it,
-                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodyMedium
                 )
             }
-
-            PrimaryButton(
-                text = if (saving) "Updating…" else "Update",
-                enabled = faultyQty > 0 && !saving,
-                isLoading = saving,
-                onClick = {
-                    val product = selectedProduct ?: return@PrimaryButton
-                    saving = true
-                    message = null
-                    orderViewModel.createRepair(
-                        orderId = product.order.id,
-                        productName = product.productName,
-                        faultyQuantity = faultyQty,
-                        faultyPricePerPiece = product.pricePerPiece,
-                        onSuccess = {
-                            saving = false
-                            isError = false
-                            message = "Deducted ${rupees(deduction)} from ${selectedKaariger?.name}'s hisaab."
-                            qtyText = ""
-                        },
-                        onError = { err ->
-                            saving = false
-                            isError = true
-                            message = err
-                        }
-                    )
-                }
-            )
         }
 
         if (selectedKaariger != null && kaarigerRepairs.isNotEmpty()) {
@@ -308,24 +281,84 @@ fun StaffRepairingScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SummaryRow(label: String, value: String, emphasize: Boolean = false) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            style = if (emphasize) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
-            fontWeight = if (emphasize) FontWeight.Bold else FontWeight.SemiBold,
-            color = if (emphasize) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-        )
+private fun RepairLineRow(
+    index: Int,
+    line: RepairLineDraft,
+    productOptions: List<RepairProductOption>,
+    onProductSelected: (RepairProductOption) -> Unit,
+    onQtyChanged: (String) -> Unit,
+    onRemove: (() -> Unit)?
+) {
+    var productExpanded by remember { mutableStateOf(false) }
+
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "Product ${index + 1}",
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                if (onRemove != null) {
+                    IconButton(onClick = onRemove) {
+                        Icon(Icons.Default.Close, contentDescription = "Remove product")
+                    }
+                }
+            }
+
+            ExposedDropdownMenuBox(
+                expanded = productExpanded,
+                onExpandedChange = { productExpanded = it }
+            ) {
+                OutlinedTextField(
+                    value = line.selectedProduct?.productName ?: "",
+                    onValueChange = {},
+                    readOnly = true,
+                    placeholder = { Text("Select product") },
+                    leadingIcon = { Icon(Icons.Default.Inventory2, contentDescription = null) },
+                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(productExpanded) },
+                    singleLine = true,
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
+                )
+                ExposedDropdownMenu(
+                    expanded = productExpanded,
+                    onDismissRequest = { productExpanded = false }
+                ) {
+                    productOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(option.productName, fontWeight = FontWeight.SemiBold)
+                                    Text(
+                                        text = "Bill of ${formatOrderDate(option.order.createdAt)}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            },
+                            onClick = {
+                                onProductSelected(option)
+                                productExpanded = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            CustomTextField(
+                value = line.qtyText,
+                onValueChange = { input -> onQtyChanged(input.filter { it.isDigit() }.take(6)) },
+                label = "Faulty / rejected quantity",
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+            )
+        }
     }
 }
 
@@ -337,7 +370,7 @@ private fun RepairHistoryRow(repair: OrderRepair) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
                     text = formatOrderDate(repair.createdAt),
                     style = MaterialTheme.typography.labelSmall,
@@ -345,16 +378,13 @@ private fun RepairHistoryRow(repair: OrderRepair) {
                 )
             }
             Text(repair.productName, fontWeight = FontWeight.SemiBold)
-            Text(
-                text = "${repair.faultyQuantity} pcs × ${rupees(repair.faultyPricePerPiece)} = − ${rupees(repair.totalRepairCost)}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error
-            )
-            Text(
-                text = "Balance after: ${rupees(repair.dealAfterThisRepair)} · by ${repair.createdBy}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (repair.faultyQuantity > 0) {
+                Text(
+                    text = "${repair.faultyQuantity} pcs updated",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
