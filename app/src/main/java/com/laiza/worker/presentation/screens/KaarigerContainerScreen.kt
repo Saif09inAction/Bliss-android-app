@@ -49,7 +49,6 @@ import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.KaarigerLanguageViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
-import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -245,8 +244,8 @@ private fun KaarigerDashboardContent(
     val totalRemaining = orders.sumOf { it.remainingQuantity() }
     val recentOrders = orders.take(3)
 
-    // Runner/Fitting/Astar/Material given by admin, only for bills not yet fully paid off —
-    // resets to zero automatically once an order's whole payment is received.
+    // Runner/Fitting/Astar/Material quantities given by admin, only for bills not yet fully
+    // paid off — resets to zero automatically once an order's whole payment is received.
     val pendingDeductions = remember(orders, payments) {
         val unsettled = orders.filter { order ->
             if (order.status == OrderStatus.REJECTED) return@filter false
@@ -256,10 +255,10 @@ private fun KaarigerDashboardContent(
         }
         val allDeductions = unsettled.flatMap { it.materialDeductions }
         DeductionsSummary(
-            runner = allDeductions.filter { it.type == "RUNNER" }.sumOf { it.lineTotal },
-            fitting = allDeductions.filter { it.type == "FITTING" }.sumOf { it.lineTotal },
-            astar = allDeductions.filter { it.type == "ASTAR" }.sumOf { it.lineTotal },
-            material = allDeductions.filter { it.type == "MATERIAL" }.sumOf { it.lineTotal }
+            runner = allDeductions.filter { it.type == "RUNNER" }.sumOf { it.quantity },
+            fitting = allDeductions.filter { it.type == "FITTING" }.sumOf { it.quantity },
+            astar = allDeductions.filter { it.type == "ASTAR" }.sumOf { it.quantity },
+            material = allDeductions.filter { it.type == "MATERIAL" }.sumOf { it.quantity }
         )
     }
     val hasPendingDeductions = pendingDeductions.runner > 0 || pendingDeductions.fitting > 0 ||
@@ -346,13 +345,11 @@ private fun KaarigerDashboardContent(
 }
 
 private data class DeductionsSummary(
-    val runner: Double,
-    val fitting: Double,
-    val astar: Double,
-    val material: Double
+    val runner: Int,
+    val fitting: Int,
+    val astar: Int,
+    val material: Int
 )
-
-private fun rupees(amount: Double): String = "₹${amount.roundToInt()}"
 
 @Composable
 private fun PendingDeductionsCard(summary: DeductionsSummary) {
@@ -366,11 +363,6 @@ private fun PendingDeductionsCard(summary: DeductionsSummary) {
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFC2410C),
                 style = MaterialTheme.typography.titleSmall
-            )
-            Text(
-                "From your pending bills — clears once fully paid",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color(0xFF9A3412)
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -387,7 +379,7 @@ private fun PendingDeductionsCard(summary: DeductionsSummary) {
 }
 
 @Composable
-private fun DeductionChip(label: String, amount: Double, modifier: Modifier = Modifier) {
+private fun DeductionChip(label: String, quantity: Int, modifier: Modifier = Modifier) {
     Surface(
         shape = RoundedCornerShape(10.dp),
         color = Color.White.copy(alpha = 0.6f),
@@ -395,7 +387,7 @@ private fun DeductionChip(label: String, amount: Double, modifier: Modifier = Mo
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF9A3412))
-            Text(rupees(amount), fontWeight = FontWeight.Bold, color = Color(0xFFC2410C), style = MaterialTheme.typography.titleSmall)
+            Text("$quantity pcs", fontWeight = FontWeight.Bold, color = Color(0xFFC2410C), style = MaterialTheme.typography.titleSmall)
         }
     }
 }

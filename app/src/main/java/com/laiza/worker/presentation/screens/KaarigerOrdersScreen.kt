@@ -190,10 +190,12 @@ fun KaarigerOrderCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                StatusBadge(order.status.kaarigerDisplayName())
+                if (!compact) StatusBadge(order.status.kaarigerDisplayName())
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            OrderProgressChips(order)
+            if (!compact) {
+                Spacer(modifier = Modifier.height(8.dp))
+                OrderProgressChips(order)
+            }
             if (!compact) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(stringResource(R.string.kaariger_received, formatOrderDate(order.createdAt)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
