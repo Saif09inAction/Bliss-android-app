@@ -6,7 +6,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -108,7 +107,7 @@ fun KaarigerPaymentsScreen(
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(tabSummaries, key = { it.order.id }) { summary ->
-                    OrderPaymentCard(summary, showHistory = activeTab == 1)
+                    OrderPaymentCard(summary)
                 }
             }
         }
@@ -127,7 +126,7 @@ private data class OrderPaymentSummary(
 )
 
 @Composable
-private fun OrderPaymentCard(summary: OrderPaymentSummary, showHistory: Boolean) {
+private fun OrderPaymentCard(summary: OrderPaymentSummary) {
     val isPending = summary.remaining > 0
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -145,7 +144,6 @@ private fun OrderPaymentCard(summary: OrderPaymentSummary, showHistory: Boolean)
                 PaymentRow("Repairing deduction", "−₹${summary.repairTotal.toInt()}", danger = true)
                 PaymentRow("Net deal", "₹${summary.netDeal.toInt()}", highlight = true)
             }
-            PaymentRow(stringResource(R.string.kaariger_payment_advance), "₹${summary.totalPaid.toInt()}")
             PaymentRow(
                 stringResource(R.string.kaariger_payment_remaining),
                 "₹${summary.remaining.toInt()}",
@@ -177,19 +175,59 @@ private fun OrderPaymentCard(summary: OrderPaymentSummary, showHistory: Boolean)
                 }
             }
 
-            if (showHistory && summary.payments.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    stringResource(R.string.kaariger_payment_history),
-                    fontWeight = FontWeight.SemiBold,
-                    style = MaterialTheme.typography.labelMedium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                summary.payments.forEach { payment ->
-                    PaymentHistoryCard(payment)
-                    Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                stringResource(R.string.kaariger_payment_advance),
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.labelMedium
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            KharchaTimeline(summary.payments)
+        }
+    }
+}
+
+@Composable
+private fun KharchaTimeline(payments: List<KaarigerOrderPayment>) {
+    if (payments.isEmpty()) {
+        PaymentRow(stringResource(R.string.kaariger_payment_advance), "₹0")
+        return
+    }
+    val sorted = remember(payments) { payments.sortedBy { it.date + it.time } }
+    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            sorted.forEachIndexed { index, payment ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text("${index + 1}", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "₹${payment.amount.toInt()} paid",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "${payment.date} · ${payment.time}" +
+                                (payment.remarks?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
+            Divider(modifier = Modifier.padding(vertical = 6.dp))
+            PaymentRow("Grand Total Kharcha", "₹${sorted.sumOf { it.amount }.toInt()}", highlight = true)
         }
     }
 }
@@ -294,22 +332,3 @@ private fun PaymentRow(
     }
 }
 
-@Composable
-private fun PaymentHistoryCard(payment: KaarigerOrderPayment) {
-    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(Icons.Default.Payments, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-            Spacer(modifier = Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("₹${payment.amount.toInt()}", fontWeight = FontWeight.Bold)
-                Text("${payment.date} • ${payment.time}", style = MaterialTheme.typography.labelSmall)
-                payment.remarks?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall)
-                }
-            }
-        }
-    }
-}
