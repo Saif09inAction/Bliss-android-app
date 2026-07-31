@@ -194,7 +194,10 @@ private fun KaarigerContainerContent(
             NavHost(
                 navController = childNavController,
                 startDestination = KaarigerNav.Home.route,
-                modifier = Modifier.padding(top = padding.calculateTopPadding())
+                modifier = Modifier.padding(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding()
+                )
             ) {
                 composable(KaarigerNav.Home.route) {
                     KaarigerDashboardContent(

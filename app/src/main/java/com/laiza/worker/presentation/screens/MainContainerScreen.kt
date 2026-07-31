@@ -505,7 +505,7 @@ fun StaffContainerScreen(
                         .fillMaxSize()
                         .padding(
                             top = paddingValues.calculateTopPadding(),
-                            bottom = 0.dp
+                            bottom = paddingValues.calculateBottomPadding()
                         )
                 ) {
                     NavHost(

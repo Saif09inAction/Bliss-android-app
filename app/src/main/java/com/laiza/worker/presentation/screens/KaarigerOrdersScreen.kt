@@ -27,12 +27,10 @@ import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.domain.models.OrderReceiptData
 import com.laiza.worker.domain.models.buildOrderReceiptData
 import com.laiza.worker.presentation.components.KaarigerOrderDetailSheet
-import com.laiza.worker.presentation.components.OrderProgressChips
 import com.laiza.worker.presentation.components.OrderReceiptDialog
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.formatOrderDate
-import com.laiza.worker.presentation.components.kaarigerDisplayName
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 
@@ -184,18 +182,7 @@ fun KaarigerOrderCard(
 ) {
     PremiumCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(if (compact) 12.dp else 16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
-                if (!compact) StatusBadge(order.status.kaarigerDisplayName())
-            }
-            if (!compact) {
-                Spacer(modifier = Modifier.height(8.dp))
-                OrderProgressChips(order)
-            }
+            Text(order.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
             if (!compact) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(stringResource(R.string.kaariger_received, formatOrderDate(order.createdAt)), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -300,9 +287,3 @@ private fun MaterialUsageDialog(
     )
 }
 
-@Composable
-private fun StatusBadge(status: String) {
-    Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-        Text(status, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall)
-    }
-}

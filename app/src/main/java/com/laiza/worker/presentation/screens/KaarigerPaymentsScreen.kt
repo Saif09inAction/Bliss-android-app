@@ -2,7 +2,9 @@ package com.laiza.worker.presentation.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -65,6 +67,7 @@ fun KaarigerPaymentsScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
         Text(
@@ -104,6 +107,7 @@ fun KaarigerPaymentsScreen(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
