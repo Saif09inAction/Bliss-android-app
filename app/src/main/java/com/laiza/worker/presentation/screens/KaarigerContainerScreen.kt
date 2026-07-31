@@ -254,15 +254,22 @@ private fun KaarigerDashboardContent(
             (netDeal - totalPaid) > 0.0
         }
         val allDeductions = unsettled.flatMap { it.materialDeductions }
+        val materialsByName = allDeductions
+            .filter { it.type == "MATERIAL" }
+            .groupBy { it.label.ifBlank { "Material" } }
+            .mapValues { (_, lines) -> lines.sumOf { it.quantity } }
+            .filter { it.value > 0 }
+            .toList()
+            .sortedByDescending { it.second }
         DeductionsSummary(
             runner = allDeductions.filter { it.type == "RUNNER" }.sumOf { it.quantity },
             fitting = allDeductions.filter { it.type == "FITTING" }.sumOf { it.quantity },
             astar = allDeductions.filter { it.type == "ASTAR" }.sumOf { it.quantity },
-            material = allDeductions.filter { it.type == "MATERIAL" }.sumOf { it.quantity }
+            materials = materialsByName
         )
     }
     val hasPendingDeductions = pendingDeductions.runner > 0 || pendingDeductions.fitting > 0 ||
-        pendingDeductions.astar > 0 || pendingDeductions.material > 0
+        pendingDeductions.astar > 0 || pendingDeductions.materials.isNotEmpty()
 
     Column(
         modifier = Modifier
@@ -348,7 +355,8 @@ private data class DeductionsSummary(
     val runner: Int,
     val fitting: Int,
     val astar: Int,
-    val material: Int
+    /** Material name → quantity. Only materials actually given are listed — nothing generic. */
+    val materials: List<Pair<String, Int>>
 )
 
 @Composable
@@ -372,7 +380,19 @@ private fun PendingDeductionsCard(summary: DeductionsSummary) {
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 DeductionChip("Astar", summary.astar, Modifier.weight(1f))
-                DeductionChip("Material", summary.material, Modifier.weight(1f))
+            }
+            if (summary.materials.isNotEmpty()) {
+                summary.materials.chunked(2).forEach { pair ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        pair.forEach { (name, qty) ->
+                            DeductionChip(name, qty, Modifier.weight(1f))
+                        }
+                        if (pair.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
             }
         }
     }
