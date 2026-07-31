@@ -25,9 +25,16 @@ data class KaarigerOrder(
     val materialUsageReported: Boolean = false,
     val createdBy: String,
     val createdAt: Long = System.currentTimeMillis(),
-    val notes: String? = null
+    val notes: String? = null,
+    val originalDealAmount: Double? = null,
+    val repairDeductionTotal: Double = 0.0
 ) {
     fun remainingQuantity(): Int = (targetQuantity - approvedQuantity).coerceAtLeast(0)
+
+    fun effectiveDealAmount(): Double {
+        val original = originalDealAmount ?: totalDealAmount
+        return (original - repairDeductionTotal).coerceAtLeast(0.0)
+    }
 }
 
 data class OrderMaterial(

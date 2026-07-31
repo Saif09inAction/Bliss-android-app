@@ -409,6 +409,74 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getRepairsForKaariger(kaarigerId: String): Flow<List<OrderRepair>> {
+        val normalizedId = normalizePhone(kaarigerId)
+        return callbackFlow {
+            val listener = firestore.collection("order_repairs")
+                .addSnapshotListener { snapshot, error ->
+                    if (error != null) {
+                        Log.e(TAG, "Repairs query failed for $kaarigerId", error)
+                        trySend(emptyList())
+                        return@addSnapshotListener
+                    }
+                    val list = snapshot?.documents?.mapNotNull { doc ->
+                        docToRepair(doc.data ?: emptyMap(), doc.id)
+                    }?.filter { normalizePhone(it.kaarigerId) == normalizedId }
+                        ?.sortedByDescending { it.createdAt }
+                        ?: emptyList()
+                    trySend(list)
+                }
+            awaitClose { listener.remove() }
+        }
+    }
+
+    override fun getRepairsForOrder(orderId: String): Flow<List<OrderRepair>> = callbackFlow {
+        val listener = firestore.collection("order_repairs")
+            .whereEqualTo("orderId", orderId)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e(TAG, "Repairs query failed for order $orderId", error)
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                val list = snapshot?.documents?.mapNotNull { doc ->
+                    docToRepair(doc.data ?: emptyMap(), doc.id)
+                }?.sortedByDescending { it.createdAt } ?: emptyList()
+                trySend(list)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun docToRepair(data: Map<String, Any>, id: String): OrderRepair {
+        val items = (data["items"] as? List<Map<String, Any>>)?.map {
+            OrderRepairLine(
+                type = it["type"] as? String ?: "",
+                label = it["label"] as? String ?: "",
+                quantity = (it["quantity"] as? Number)?.toInt() ?: 0,
+                pricePerPiece = (it["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                lineTotal = (it["lineTotal"] as? Number)?.toDouble() ?: 0.0
+            )
+        } ?: emptyList()
+        return OrderRepair(
+            id = data["id"] as? String ?: id,
+            orderId = data["orderId"] as? String ?: "",
+            kaarigerId = data["kaarigerId"] as? String ?: "",
+            kaarigerName = data["kaarigerName"] as? String ?: "",
+            productName = data["productName"] as? String ?: "",
+            faultyQuantity = (data["faultyQuantity"] as? Number)?.toInt() ?: 0,
+            faultyPricePerPiece = (data["faultyPricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+            faultyTotal = (data["faultyTotal"] as? Number)?.toDouble() ?: 0.0,
+            items = items,
+            totalRepairCost = (data["totalRepairCost"] as? Number)?.toDouble() ?: 0.0,
+            originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble() ?: 0.0,
+            dealAfterThisRepair = (data["dealAfterThisRepair"] as? Number)?.toDouble() ?: 0.0,
+            notes = data["notes"] as? String,
+            createdBy = data["createdBy"] as? String ?: "",
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L
+        )
+    }
+
     private fun ordersFlow(
         query: Query,
         sortBy: (KaarigerOrder) -> Long = { it.createdAt }
@@ -537,7 +605,9 @@ class OrderRepositoryImpl @Inject constructor(
             materialUsageReported = data["materialUsageReported"] as? Boolean ?: false,
             createdBy = data["createdBy"] as? String ?: "",
             createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
-            notes = data["notes"] as? String
+            notes = data["notes"] as? String,
+            originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble(),
+            repairDeductionTotal = (data["repairDeductionTotal"] as? Number)?.toDouble() ?: 0.0
         )
     }
 

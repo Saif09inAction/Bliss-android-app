@@ -59,6 +59,9 @@ class OrderViewModel @Inject constructor(
     private val _kaarigerPayments = MutableStateFlow<List<KaarigerOrderPayment>>(emptyList())
     val kaarigerPayments = _kaarigerPayments.asStateFlow()
 
+    private val _kaarigerRepairs = MutableStateFlow<List<OrderRepair>>(emptyList())
+    val kaarigerRepairs = _kaarigerRepairs.asStateFlow()
+
     private val _paymentSummaries = MutableStateFlow<List<OrderPaymentSummary>>(emptyList())
     val paymentSummaries = _paymentSummaries.asStateFlow()
 
@@ -80,6 +83,11 @@ class OrderViewModel @Inject constructor(
             orderRepository.getPaymentsForKaariger(kaarigerId).collect { payments ->
                 _kaarigerPayments.value = payments
                 updatePaymentSummaries()
+            }
+        }
+        viewModelScope.launch {
+            orderRepository.getRepairsForKaariger(kaarigerId).collect { repairs ->
+                _kaarigerRepairs.value = repairs
             }
         }
     }
@@ -104,7 +112,8 @@ class OrderViewModel @Inject constructor(
 
     fun getOrderPaymentSummary(order: KaarigerOrder, payments: List<KaarigerOrderPayment>): OrderPaymentSummary {
         val paid = payments.filter { it.orderId == order.id }.sumOf { it.amount }
-        return OrderPaymentSummary(order, paid, (order.totalDealAmount - paid).coerceAtLeast(0.0))
+        val net = order.effectiveDealAmount()
+        return OrderPaymentSummary(order, paid, (net - paid).coerceAtLeast(0.0))
     }
 
     fun createOrder(order: KaarigerOrder, onSuccess: () -> Unit, onError: (String) -> Unit) {

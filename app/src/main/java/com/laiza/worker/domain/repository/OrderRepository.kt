@@ -6,6 +6,7 @@ import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.ColorQuantity
 import com.laiza.worker.domain.models.OrderApprovalRecord
 import com.laiza.worker.domain.models.OrderMaterial
+import com.laiza.worker.domain.models.OrderRepair
 import kotlinx.coroutines.flow.Flow
 
 interface OrderRepository {
@@ -36,4 +37,6 @@ interface OrderRepository {
     fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>>
     fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>>
     fun addPayment(payment: KaarigerOrderPayment): Flow<Resource<Unit>>
+    fun getRepairsForKaariger(kaarigerId: String): Flow<List<OrderRepair>>
+    fun getRepairsForOrder(orderId: String): Flow<List<OrderRepair>>
 }
