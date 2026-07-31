@@ -109,6 +109,12 @@
     <string name="kaariger_all_paid">✓ All Paid</string>
     <string name="kaariger_detail_repair_deduction">Repairing Deduction</string>
     <string name="kaariger_detail_final_balance">Final Balance To Get</string>
+    <string name="kaariger_grand_total_title">Grand Total</string>
+    <string name="kaariger_grand_total_net">Total</string>
+    <string name="kaariger_grand_total_paid">Total Kharcha Paid</string>
+    <string name="kaariger_grand_total_extra">Extra paid</string>
+    <string name="kaariger_grand_total_remaining">Total remaining</string>
+    <string name="kaariger_grand_total_cleared">Fully cleared</string>
     <string name="kaariger_pcs">%1$d pcs</string>
     <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/pc)</string>
     <string name="kaariger_deal_total">₹%1$d</string>

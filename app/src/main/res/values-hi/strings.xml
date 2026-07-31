@@ -71,6 +71,12 @@
     <string name="kaariger_all_paid">✓ पूरा भुगतान हुआ</string>
     <string name="kaariger_detail_repair_deduction">रिपेयरिंग कटौती</string>
     <string name="kaariger_detail_final_balance">अंतिम बकाया राशि</string>
+    <string name="kaariger_grand_total_title">कुल जोड़</string>
+    <string name="kaariger_grand_total_net">कुल राशि</string>
+    <string name="kaariger_grand_total_paid">कुल खर्चा मिला</string>
+    <string name="kaariger_grand_total_extra">अतिरिक्त भुगतान</string>
+    <string name="kaariger_grand_total_remaining">कुल बाकी</string>
+    <string name="kaariger_grand_total_cleared">पूरा साफ़</string>
     <string name="kaariger_pcs">%1$d पीस</string>
     <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/पीस)</string>
     <string name="kaariger_deal_total">₹%1$d</string>

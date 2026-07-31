@@ -1,5 +1,6 @@
 package com.laiza.worker.presentation.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -98,7 +99,9 @@ fun KaarigerOrderDetailSheet(
             }
 
             if (order.products.isNotEmpty()) {
-                OrderHisaabBreakdown(order, payments.filter { it.orderId == order.id })
+                val orderPayments = payments.filter { it.orderId == order.id }
+                OrderHisaabBreakdown(order, orderPayments)
+                GrandTotalBox(order, orderPayments)
             }
 
             if (order.status == OrderStatus.COMPLETED && order.rawMaterials.isNotEmpty() && !order.materialUsageReported && onReportMaterials != null) {
@@ -199,37 +202,61 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
                 }
                 DetailRow(stringResource(R.string.kaariger_detail_kharcha_total), "−${rupees(totalKharcha)}")
             }
+        }
+    }
+}
 
+/**
+ * Mirrors the admin panel's Grand Total box: product cost total minus
+ * deductions/repairs gives the net Total, then compares it against what's
+ * actually been paid to show Extra paid / Total remaining / Fully cleared.
+ */
+@Composable
+private fun GrandTotalBox(order: KaarigerOrder, orderPayments: List<KaarigerOrderPayment>) {
+    val paid = orderPayments.sumOf { it.amount }
+    val net = (order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal).coerceAtLeast(0.0)
+    val diff = paid - net
+    val jade = Color(0xFF0D8F63)
+    val jadeSoft = Color(0xFFD8F8EB)
+
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = jadeSoft.copy(alpha = 0.55f),
+        border = BorderStroke(1.dp, jade.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                stringResource(R.string.kaariger_grand_total_title),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
+                color = jade
+            )
+            DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))
+            if (order.materialDeductionsTotal > 0) {
+                DetailRow(stringResource(R.string.kaariger_detail_deductions), "−${rupees(order.materialDeductionsTotal)}")
+            }
+            if (order.repairDeductionTotal > 0) {
+                DetailRow(stringResource(R.string.kaariger_detail_repair_deduction), "−${rupees(order.repairDeductionTotal)}")
+            }
             Divider(modifier = Modifier.padding(vertical = 2.dp))
-            val netDeal = order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal
-            val finalBalance = (netDeal - totalKharcha).coerceAtLeast(0.0)
-            val isFullyPaid = order.status == OrderStatus.COMPLETED || finalBalance <= 0.0
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    stringResource(R.string.kaariger_detail_final_balance),
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                if (isFullyPaid) {
-                    Surface(shape = RoundedCornerShape(8.dp), color = Color(0xFFD1FAE5)) {
-                        Text(
-                            stringResource(R.string.kaariger_all_paid),
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = Color(0xFF047857)
-                        )
-                    }
-                } else {
-                    Text(
-                        rupees(finalBalance),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+            BoldRow(stringResource(R.string.kaariger_grand_total_net), rupees(net))
+            DetailRow(stringResource(R.string.kaariger_grand_total_paid), rupees(paid))
+            Divider(modifier = Modifier.padding(vertical = 2.dp))
+            when {
+                diff > 0.5 -> BoldRow(stringResource(R.string.kaariger_grand_total_extra), "+${rupees(diff)}", Color(0xFF047857))
+                diff < -0.5 -> BoldRow(stringResource(R.string.kaariger_grand_total_remaining), rupees(-diff), Color(0xFFB45309))
+                else -> BoldRow(stringResource(R.string.kaariger_grand_total_cleared), "₹0", Color(0xFF047857))
             }
         }
+    }
+}
+
+@Composable
+private fun BoldRow(label: String, value: String, color: Color = Color.Unspecified) {
+    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color)
+        Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color)
     }
 }
 
