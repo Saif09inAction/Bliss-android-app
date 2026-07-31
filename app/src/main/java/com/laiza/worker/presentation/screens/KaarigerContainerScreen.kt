@@ -3,6 +3,7 @@ package com.laiza.worker.presentation.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.ui.graphics.Brush
 import com.laiza.worker.core.theme.BlissBlack
@@ -35,6 +36,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.components.DrawerHeader
@@ -47,6 +49,7 @@ import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.KaarigerLanguageViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -90,6 +93,7 @@ private fun KaarigerContainerContent(
     val currentRoute = navBackStackEntry?.destination?.route ?: KaarigerNav.Home.route
 
     val orders by orderViewModel.kaarigerOrders.collectAsState()
+    val payments by orderViewModel.kaarigerPayments.collectAsState()
     LaunchedEffect(session?.phone) {
         session?.phone?.let { orderViewModel.loadKaarigerData(it) }
     }
@@ -197,6 +201,7 @@ private fun KaarigerContainerContent(
                     KaarigerDashboardContent(
                         name = session?.name ?: stringResource(R.string.kaariger_default_name),
                         orders = orders,
+                        payments = payments,
                         onViewAllOrders = {
                             childNavController.navigate(KaarigerNav.Orders.route) {
                                 popUpTo(KaarigerNav.Home.route) { saveState = true }
@@ -232,12 +237,33 @@ private fun KaarigerContainerContent(
 private fun KaarigerDashboardContent(
     name: String,
     orders: List<KaarigerOrder>,
+    payments: List<KaarigerOrderPayment>,
     onViewAllOrders: () -> Unit
 ) {
     val activeOrders = orders.count { it.status != OrderStatus.COMPLETED }
     val pendingBatches = orders.count { it.status == OrderStatus.PENDING_APPROVAL }
     val totalRemaining = orders.sumOf { it.remainingQuantity() }
     val recentOrders = orders.take(3)
+
+    // Runner/Fitting/Astar/Material given by admin, only for bills not yet fully paid off —
+    // resets to zero automatically once an order's whole payment is received.
+    val pendingDeductions = remember(orders, payments) {
+        val unsettled = orders.filter { order ->
+            if (order.status == OrderStatus.REJECTED) return@filter false
+            val netDeal = (order.originalDealAmount ?: order.totalDealAmount) - order.repairDeductionTotal
+            val totalPaid = payments.filter { it.orderId == order.id }.sumOf { it.amount }
+            (netDeal - totalPaid) > 0.0
+        }
+        val allDeductions = unsettled.flatMap { it.materialDeductions }
+        DeductionsSummary(
+            runner = allDeductions.filter { it.type == "RUNNER" }.sumOf { it.lineTotal },
+            fitting = allDeductions.filter { it.type == "FITTING" }.sumOf { it.lineTotal },
+            astar = allDeductions.filter { it.type == "ASTAR" }.sumOf { it.lineTotal },
+            material = allDeductions.filter { it.type == "MATERIAL" }.sumOf { it.lineTotal }
+        )
+    }
+    val hasPendingDeductions = pendingDeductions.runner > 0 || pendingDeductions.fitting > 0 ||
+        pendingDeductions.astar > 0 || pendingDeductions.material > 0
 
     Column(
         modifier = Modifier
@@ -280,6 +306,10 @@ private fun KaarigerDashboardContent(
             }
         }
 
+        if (hasPendingDeductions) {
+            PendingDeductionsCard(pendingDeductions)
+        }
+
         if (recentOrders.isNotEmpty()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -293,7 +323,6 @@ private fun KaarigerDashboardContent(
                 KaarigerOrderCard(
                     order = order,
                     onClick = onViewAllOrders,
-                    onSubmitDelivery = onViewAllOrders,
                     onReportMaterials = onViewAllOrders,
                     compact = true
                 )
@@ -312,6 +341,61 @@ private fun KaarigerDashboardContent(
                 Text(stringResource(R.string.kaariger_step_3))
                 Text(stringResource(R.string.kaariger_step_4))
             }
+        }
+    }
+}
+
+private data class DeductionsSummary(
+    val runner: Double,
+    val fitting: Double,
+    val astar: Double,
+    val material: Double
+)
+
+private fun rupees(amount: Double): String = "₹${amount.roundToInt()}"
+
+@Composable
+private fun PendingDeductionsCard(summary: DeductionsSummary) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                "Runner / Fitting / Astar / Material",
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFC2410C),
+                style = MaterialTheme.typography.titleSmall
+            )
+            Text(
+                "From your pending bills — clears once fully paid",
+                style = MaterialTheme.typography.labelSmall,
+                color = Color(0xFF9A3412)
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                DeductionChip("Runner", summary.runner, Modifier.weight(1f))
+                DeductionChip("Fitting", summary.fitting, Modifier.weight(1f))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                DeductionChip("Astar", summary.astar, Modifier.weight(1f))
+                DeductionChip("Material", summary.material, Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeductionChip(label: String, amount: Double, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color.White.copy(alpha = 0.6f),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF9A3412))
+            Text(rupees(amount), fontWeight = FontWeight.Bold, color = Color(0xFFC2410C), style = MaterialTheme.typography.titleSmall)
         }
     }
 }

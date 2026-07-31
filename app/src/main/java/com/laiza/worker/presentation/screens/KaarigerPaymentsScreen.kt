@@ -66,6 +66,12 @@ fun KaarigerPaymentsScreen(
         }
     }
 
+    val totalKharchaPaid = remember(orderSummaries) { orderSummaries.sumOf { it.totalPaid } }
+    val totalPending = remember(orderSummaries) { orderSummaries.sumOf { it.remaining } }
+    val allPayments = remember(orderSummaries) {
+        orderSummaries.flatMap { it.payments }.sortedByDescending { it.date + it.time }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -78,6 +84,20 @@ fun KaarigerPaymentsScreen(
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(12.dp))
+
+        PaymentsSummaryCard(totalKharchaPaid, totalPending)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (allPayments.isNotEmpty()) {
+            Text(
+                "Kharcha received",
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            RecentKharchaList(allPayments)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
 
         TabRow(selectedTabIndex = activeTab) {
             Tab(
@@ -108,6 +128,83 @@ fun KaarigerPaymentsScreen(
             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(tabSummaries, key = { it.order.id }) { summary ->
                     OrderPaymentCard(summary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFD1FAE5),
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text("Total Kharcha Paid", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857))
+                Text(
+                    "₹${totalPaid.toInt()}",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF047857),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFFEF3C7),
+            modifier = Modifier.weight(1f)
+        ) {
+            Column(modifier = Modifier.padding(14.dp)) {
+                Text("Total Amount Pending", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB45309))
+                Text(
+                    "₹${totalPending.toInt()}",
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFFB45309),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecentKharchaList(payments: List<KaarigerOrderPayment>) {
+    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+            payments.take(10).forEachIndexed { index, payment ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFD1FAE5),
+                        modifier = Modifier.size(22.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text("₹", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "₹${payment.amount.toInt()} received",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            "${payment.date} · ${payment.time}" +
+                                (payment.remarks?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                if (index != payments.take(10).lastIndex) {
+                    Divider(modifier = Modifier.padding(vertical = 2.dp))
                 }
             }
         }

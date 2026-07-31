@@ -29,7 +29,6 @@ fun formatOrderDate(millis: Long?): String {
 fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
     onDismiss: () -> Unit,
-    onSubmitDelivery: (() -> Unit)? = null,
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
 ) {
@@ -99,12 +98,7 @@ fun KaarigerOrderDetailSheet(
                 OrderHisaabBreakdown(order)
             }
 
-            if ((order.status == OrderStatus.ASSIGNED || order.status == OrderStatus.REJECTED) && remaining > 0 && onSubmitDelivery != null) {
-                Button(onClick = onSubmitDelivery, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.kaariger_submit_delivery, remaining))
-                }
-            }
-            if (order.status == OrderStatus.COMPLETED && !order.materialUsageReported && onReportMaterials != null) {
+            if (order.status == OrderStatus.COMPLETED && order.rawMaterials.isNotEmpty() && !order.materialUsageReported && onReportMaterials != null) {
                 OutlinedButton(onClick = onReportMaterials, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.kaariger_report_materials))
                 }

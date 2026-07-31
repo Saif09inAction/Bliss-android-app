@@ -26,7 +26,6 @@ import com.laiza.worker.domain.models.OrderMaterial
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.domain.models.OrderReceiptData
 import com.laiza.worker.domain.models.buildOrderReceiptData
-import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.KaarigerOrderDetailSheet
 import com.laiza.worker.presentation.components.OrderProgressChips
 import com.laiza.worker.presentation.components.OrderReceiptDialog
@@ -47,7 +46,6 @@ fun KaarigerOrdersScreen(
     val payments by orderViewModel.kaarigerPayments.collectAsState()
     var search by remember { mutableStateOf("") }
     var detailOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
-    var deliveryOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
     var materialOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
     var receiptData by remember { mutableStateOf<OrderReceiptData?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -127,7 +125,6 @@ fun KaarigerOrdersScreen(
                     KaarigerOrderCard(
                         order = order,
                         onClick = { detailOrder = order },
-                        onSubmitDelivery = { deliveryOrder = order },
                         onReportMaterials = { materialOrder = order }
                     )
                 }
@@ -139,10 +136,6 @@ fun KaarigerOrdersScreen(
         KaarigerOrderDetailSheet(
             order = order,
             onDismiss = { detailOrder = null },
-            onSubmitDelivery = {
-                detailOrder = null
-                deliveryOrder = order
-            },
             onReportMaterials = {
                 detailOrder = null
                 materialOrder = order
@@ -153,22 +146,6 @@ fun KaarigerOrdersScreen(
                     receiptData = buildOrderReceiptData(order, payments)
                 }
             } else null
-        )
-    }
-
-    deliveryOrder?.let { order ->
-        SubmitDeliveryDialog(
-            order = order,
-            onDismiss = { deliveryOrder = null },
-            onSubmit = { qty, color, name, notes ->
-                orderViewModel.submitDelivery(order.id, qty, color, name, notes,
-                    onSuccess = {
-                        deliveryOrder = null
-                        errorMsg = null
-                    },
-                    onError = { msg -> errorMsg = msg }
-                )
-            }
         )
     }
 
@@ -202,11 +179,9 @@ fun KaarigerOrdersScreen(
 fun KaarigerOrderCard(
     order: KaarigerOrder,
     onClick: () -> Unit,
-    onSubmitDelivery: () -> Unit,
     onReportMaterials: () -> Unit,
     compact: Boolean = false
 ) {
-    val remaining = order.remainingQuantity()
     PremiumCard(modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)) {
         Column(modifier = Modifier.padding(if (compact) 12.dp else 16.dp)) {
             Row(
@@ -242,10 +217,6 @@ fun KaarigerOrderCard(
                     color = Color(0xFFB45309)
                 )
             }
-            if (!compact && (order.status == OrderStatus.ASSIGNED || order.status == OrderStatus.REJECTED) && remaining > 0) {
-                Spacer(modifier = Modifier.height(12.dp))
-                PrimaryButton(text = stringResource(R.string.kaariger_submit_delivery, remaining), onClick = onSubmitDelivery)
-            }
             if (!compact && order.status == OrderStatus.COMPLETED && order.materialUsageReported) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -254,55 +225,12 @@ fun KaarigerOrderCard(
                     color = MaterialTheme.colorScheme.primary
                 )
             }
-            if (!compact && order.status == OrderStatus.COMPLETED && !order.materialUsageReported) {
+            if (!compact && order.status == OrderStatus.COMPLETED && order.rawMaterials.isNotEmpty() && !order.materialUsageReported) {
                 Spacer(modifier = Modifier.height(12.dp))
                 PrimaryButton(text = stringResource(R.string.kaariger_report_materials), onClick = onReportMaterials)
             }
         }
     }
-}
-
-@Composable
-private fun SubmitDeliveryDialog(
-    order: KaarigerOrder,
-    onDismiss: () -> Unit,
-    onSubmit: (Int, String, String, String?) -> Unit
-) {
-    val remaining = order.remainingQuantity()
-    var qty by remember { mutableStateOf(remaining.toString()) }
-    var name by remember { mutableStateOf(order.productName) }
-    var notes by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.kaariger_submit_dialog_title), fontWeight = FontWeight.Bold) },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(stringResource(R.string.kaariger_submit_dialog_hint, remaining), style = MaterialTheme.typography.bodySmall)
-                Text(stringResource(R.string.kaariger_submit_dialog_progress, order.approvedQuantity, order.targetQuantity), style = MaterialTheme.typography.labelMedium)
-                CustomTextField(value = name, onValueChange = { name = it }, label = stringResource(R.string.kaariger_field_product_name))
-                CustomTextField(value = qty, onValueChange = { qty = it }, label = stringResource(R.string.kaariger_field_qty_sending), keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number))
-                CustomTextField(value = notes, onValueChange = { notes = it }, label = stringResource(R.string.kaariger_field_notes))
-                Text(
-                    "Staff will set colours when approving",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        },
-        confirmButton = {
-            PrimaryButton(
-                text = stringResource(R.string.kaariger_submit),
-                onClick = {
-                    val q = qty.toIntOrNull()
-                    if (q != null && q in 1..remaining && name.isNotBlank()) {
-                        onSubmit(q, "", name, notes.ifBlank { null })
-                    }
-                }
-            )
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.kaariger_cancel)) } }
-    )
 }
 
 @Composable
