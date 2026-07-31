@@ -104,6 +104,7 @@
     <string name="kaariger_detail_deductions">Runner / Fitting / Astar / Material</string>
     <string name="kaariger_detail_deductions_total">Deductions Total</string>
     <string name="kaariger_detail_kharcha_given">Kharcha Given</string>
+    <string name="kaariger_detail_repair_deduction">Repairing Deduction</string>
     <string name="kaariger_detail_final_balance">Final Balance To Get</string>
     <string name="kaariger_pcs">%1$d pcs</string>
     <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/pc)</string>

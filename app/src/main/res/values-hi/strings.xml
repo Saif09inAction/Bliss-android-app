@@ -66,6 +66,7 @@
     <string name="kaariger_detail_deductions">रनर / फिटिंग / अस्तर / मटेरियल</string>
     <string name="kaariger_detail_deductions_total">कटौती कुल</string>
     <string name="kaariger_detail_kharcha_given">खर्चा दिया गया</string>
+    <string name="kaariger_detail_repair_deduction">रिपेयरिंग कटौती</string>
     <string name="kaariger_detail_final_balance">अंतिम बकाया राशि</string>
     <string name="kaariger_pcs">%1$d पीस</string>
     <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/पीस)</string>

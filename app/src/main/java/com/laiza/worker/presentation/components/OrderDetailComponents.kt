@@ -167,13 +167,20 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder) {
                 DetailRow(stringResource(R.string.kaariger_detail_deductions_total), "−${rupees(order.materialDeductionsTotal)}")
             }
 
+            if (order.repairDeductionTotal > 0) {
+                Divider(modifier = Modifier.padding(vertical = 2.dp))
+                DetailRow(stringResource(R.string.kaariger_detail_repair_deduction), "−${rupees(order.repairDeductionTotal)}")
+            }
+
             if (order.kharchaGiven > 0) {
                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                 DetailRow(stringResource(R.string.kaariger_detail_kharcha_given), "−${rupees(order.kharchaGiven)}")
             }
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))
-            val finalBalance = (order.productsTotal - order.materialDeductionsTotal - order.kharchaGiven).coerceAtLeast(0.0)
+            val finalBalance = (
+                order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal - order.kharchaGiven
+            ).coerceAtLeast(0.0)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
                     stringResource(R.string.kaariger_detail_final_balance),
