@@ -6,6 +6,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -14,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -28,6 +30,7 @@ fun formatOrderDate(millis: Long?): String {
 @Composable
 fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
+    payments: List<KaarigerOrderPayment> = emptyList(),
     onDismiss: () -> Unit,
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
@@ -95,7 +98,7 @@ fun KaarigerOrderDetailSheet(
             }
 
             if (order.products.isNotEmpty()) {
-                OrderHisaabBreakdown(order)
+                OrderHisaabBreakdown(order, payments.filter { it.orderId == order.id })
             }
 
             if (order.status == OrderStatus.COMPLETED && order.rawMaterials.isNotEmpty() && !order.materialUsageReported && onReportMaterials != null) {
@@ -123,7 +126,11 @@ private fun DetailRow(label: String, value: String) {
 private fun rupees(amount: Double): String = "₹${amount.toInt()}"
 
 @Composable
-private fun OrderHisaabBreakdown(order: KaarigerOrder) {
+private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<KaarigerOrderPayment>) {
+    val sortedPayments = remember(orderPayments) {
+        orderPayments.sortedBy { "${it.date} ${it.time}" }
+    }
+    val totalKharcha = sortedPayments.sumOf { it.amount }
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f),
@@ -172,14 +179,30 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder) {
                 DetailRow(stringResource(R.string.kaariger_detail_repair_deduction), "−${rupees(order.repairDeductionTotal)}")
             }
 
-            if (order.kharchaGiven > 0) {
+            if (sortedPayments.isNotEmpty()) {
                 Divider(modifier = Modifier.padding(vertical = 2.dp))
-                DetailRow(stringResource(R.string.kaariger_detail_kharcha_given), "−${rupees(order.kharchaGiven)}")
+                Text(
+                    stringResource(R.string.kaariger_detail_kharcha_timeline),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                sortedPayments.forEach { p ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("${p.date} · ${p.time}", style = MaterialTheme.typography.bodySmall)
+                            p.remarks?.takeIf { it.isNotBlank() }?.let {
+                                Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                        Text("−${rupees(p.amount)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                    }
+                }
+                DetailRow(stringResource(R.string.kaariger_detail_kharcha_total), "−${rupees(totalKharcha)}")
             }
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))
             val finalBalance = (
-                order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal - order.kharchaGiven
+                order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal - totalKharcha
             ).coerceAtLeast(0.0)
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(

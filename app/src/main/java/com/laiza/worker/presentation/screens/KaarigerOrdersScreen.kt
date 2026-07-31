@@ -133,6 +133,7 @@ fun KaarigerOrdersScreen(
     detailOrder?.let { order ->
         KaarigerOrderDetailSheet(
             order = order,
+            payments = payments,
             onDismiss = { detailOrder = null },
             onReportMaterials = {
                 detailOrder = null
