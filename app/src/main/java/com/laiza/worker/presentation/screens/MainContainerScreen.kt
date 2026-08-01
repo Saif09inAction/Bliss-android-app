@@ -191,12 +191,12 @@ fun StaffContainerScreen(
                         }
                     )
                     DrawerItem(
-                        title = "Repairing",
-                        icon = Icons.Default.Build,
-                        selected = currentRoute == "repairing_tab",
+                        title = "Store Inventory",
+                        icon = Icons.Default.Inventory,
+                        selected = currentRoute == BottomNavItem.Inventory.route,
                         onClick = {
                             scope.launch { drawerState.close() }
-                            childNavController.navigate("repairing_tab") {
+                            childNavController.navigate(BottomNavItem.Inventory.route) {
                                 popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
                                 launchSingleTop = true
                                 restoreState = false
@@ -355,7 +355,7 @@ fun StaffContainerScreen(
                                 val normalNavItems = remember {
                                     listOf(
                                         BottomNavItem.Home,
-                                        BottomNavItem.Inventory,
+                                        BottomNavItem.Repairing,
                                         BottomNavItem.Dispatch,
                                         BottomNavItem.Attendance
                                     )
@@ -589,4 +589,5 @@ sealed class BottomNavItem(val route: String, val title: String, val icon: Image
     object Dispatch : BottomNavItem("dispatch_tab", "Dispatch", Icons.Default.LocalShipping)
     object Approvals : BottomNavItem("approvals_tab", "Verify", Icons.Default.Task)
     object Attendance : BottomNavItem("attendance_tab", "Attendance", Icons.Default.Badge)
+    object Repairing : BottomNavItem("repairing_tab", "Repairing", Icons.Default.Build)
 }
