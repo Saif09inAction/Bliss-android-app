@@ -51,13 +51,22 @@ fun KaarigerPaymentsScreen(
             val repairTotal = order.repairDeductionTotal.takeIf { it > 0 }
                 ?: orderRepairs.sumOf { it.totalRepairCost }
             val netDeal = (originalDeal - repairTotal).coerceAtLeast(0.0)
-            val remaining = if (order.status == OrderStatus.COMPLETED) 0.0 else (netDeal - totalPaid).coerceAtLeast(0.0)
-            OrderPaymentSummary(orderPayments, order.productName, totalPaid, remaining)
+            val isCompleted = order.status == OrderStatus.COMPLETED
+            val remaining = if (isCompleted) 0.0 else (netDeal - totalPaid).coerceAtLeast(0.0)
+            OrderPaymentSummary(orderPayments, order.productName, totalPaid, remaining, isCompleted)
         }
     }
 
-    val totalKharchaPaid = remember(orderSummaries) { orderSummaries.sumOf { it.totalPaid } }
-    val totalPending = remember(orderSummaries) { orderSummaries.sumOf { it.remaining } }
+    // "Kharcha Paid" / "Total Amount Pending" only reflect bill(s) still awaiting
+    // payment. Once a bill is fully paid off it's done — its payments shouldn't
+    // keep piling into a perpetual "paid" total. Any amount beyond what a bill
+    // needed becomes carried-forward credit, shown separately below.
+    val totalKharchaPaid = remember(orderSummaries) {
+        orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid }
+    }
+    val totalPending = remember(orderSummaries) {
+        orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining }
+    }
     val creditBalance = remember(kaarigers, session?.phone) {
         kaarigers.find { it.phone == session?.phone }?.creditBalance ?: 0.0
     }
@@ -124,7 +133,8 @@ private data class OrderPaymentSummary(
     val payments: List<KaarigerOrderPayment>,
     val productName: String,
     val totalPaid: Double,
-    val remaining: Double
+    val remaining: Double,
+    val isCompleted: Boolean
 )
 
 private data class PaymentWithOrder(val payment: KaarigerOrderPayment, val productName: String)
