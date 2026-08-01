@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import com.laiza.worker.core.session.SessionManager
 import com.laiza.worker.core.utils.Resource
 import com.laiza.worker.domain.models.*
-import com.laiza.worker.domain.repository.InventoryRepository
 import com.laiza.worker.domain.repository.StoreOperationsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -18,25 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class StoreOperationsViewModel @Inject constructor(
     private val storeOperationsRepository: StoreOperationsRepository,
-    private val inventoryRepository: InventoryRepository,
     private val sessionManager: SessionManager
 ) : ViewModel() {
-
-    private val _inventorySearch = MutableStateFlow("")
-    val inventorySearch = _inventorySearch.asStateFlow()
-
-    val storeInventory: StateFlow<List<FinishedProduct>> = inventoryRepository.getAllFinishedProducts()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    val filteredInventory: StateFlow<List<FinishedProduct>> = inventorySearch
-        .combine(storeInventory) { query, list ->
-            if (query.isBlank()) list
-            else list.filter {
-                it.name.contains(query, ignoreCase = true) ||
-                        it.color.contains(query, ignoreCase = true)
-            }
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val allPickups: StateFlow<List<PickupRecord>> = storeOperationsRepository.getAllPickups()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
@@ -47,22 +29,6 @@ class StoreOperationsViewModel @Inject constructor(
     val deliveryPartners: StateFlow<List<DeliveryPartner>> =
         storeOperationsRepository.getDeliveryPartners()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-
-    fun onInventorySearchChange(query: String) {
-        _inventorySearch.value = query
-    }
-
-    fun refreshInventory(onComplete: ((Boolean) -> Unit)? = null) {
-        viewModelScope.launch {
-            inventoryRepository.refreshFinishedProducts().collect { res ->
-                when (res) {
-                    is Resource.Success -> onComplete?.invoke(true)
-                    is Resource.Error -> onComplete?.invoke(false)
-                    else -> {}
-                }
-            }
-        }
-    }
 
     fun addDeliveryPartner(
         name: String,
@@ -81,15 +47,15 @@ class StoreOperationsViewModel @Inject constructor(
     }
 
     fun recordPickup(
-        items: List<PickupLineItem>,
+        quantity: Int,
         platform: String,
         deliveryPartner: String,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
-            if (items.isEmpty()) {
-                onError("Select at least one product")
+            if (quantity <= 0) {
+                onError("Enter a valid quantity")
                 return@launch
             }
             if (platform.isBlank()) {
@@ -102,13 +68,8 @@ class StoreOperationsViewModel @Inject constructor(
             }
             val session = sessionManager.userSession.firstOrNull()
             val now = Date()
-            val first = items.first()
             val record = PickupRecord(
-                items = items,
-                productId = first.productId,
-                productName = first.productName,
-                color = first.color,
-                quantity = items.sumOf { it.quantity },
+                quantity = quantity,
                 partner = platform.trim(),
                 deliveryPartner = deliveryPartner.trim(),
                 staffId = session?.phone ?: "",
@@ -127,7 +88,6 @@ class StoreOperationsViewModel @Inject constructor(
     }
 
     fun recordReturn(
-        product: FinishedProduct,
         quantity: Int,
         platform: String,
         deliveryPartner: String,
@@ -137,12 +97,21 @@ class StoreOperationsViewModel @Inject constructor(
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
+            if (quantity <= 0) {
+                onError("Enter a valid quantity")
+                return@launch
+            }
+            if (platform.isBlank()) {
+                onError("Select a marketplace (Amazon, Flipkart…)")
+                return@launch
+            }
+            if (deliveryPartner.isBlank()) {
+                onError("Select or add a delivery partner")
+                return@launch
+            }
             val session = sessionManager.userSession.firstOrNull()
             val now = Date()
             val record = ReturnRecord(
-                productId = product.id,
-                productName = product.name,
-                color = product.color,
                 quantity = quantity,
                 partner = platform.trim().ifBlank { EcommercePlatform.FLIPKART },
                 deliveryPartner = deliveryPartner.trim(),

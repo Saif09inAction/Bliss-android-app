@@ -10,14 +10,11 @@ import com.laiza.worker.domain.models.PickupLineItem
 import com.laiza.worker.domain.models.PickupRecord
 import com.laiza.worker.domain.models.ReturnRecord
 import com.laiza.worker.domain.models.ReturnType
-import com.laiza.worker.domain.repository.InventoryRepository
 import com.laiza.worker.domain.repository.StoreOperationsRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
@@ -26,8 +23,7 @@ import javax.inject.Singleton
 
 @Singleton
 class StoreOperationsRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val inventoryRepository: InventoryRepository
+    private val firestore: FirebaseFirestore
 ) : StoreOperationsRepository {
 
     override fun getAllPickups(): Flow<List<PickupRecord>> = callbackFlow {
@@ -127,24 +123,9 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordPickup(record: PickupRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            val lines = record.lineItems
-            if (lines.isEmpty()) {
-                emit(Resource.Error("Select at least one product"))
+            if (record.quantity <= 0) {
+                emit(Resource.Error("Enter a valid quantity"))
                 return@flow
-            }
-            for (item in lines) {
-                if (item.quantity <= 0) {
-                    emit(Resource.Error("Invalid quantity for ${item.productName}"))
-                    return@flow
-                }
-                val adjust = inventoryRepository
-                    .adjustFinishedProductQuantity(item.productId, -item.quantity)
-                    .filter { it !is Resource.Loading }
-                    .first()
-                if (adjust is Resource.Error) {
-                    emit(Resource.Error(adjust.message ?: "Failed to deduct ${item.productName}"))
-                    return@flow
-                }
             }
             firestore.collection("pickup_records").document(record.id)
                 .set(pickupToMap(record))
@@ -160,21 +141,14 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordReturn(record: ReturnRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            val adjust = inventoryRepository
-                .adjustFinishedProductQuantity(record.productId, record.quantity)
-                .filter { it !is Resource.Loading }
-                .first()
-
-            when (adjust) {
-                is Resource.Success -> {
-                    firestore.collection("return_records").document(record.id)
-                        .set(returnToMap(record))
-                        .await()
-                    emit(Resource.Success(Unit))
-                }
-                is Resource.Error -> emit(Resource.Error(adjust.message ?: "Failed to restock inventory"))
-                else -> emit(Resource.Error("Failed to restock inventory"))
+            if (record.quantity <= 0) {
+                emit(Resource.Error("Enter a valid quantity"))
+                return@flow
             }
+            firestore.collection("return_records").document(record.id)
+                .set(returnToMap(record))
+                .await()
+            emit(Resource.Success(Unit))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
