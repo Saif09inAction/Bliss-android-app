@@ -244,7 +244,6 @@ private fun KaarigerDashboardContent(
 ) {
     val activeOrders = orders.count { it.status != OrderStatus.COMPLETED }
     val pendingBatches = orders.count { it.status == OrderStatus.PENDING_APPROVAL }
-    val totalRemaining = orders.sumOf { it.remainingQuantity() }
     val recentOrders = orders.take(3)
 
     // Runner/Fitting/Astar/Material quantities given by admin, only for bills not yet fully
@@ -299,7 +298,7 @@ private fun KaarigerDashboardContent(
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        stringResource(R.string.kaariger_active_summary, activeOrders, totalRemaining),
+                        stringResource(R.string.kaariger_active_summary, activeOrders),
                         color = Color.White.copy(alpha = 0.75f)
                     )
                     if (pendingBatches > 0) {

@@ -13,7 +13,6 @@ import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Task
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -42,8 +41,6 @@ import java.util.Locale
 @Composable
 fun DashboardScreen(
     navController: NavController,
-    pendingApprovalCount: Int = 0,
-    onNavigateToApprovals: () -> Unit = {},
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val session by viewModel.employeeSession.collectAsState()
@@ -152,45 +149,6 @@ fun DashboardScreen(
                             }
                         }
                     }
-                }
-            }
-        }
-
-        // Pending kaariger verifications
-        if (pendingApprovalCount > 0) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onNavigateToApprovals() },
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA))
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    BadgedBox(
-                        badge = {
-                            Badge(containerColor = Color(0xFFDC2626)) {
-                                Text(pendingApprovalCount.toString())
-                            }
-                        }
-                    ) {
-                        Icon(Icons.Default.Task, contentDescription = null, tint = Color(0xFFDC2626), modifier = Modifier.size(28.dp))
-                    }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Verify Kaariger Orders", fontWeight = FontWeight.Bold, color = Color(0xFF991B1B))
-                        Text(
-                            "$pendingApprovalCount delivery batch(es) waiting for your approval",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFFB91C1C)
-                        )
-                    }
-                    Text("→", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
                 }
             }
         }

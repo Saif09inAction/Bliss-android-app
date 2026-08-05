@@ -202,7 +202,7 @@ fun KaarigerOrderCard(
             if (order.status == OrderStatus.PENDING_APPROVAL) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    stringResource(R.string.kaariger_awaiting_approval, order.deliveredQuantity ?: 0),
+                    stringResource(R.string.kaariger_status_pending_approval),
                     style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFFB45309)
                 )

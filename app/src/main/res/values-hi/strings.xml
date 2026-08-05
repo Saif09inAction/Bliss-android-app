@@ -15,7 +15,7 @@
     <string name="kaariger_english">English</string>
     <string name="kaariger_hindi">हिंदी</string>
     <string name="kaariger_welcome">नमस्ते, %1$s</string>
-    <string name="kaariger_active_summary">%1$d हिसाब चल रहा · %2$d पीस बाकी</string>
+    <string name="kaariger_active_summary">%1$d हिसाब चल रहा</string>
     <string name="kaariger_pending_batches">%1$d पीस चेक हो रहे हैं</string>
     <string name="kaariger_recent_orders">आज का हिसाब</string>
     <string name="kaariger_view_all">सब देखो</string>
@@ -101,7 +101,7 @@
     <string name="kaariger_payment_remaining">बाकी पैसे</string>
     <string name="kaariger_payment_history">पैसे मिले — लिस्ट</string>
     <string name="kaariger_no_payments">अभी कोई पैसे नहीं मिले</string>
-    <string name="kaariger_payment_received_amount">₹%1$d मिला</string>
+    <string name="kaariger_payment_received_amount">%1$s मिला</string>
     <string name="kaariger_payment_extra_title">ज़्यादा मिला</string>
     <string name="kaariger_payment_extra_body">बिल क्लियर है। ये पैसे अगले हिसाब में कटेगा।</string>
     <string name="kaariger_payment_show_less">कम दिखाओ</string>

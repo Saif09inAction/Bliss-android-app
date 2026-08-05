@@ -31,13 +31,12 @@ import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Task
 import androidx.compose.material.icons.filled.Factory
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -90,10 +89,7 @@ import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.screens.AttendanceHomeScreen
 import com.laiza.worker.presentation.screens.SalaryLedgerScreen
 import com.laiza.worker.presentation.screens.DashboardScreen
-import com.laiza.worker.presentation.screens.StoreInventoryScreen
-import com.laiza.worker.presentation.screens.StaffPendingApprovalsScreen
 import com.laiza.worker.presentation.screens.StaffDispatchScreen
-import androidx.compose.material.icons.filled.LocalShipping
 import com.laiza.worker.presentation.screens.EmployeeProfileScreen
 import com.laiza.worker.presentation.components.DrawerHeader
 import com.laiza.worker.presentation.components.DrawerItem
@@ -112,8 +108,6 @@ fun StaffContainerScreen(
 ) {
     val childNavController = rememberNavController()
     val session by authViewModel.userSession.collectAsState()
-    val pendingApprovals by orderViewModel.pendingApprovals.collectAsState()
-    val pendingCount = pendingApprovals.size
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     var showLogoutDialog by remember { mutableStateOf(false) }
@@ -177,33 +171,6 @@ fun StaffContainerScreen(
                         }
                     )
                     DrawerItem(
-                        title = "Verify Orders",
-                        icon = Icons.Default.Task,
-                        selected = currentRoute == BottomNavItem.Approvals.route,
-                        badgeCount = pendingCount,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            childNavController.navigate(BottomNavItem.Approvals.route) {
-                                popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = false
-                            }
-                        }
-                    )
-                    DrawerItem(
-                        title = "Store Inventory",
-                        icon = Icons.Default.Inventory,
-                        selected = currentRoute == BottomNavItem.Inventory.route,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            childNavController.navigate(BottomNavItem.Inventory.route) {
-                                popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = false
-                            }
-                        }
-                    )
-                    DrawerItem(
                         title = "Salary Ledger",
                         icon = Icons.Default.Payments,
                         selected = currentRoute == "salary_tab",
@@ -252,20 +219,16 @@ fun StaffContainerScreen(
                     LaizaTopAppBar(
                         title = when (currentRoute) {
                             BottomNavItem.Home.route -> "Staff Dashboard"
-                            BottomNavItem.Inventory.route -> "Store Inventory"
                             BottomNavItem.Dispatch.route -> "Pickup & Return"
                             BottomNavItem.Attendance.route -> "Attendance"
-                            BottomNavItem.Approvals.route -> "Verify Orders"
                             "repairing_tab" -> "Repairing"
                             "employee_profile" -> "My Profile"
                             else -> "Bliss Bombay"
                         },
                         subtitle = when (currentRoute) {
                             BottomNavItem.Home.route -> "Good Morning • ${java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())}"
-                            BottomNavItem.Inventory.route -> "Approved products at store"
                             BottomNavItem.Dispatch.route -> "E-commerce partner handoffs"
                             BottomNavItem.Attendance.route -> "Today's Shift"
-                            BottomNavItem.Approvals.route -> if (pendingCount > 0) "$pendingCount pending verification(s)" else "Kaariger delivery approvals"
                             "repairing_tab" -> "Deduct faulty pieces from kaariger hisaab"
                             "employee_profile" -> "Manage Bank & Account Settings"
                             else -> null
@@ -526,25 +489,11 @@ fun StaffContainerScreen(
                     ) {
                         composable(route = BottomNavItem.Home.route) {
                             DashboardScreen(
-                                navController = rootNavController,
-                                pendingApprovalCount = pendingCount,
-                                onNavigateToApprovals = {
-                                    childNavController.navigate(BottomNavItem.Approvals.route) {
-                                        popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = false
-                                    }
-                                }
+                                navController = rootNavController
                             )
-                        }
-                        composable(route = BottomNavItem.Inventory.route) {
-                            StoreInventoryScreen(canAdd = true, canDelete = false)
                         }
                         composable(route = BottomNavItem.Dispatch.route) {
                             StaffDispatchScreen()
-                        }
-                        composable(route = BottomNavItem.Approvals.route) {
-                            StaffPendingApprovalsScreen(viewModel = orderViewModel)
                         }
                         composable(route = BottomNavItem.Attendance.route) {
                             AttendanceHomeScreen(navController = rootNavController)
@@ -585,9 +534,7 @@ fun StaffContainerScreen(
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem("home_tab", "Home", Icons.Default.Home)
-    object Inventory : BottomNavItem("inventory_tab", "Inventory", Icons.Default.Inventory)
     object Dispatch : BottomNavItem("dispatch_tab", "Dispatch", Icons.Default.LocalShipping)
-    object Approvals : BottomNavItem("approvals_tab", "Verify", Icons.Default.Task)
     object Attendance : BottomNavItem("attendance_tab", "Attendance", Icons.Default.Badge)
     object Repairing : BottomNavItem("repairing_tab", "Repairing", Icons.Default.Build)
 }

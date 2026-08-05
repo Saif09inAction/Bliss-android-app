@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
+import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
@@ -219,7 +220,7 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "₹${totalPaid.toInt()}",
+                    formatIndianRupee(totalPaid),
                     fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFF047857),
                     fontSize = 40.sp,
@@ -241,7 +242,7 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    "₹${totalPending.toInt()}",
+                    formatIndianRupee(totalPending),
                     fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFFB45309),
                     fontSize = 40.sp,
@@ -270,7 +271,7 @@ private fun CreditBalanceCard(creditBalance: Double) {
             )
             Spacer(modifier = Modifier.height(10.dp))
             Text(
-                "₹${creditBalance.toInt()}",
+                formatIndianRupee(creditBalance),
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF047857),
                 fontSize = 32.sp
@@ -309,7 +310,10 @@ private fun RecentKharchaList(entries: List<PaymentWithOrder>) {
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            stringResource(R.string.kaariger_payment_received_amount, payment.amount.toInt()),
+                            stringResource(
+                                R.string.kaariger_payment_received_amount,
+                                formatIndianRupee(payment.amount)
+                            ),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )

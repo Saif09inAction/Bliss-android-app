@@ -15,6 +15,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laiza.worker.R
+import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
@@ -36,8 +37,6 @@ fun KaarigerOrderDetailSheet(
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
 ) {
-    val remaining = order.remainingQuantity()
-    val awaiting = if (order.status == OrderStatus.PENDING_APPROVAL) order.deliveredQuantity ?: 0 else 0
     val emDash = stringResource(R.string.kaariger_em_dash)
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -66,10 +65,6 @@ fun KaarigerOrderDetailSheet(
 
             DetailRow(stringResource(R.string.kaariger_detail_received_on), formatOrderDate(order.createdAt).ifBlank { emDash })
             if (order.color.isNotBlank()) DetailRow(stringResource(R.string.kaariger_detail_color), order.color)
-            DetailRow(stringResource(R.string.kaariger_detail_target), stringResource(R.string.kaariger_pcs, order.targetQuantity))
-            DetailRow(stringResource(R.string.kaariger_detail_sent_approved), stringResource(R.string.kaariger_pcs, order.approvedQuantity))
-            if (awaiting > 0) DetailRow(stringResource(R.string.kaariger_detail_awaiting), stringResource(R.string.kaariger_pcs, awaiting))
-            DetailRow(stringResource(R.string.kaariger_detail_remaining), stringResource(R.string.kaariger_pcs, remaining))
             DetailRow(
                 stringResource(R.string.kaariger_detail_deal),
                 if (order.pricingType.name == "PER_PIECE")
@@ -78,8 +73,6 @@ fun KaarigerOrderDetailSheet(
                     stringResource(R.string.kaariger_deal_total, order.totalDealAmount.toInt())
             )
             order.notes?.takeIf { it.isNotBlank() }?.let { DetailRow(stringResource(R.string.kaariger_detail_notes), it) }
-            order.verifiedBy?.let { DetailRow(stringResource(R.string.kaariger_detail_last_verified_by), it) }
-            order.verifiedAt?.let { DetailRow(stringResource(R.string.kaariger_detail_last_verified_on), formatOrderDate(it)) }
 
             if (order.rawMaterials.isNotEmpty()) {
                 Text(stringResource(R.string.kaariger_detail_raw_materials), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
@@ -126,7 +119,7 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
-private fun rupees(amount: Double): String = "₹${amount.toInt()}"
+private fun rupees(amount: Double): String = formatIndianRupee(amount)
 
 @Composable
 private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<KaarigerOrderPayment>) {
@@ -257,26 +250,5 @@ private fun BoldRow(label: String, value: String, color: Color = Color.Unspecifi
     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(label, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color)
         Text(value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = if (color == Color.Unspecified) MaterialTheme.colorScheme.onSurface else color)
-    }
-}
-
-@Composable
-fun OrderProgressChips(order: KaarigerOrder) {
-    val remaining = order.remainingQuantity()
-    val awaiting = if (order.status == OrderStatus.PENDING_APPROVAL) order.deliveredQuantity ?: 0 else 0
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-        ProgressChip(stringResource(R.string.kaariger_chip_approved), "${order.approvedQuantity}", Color(0xFF10B981), Modifier.weight(1f))
-        if (awaiting > 0) ProgressChip(stringResource(R.string.kaariger_chip_pending), "$awaiting", Color(0xFFB45309), Modifier.weight(1f))
-        ProgressChip(stringResource(R.string.kaariger_chip_left), "$remaining", MaterialTheme.colorScheme.primary, Modifier.weight(1f))
-    }
-}
-
-@Composable
-private fun ProgressChip(label: String, value: String, color: Color, modifier: Modifier = Modifier) {
-    Surface(shape = RoundedCornerShape(10.dp), color = color.copy(alpha = 0.12f), modifier = modifier) {
-        Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(value, fontWeight = FontWeight.Bold, color = color, style = MaterialTheme.typography.titleSmall)
-            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
     }
 }

@@ -53,7 +53,7 @@
     <string name="kaariger_english">English</string>
     <string name="kaariger_hindi">Hindi</string>
     <string name="kaariger_welcome">Namaste, %1$s</string>
-    <string name="kaariger_active_summary">%1$d hisaab chal raha · %2$d piece baaki</string>
+    <string name="kaariger_active_summary">%1$d hisaab chal raha</string>
     <string name="kaariger_pending_batches">%1$d piece check ho rahe hain</string>
     <string name="kaariger_recent_orders">Aaj ka hisaab</string>
     <string name="kaariger_view_all">Sab dekho</string>
@@ -139,7 +139,7 @@
     <string name="kaariger_payment_remaining">Baaki paise</string>
     <string name="kaariger_payment_history">Paise mile — list</string>
     <string name="kaariger_no_payments">Abhi koi paise nahi mile</string>
-    <string name="kaariger_payment_received_amount">₹%1$d mila</string>
+    <string name="kaariger_payment_received_amount">%1$s mila</string>
     <string name="kaariger_payment_extra_title">Zyada mila</string>
     <string name="kaariger_payment_extra_body">Bill clear hai. Ye paise agle hisaab mein katega.</string>
     <string name="kaariger_payment_show_less">Kam dikhao</string>
