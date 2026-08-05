@@ -229,7 +229,7 @@ private fun GrandTotalBox(order: KaarigerOrder, orderPayments: List<KaarigerOrde
             Text(
                 stringResource(R.string.kaariger_grand_total_title),
                 fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.titleMedium,
                 color = jade
             )
             DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))

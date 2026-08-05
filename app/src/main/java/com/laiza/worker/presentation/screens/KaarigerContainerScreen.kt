@@ -370,10 +370,10 @@ private fun PendingDeductionsCard(summary: DeductionsSummary) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                "Runner / Fitting / Astar / Material",
+                stringResource(R.string.kaariger_home_deductions_title),
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFFC2410C),
-                style = MaterialTheme.typography.titleSmall
+                style = MaterialTheme.typography.titleMedium
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {

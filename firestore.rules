@@ -106,6 +106,17 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // -------------------------------------------------------------------------
+    // Bill Report — supplier ledgers under Claris / Bliss
+    // -------------------------------------------------------------------------
+    match /bill_companies/{companyId} {
+      allow read, write: if true;
+    }
+
+    match /bill_entries/{entryId} {
+      allow read, write: if true;
+    }
+
     // Deny everything else by default
     match /{document=**} {
       allow read, write: if false;

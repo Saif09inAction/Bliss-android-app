@@ -71,7 +71,6 @@ fun KaarigerPaymentsScreen(
         payments.filter { isOpeningLikePayment(it) }
     }
 
-    // Kharcha on active bills + payments against old remaining / advance ledger.
     val totalKharchaPaid = remember(orderSummaries, openingPayments) {
         orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid } +
             openingPayments.sumOf { it.amount }
@@ -89,14 +88,17 @@ fun KaarigerPaymentsScreen(
         (creditBalance.coerceAtLeast(0.0) - gross).coerceAtLeast(0.0)
     }
 
-    val allPayments = remember(orderSummaries, openingPayments) {
+    val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)
+    val creditProductLabel = stringResource(R.string.kaariger_payment_credit_product)
+
+    val allPayments = remember(orderSummaries, openingPayments, openingProductLabel, creditProductLabel) {
         val fromOrders = orderSummaries.flatMap { summary ->
             summary.payments.map { PaymentWithOrder(it, summary.productName) }
         }
         val fromOpening = openingPayments.map { payment ->
             val label = when {
-                payment.remarks?.contains("credit", ignoreCase = true) == true -> "Advance / credit"
-                else -> "Opening balance"
+                payment.remarks?.contains("credit", ignoreCase = true) == true -> creditProductLabel
+                else -> openingProductLabel
             }
             PaymentWithOrder(payment, label)
         }
@@ -112,43 +114,69 @@ fun KaarigerPaymentsScreen(
     ) {
         Text(
             stringResource(R.string.kaariger_payments_title),
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(
+                stringResource(R.string.kaariger_payment_hint_green),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFF047857),
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                stringResource(R.string.kaariger_payment_hint_amber),
+                style = MaterialTheme.typography.bodySmall,
+                color = Color(0xFFB45309),
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Spacer(modifier = Modifier.height(16.dp))
 
         PaymentsSummaryCard(totalKharchaPaid, totalPending)
 
         if (totalPending <= 0.0 && surplusCredit > 0.0) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(14.dp))
             CreditBalanceCard(surplusCredit)
         }
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            "Kharcha received",
+            stringResource(R.string.kaariger_payment_history),
             fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium
+            style = MaterialTheme.typography.titleLarge
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(12.dp))
 
         if (allPayments.isEmpty()) {
-            Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Text(
                     stringResource(R.string.kaariger_no_payments),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
         } else {
             val visible = if (showAllKharcha) allPayments else allPayments.take(DEFAULT_KHARCHA_ROWS)
             RecentKharchaList(visible)
             if (allPayments.size > DEFAULT_KHARCHA_ROWS) {
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
                 OutlinedButton(
                     onClick = { showAllKharcha = !showAllKharcha },
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier.fillMaxWidth().height(48.dp)
                 ) {
-                    Text(if (showAllKharcha) "Show less" else "View all (${allPayments.size})")
+                    Text(
+                        if (showAllKharcha) {
+                            stringResource(R.string.kaariger_payment_show_less)
+                        } else {
+                            stringResource(R.string.kaariger_payment_view_all, allPayments.size)
+                        },
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             }
         }
@@ -176,48 +204,48 @@ private data class PaymentWithOrder(val payment: KaarigerOrderPayment, val produ
 
 @Composable
 private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             color = Color(0xFFD1FAE5),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp)) {
                 Text(
-                    "Kharcha Paid",
-                    style = MaterialTheme.typography.labelMedium,
+                    stringResource(R.string.kaariger_payment_advance),
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color(0xFF047857),
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "₹${totalPaid.toInt()}",
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFF047857),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontSize = 28.sp
+                    fontSize = 40.sp,
+                    lineHeight = 44.sp
                 )
             }
         }
         Surface(
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(18.dp),
             color = Color(0xFFFEF3C7),
-            modifier = Modifier.weight(1f)
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 22.dp)) {
                 Text(
-                    "Remaining payment",
-                    style = MaterialTheme.typography.labelMedium,
+                    stringResource(R.string.kaariger_payment_remaining),
+                    style = MaterialTheme.typography.titleMedium,
                     color = Color(0xFFB45309),
                     fontWeight = FontWeight.SemiBold
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "₹${totalPending.toInt()}",
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     color = Color(0xFFB45309),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontSize = 28.sp
+                    fontSize = 40.sp,
+                    lineHeight = 44.sp
                 )
             }
         }
@@ -226,27 +254,26 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
 
 @Composable
 private fun CreditBalanceCard(creditBalance: Double) {
-    Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFDCFCE7)) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Extra paid — carried forward",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFF047857),
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    "All bills paid in full. This extra amount will be adjusted in your next bill.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF047857)
-                )
-            }
-            Spacer(modifier = Modifier.width(10.dp))
+    Surface(shape = RoundedCornerShape(16.dp), color = Color(0xFFDCFCE7)) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                stringResource(R.string.kaariger_payment_extra_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = Color(0xFF047857),
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                stringResource(R.string.kaariger_payment_extra_body),
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF047857)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 "₹${creditBalance.toInt()}",
-                fontWeight = FontWeight.Bold,
+                fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF047857),
-                style = MaterialTheme.typography.titleLarge
+                fontSize = 32.sp
             )
         }
     }
@@ -254,51 +281,54 @@ private fun CreditBalanceCard(creditBalance: Double) {
 
 @Composable
 private fun RecentKharchaList(entries: List<PaymentWithOrder>) {
-    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
+    ) {
         Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
             entries.forEachIndexed { index, entry ->
                 val payment = entry.payment
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = Color(0xFFD1FAE5),
-                        modifier = Modifier.size(40.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                             Text(
                                 "₹",
-                                style = MaterialTheme.typography.titleMedium,
+                                style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Color(0xFF047857)
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "₹${payment.amount.toInt()} received",
-                            style = MaterialTheme.typography.titleMedium,
+                            stringResource(R.string.kaariger_payment_received_amount, payment.amount.toInt()),
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             entry.productName,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             formatPaymentDayDate(payment.date, payment.time),
-                            style = MaterialTheme.typography.bodySmall,
+                            style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.onSurface
                         )
                         payment.remarks?.takeIf { it.isNotBlank() }?.let { note ->
                             Text(
                                 note,
-                                style = MaterialTheme.typography.labelSmall,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
