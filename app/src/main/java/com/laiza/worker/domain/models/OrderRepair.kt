@@ -10,6 +10,12 @@ data class OrderRepairLine(
     val lineTotal: Double
 )
 
+object RepairStatus {
+    const val PENDING = "PENDING"
+    const val APPROVED = "APPROVED"
+    const val REJECTED = "REJECTED"
+}
+
 data class OrderRepair(
     val id: String = UUID.randomUUID().toString(),
     val orderId: String,
@@ -25,5 +31,15 @@ data class OrderRepair(
     val dealAfterThisRepair: Double = 0.0,
     val notes: String? = null,
     val createdBy: String = "",
-    val createdAt: Long = System.currentTimeMillis()
-)
+    val createdAt: Long = System.currentTimeMillis(),
+    /** PENDING until admin approves; missing/blank on old docs = already deducted (APPROVED). */
+    val status: String = RepairStatus.APPROVED,
+    val reviewedBy: String? = null,
+    val reviewedAt: Long? = null
+) {
+    val isApproved: Boolean
+        get() = status.isBlank() || status == RepairStatus.APPROVED
+
+    val isPending: Boolean
+        get() = status == RepairStatus.PENDING
+}

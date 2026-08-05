@@ -45,7 +45,7 @@ fun KaarigerPaymentsScreen(
     val orderSummaries = remember(activeOrders, payments, repairs) {
         activeOrders.map { order ->
             val orderPayments = payments.filter { it.orderId == order.id }
-            val orderRepairs = repairs.filter { it.orderId == order.id }
+            val orderRepairs = repairs.filter { it.orderId == order.id && it.isApproved }
             val totalPaid = orderPayments.sumOf { it.amount }
             val originalDeal = order.originalDealAmount ?: order.totalDealAmount
             val repairTotal = order.repairDeductionTotal.takeIf { it > 0 }

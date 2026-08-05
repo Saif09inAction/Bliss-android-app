@@ -452,8 +452,9 @@ class OrderRepositoryImpl @Inject constructor(
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
             val faultyTotal = faultyQuantity * faultyPricePerPiece
             val original = order.originalDealAmount ?: order.totalDealAmount
-            val newDeduction = order.repairDeductionTotal + faultyTotal
-            val dealAfter = (original - newDeduction).coerceAtLeast(0.0)
+            // Preview only — amount is NOT deducted until admin approves in the panel.
+            val dealAfterIfApproved =
+                (original - order.repairDeductionTotal - faultyTotal).coerceAtLeast(0.0)
             val id = UUID.randomUUID().toString()
             val repair = mapOf(
                 "id" to id,
@@ -467,18 +468,19 @@ class OrderRepositoryImpl @Inject constructor(
                 "items" to emptyList<Map<String, Any>>(),
                 "totalRepairCost" to faultyTotal,
                 "originalDealAmount" to original,
-                "dealAfterThisRepair" to dealAfter,
+                "dealAfterThisRepair" to dealAfterIfApproved,
                 "notes" to (notes ?: ""),
                 "createdBy" to createdBy,
-                "createdAt" to System.currentTimeMillis()
+                "createdAt" to System.currentTimeMillis(),
+                "status" to RepairStatus.PENDING
             )
             firestore.collection("order_repairs").document(id).set(repair).await()
-            firestore.collection("kaariger_orders").document(order.id).update(
-                mapOf(
-                    "originalDealAmount" to original,
-                    "repairDeductionTotal" to newDeduction
-                )
-            ).await()
+            // Lock original deal early if missing, but do not touch repairDeductionTotal yet.
+            if (order.originalDealAmount == null) {
+                firestore.collection("kaariger_orders").document(order.id).update(
+                    mapOf("originalDealAmount" to original)
+                ).await()
+            }
             emit(Resource.Success(Unit))
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to save repairing deduction"))
@@ -528,7 +530,11 @@ class OrderRepositoryImpl @Inject constructor(
             dealAfterThisRepair = (data["dealAfterThisRepair"] as? Number)?.toDouble() ?: 0.0,
             notes = data["notes"] as? String,
             createdBy = data["createdBy"] as? String ?: "",
-            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L
+            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
+            // Legacy docs (no status) were already deducted → treat as APPROVED.
+            status = (data["status"] as? String)?.takeIf { it.isNotBlank() } ?: RepairStatus.APPROVED,
+            reviewedBy = data["reviewedBy"] as? String,
+            reviewedAt = (data["reviewedAt"] as? Number)?.toLong()
         )
     }
 

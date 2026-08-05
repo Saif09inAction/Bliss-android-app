@@ -34,7 +34,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.OrderProductLine
 import com.laiza.worker.domain.models.OrderRepair
 import com.laiza.worker.domain.models.OrderStatus
+import com.laiza.worker.domain.models.RepairStatus
 import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.PrimaryButton
@@ -371,13 +374,22 @@ private fun RepairHistoryRow(repair: OrderRepair) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    text = formatOrderDate(repair.createdAt),
+                    text = when {
+                        repair.isPending -> "Pending approval"
+                        repair.status == RepairStatus.REJECTED -> "Rejected"
+                        else -> "Approved"
+                    },
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = when {
+                        repair.isPending -> Color(0xFFB45309)
+                        repair.status == RepairStatus.REJECTED -> MaterialTheme.colorScheme.error
+                        else -> Color(0xFF047857)
+                    }
                 )
             }
             Text(repair.productName, fontWeight = FontWeight.SemiBold)
@@ -388,6 +400,11 @@ private fun RepairHistoryRow(repair: OrderRepair) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            Text(
+                text = formatOrderDate(repair.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
