@@ -13,14 +13,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 private const val DEFAULT_KHARCHA_ROWS = 6
+private const val OPENING_ORDER_ID = "__opening__"
 
 @Composable
 fun KaarigerPaymentsScreen(
@@ -37,6 +41,12 @@ fun KaarigerPaymentsScreen(
     LaunchedEffect(session?.phone) {
         session?.phone?.let { orderViewModel.loadKaarigerData(it) }
     }
+
+    val me = remember(kaarigers, session?.phone) {
+        kaarigers.find { it.phone == session?.phone }
+    }
+    val openingBalance = me?.openingBalance ?: 0.0
+    val creditBalance = me?.creditBalance ?: 0.0
 
     val activeOrders = remember(orders) {
         orders.filter { it.status != OrderStatus.REJECTED }
@@ -57,23 +67,32 @@ fun KaarigerPaymentsScreen(
         }
     }
 
-    // "Kharcha Paid" / "Total Amount Pending" only reflect bill(s) still awaiting
-    // payment. Once a bill is fully paid off it's done — its payments shouldn't
-    // keep piling into a perpetual "paid" total. Any amount beyond what a bill
-    // needed becomes carried-forward credit, shown separately below.
-    val totalKharchaPaid = remember(orderSummaries) {
-        orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid }
+    val openingPayments = remember(payments) {
+        payments.filter { isOpeningLikePayment(it) }
     }
-    val totalPending = remember(orderSummaries) {
-        orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining }
+
+    // Kharcha on active bills + payments against old remaining / advance ledger.
+    val totalKharchaPaid = remember(orderSummaries, openingPayments) {
+        orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid } +
+            openingPayments.sumOf { it.amount }
     }
-    val creditBalance = remember(kaarigers, session?.phone) {
-        kaarigers.find { it.phone == session?.phone }?.creditBalance ?: 0.0
+    val totalPending = remember(orderSummaries, openingBalance) {
+        orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining } +
+            openingBalance.coerceAtLeast(0.0)
     }
-    val allPayments = remember(orderSummaries) {
-        orderSummaries
-            .flatMap { summary -> summary.payments.map { PaymentWithOrder(it, summary.productName) } }
-            .sortedByDescending { it.payment.date + it.payment.time }
+
+    val allPayments = remember(orderSummaries, openingPayments) {
+        val fromOrders = orderSummaries.flatMap { summary ->
+            summary.payments.map { PaymentWithOrder(it, summary.productName) }
+        }
+        val fromOpening = openingPayments.map { payment ->
+            val label = when {
+                payment.remarks?.contains("credit", ignoreCase = true) == true -> "Advance / credit"
+                else -> "Old remaining"
+            }
+            PaymentWithOrder(payment, label)
+        }
+        (fromOrders + fromOpening).sortedByDescending { it.payment.date + it.payment.time }
     }
 
     Column(
@@ -88,22 +107,22 @@ fun KaarigerPaymentsScreen(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(14.dp))
 
         PaymentsSummaryCard(totalKharchaPaid, totalPending)
 
         if (totalPending <= 0.0 && creditBalance > 0.0) {
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             CreditBalanceCard(creditBalance)
         }
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(20.dp))
 
         Text(
             "Kharcha received",
             fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleSmall
+            style = MaterialTheme.typography.titleMedium
         )
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(10.dp))
 
         if (allPayments.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
@@ -129,6 +148,14 @@ fun KaarigerPaymentsScreen(
     }
 }
 
+private fun isOpeningLikePayment(p: KaarigerOrderPayment): Boolean {
+    if (p.orderId == OPENING_ORDER_ID) return true
+    val r = p.remarks ?: return false
+    return r == "Opening / old remaining payment" ||
+        r == "Old remaining payment" ||
+        r == "Extra kharcha — carried as credit"
+}
+
 private data class OrderPaymentSummary(
     val payments: List<KaarigerOrderPayment>,
     val productName: String,
@@ -141,34 +168,48 @@ private data class PaymentWithOrder(val payment: KaarigerOrderPayment, val produ
 
 @Composable
 private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             color = Color(0xFFD1FAE5),
             modifier = Modifier.weight(1f)
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("Kharcha Paid", style = MaterialTheme.typography.labelSmall, color = Color(0xFF047857))
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
+                Text(
+                    "Kharcha Paid",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFF047857),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     "₹${totalPaid.toInt()}",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF047857),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontSize = 28.sp
                 )
             }
         }
         Surface(
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(16.dp),
             color = Color(0xFFFEF3C7),
             modifier = Modifier.weight(1f)
         ) {
-            Column(modifier = Modifier.padding(14.dp)) {
-                Text("Total Amount Pending", style = MaterialTheme.typography.labelSmall, color = Color(0xFFB45309))
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)) {
+                Text(
+                    "Remaining payment",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFFB45309),
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     "₹${totalPending.toInt()}",
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFFB45309),
-                    style = MaterialTheme.typography.titleMedium
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontSize = 28.sp
                 )
             }
         }
@@ -178,17 +219,17 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
 @Composable
 private fun CreditBalanceCard(creditBalance: Double) {
     Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFDCFCE7)) {
-        Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     "Extra paid — carried forward",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.labelMedium,
                     color = Color(0xFF047857),
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     "All bills paid in full. This extra amount will be adjusted in your next bill.",
-                    style = MaterialTheme.typography.labelSmall,
+                    style = MaterialTheme.typography.bodySmall,
                     color = Color(0xFF047857)
                 )
             }
@@ -197,7 +238,7 @@ private fun CreditBalanceCard(creditBalance: Double) {
                 "₹${creditBalance.toInt()}",
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF047857),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleLarge
             )
         }
     }
@@ -205,42 +246,74 @@ private fun CreditBalanceCard(creditBalance: Double) {
 
 @Composable
 private fun RecentKharchaList(entries: List<PaymentWithOrder>) {
-    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)) {
-        Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
+    Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)) {
+        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
             entries.forEachIndexed { index, entry ->
                 val payment = entry.payment
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = Color(0xFFD1FAE5),
-                        modifier = Modifier.size(22.dp)
+                        modifier = Modifier.size(40.dp)
                     ) {
                         Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Text("₹", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                            Text(
+                                "₹",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF047857)
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "₹${payment.amount.toInt()} received · ${entry.productName}",
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold
+                            "₹${payment.amount.toInt()} received",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
                         )
                         Text(
-                            "${payment.date} · ${payment.time}" +
-                                (payment.remarks?.takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""),
-                            style = MaterialTheme.typography.labelSmall,
+                            entry.productName,
+                            style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            formatPaymentDayDate(payment.date, payment.time),
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        payment.remarks?.takeIf { it.isNotBlank() }?.let { note ->
+                            Text(
+                                note,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
                 if (index != entries.lastIndex) {
-                    Divider(modifier = Modifier.padding(vertical = 2.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
                 }
             }
         }
     }
+}
+
+/** e.g. "Saturday, 1 Aug 2026 · 6:45 pm" */
+private fun formatPaymentDayDate(date: String, time: String): String {
+    val dayPart = try {
+        val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)
+        if (parsed != null) {
+            SimpleDateFormat("EEEE, d MMM yyyy", Locale.ENGLISH).format(parsed)
+        } else date
+    } catch (_: Exception) {
+        date
+    }
+    val timePart = time.trim().takeIf { it.isNotEmpty() } ?: return dayPart
+    return "$dayPart · $timePart"
 }

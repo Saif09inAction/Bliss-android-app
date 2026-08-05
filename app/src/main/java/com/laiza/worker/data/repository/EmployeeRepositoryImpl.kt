@@ -75,7 +75,8 @@ class EmployeeRepositoryImpl @Inject constructor(
                                 profilePhotoUrl = doc.getString("profilePhotoUrl"),
                                 attendancePercentage = doc.getDouble("attendancePercentage") ?: 0.0,
                                 role = com.laiza.worker.domain.models.Role.fromFirestore(doc.getString("role")),
-                                creditBalance = doc.getDouble("creditBalance") ?: 0.0
+                                creditBalance = doc.getDouble("creditBalance") ?: 0.0,
+                                openingBalance = doc.getDouble("openingBalance") ?: 0.0
                             )
                             try {
                                 employeeDao.insertEmployee(EmployeeEntity.fromDomain(emp))
@@ -179,7 +180,8 @@ class EmployeeRepositoryImpl @Inject constructor(
                         profilePhotoUrl = doc.getString("profilePhotoUrl"),
                         attendancePercentage = doc.getDouble("attendancePercentage") ?: 0.0,
                         role = com.laiza.worker.domain.models.Role.fromFirestore(doc.getString("role")),
-                        creditBalance = doc.getDouble("creditBalance") ?: 0.0
+                        creditBalance = doc.getDouble("creditBalance") ?: 0.0,
+                        openingBalance = doc.getDouble("openingBalance") ?: 0.0
                     )
                 }
                 continuation.resume(list)
@@ -200,7 +202,8 @@ class EmployeeRepositoryImpl @Inject constructor(
             "attendancePercentage" to employee.attendancePercentage,
             "role" to employee.role.name,
             "password" to "123123",
-            "creditBalance" to employee.creditBalance
+            "creditBalance" to employee.creditBalance,
+            "openingBalance" to employee.openingBalance
         )
         firestore.collection("employees").document(employee.phone).set(data)
             .addOnSuccessListener { continuation.resume(Unit) }

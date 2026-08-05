@@ -10,7 +10,9 @@ data class Employee(
     val attendancePercentage: Double = 0.0,
     val role: Role = Role.STAFF,
     /** Overpaid kharcha carried forward from a previous order — auto-applied to the next bill. */
-    val creditBalance: Double = 0.0
+    val creditBalance: Double = 0.0,
+    /** Old remaining owed to this kaariger when migrating onto the software. */
+    val openingBalance: Double = 0.0
 )
 
 data class EmployeeExtraProfile(
