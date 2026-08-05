@@ -18,7 +18,22 @@ data class Attendance(
 )
 
 enum class AttendanceStatus {
-    PRESENT, LATE, LEFT_EARLY, ON_TIME, ABSENT
+    PRESENT, LATE, LEFT_EARLY, ON_TIME, ABSENT, HALF_DAY, FULL_DAY
+}
+
+/** Parse Firestore/Room status without crashing on unknown values. */
+fun parseAttendanceStatus(raw: String?): AttendanceStatus {
+    val value = raw?.trim()?.uppercase().orEmpty()
+    if (value.isEmpty()) return AttendanceStatus.PRESENT
+    return try {
+        AttendanceStatus.valueOf(value)
+    } catch (_: IllegalArgumentException) {
+        when (value) {
+            "HALF", "HALFDAY" -> AttendanceStatus.HALF_DAY
+            "FULL", "FULLDAY" -> AttendanceStatus.FULL_DAY
+            else -> AttendanceStatus.PRESENT
+        }
+    }
 }
 
 enum class AttendanceType {

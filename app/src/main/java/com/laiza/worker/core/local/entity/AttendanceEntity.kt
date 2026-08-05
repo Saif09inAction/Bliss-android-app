@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.laiza.worker.domain.models.Attendance
 import com.laiza.worker.domain.models.AttendanceStatus
+import com.laiza.worker.domain.models.parseAttendanceStatus
 
 @Entity(tableName = "attendance")
 data class AttendanceEntity(
@@ -36,7 +37,7 @@ data class AttendanceEntity(
             signOutAddress = signOutAddress,
             signInImageLocalPath = signInImageLocalPath,
             signOutImageLocalPath = signOutImageLocalPath,
-            status = AttendanceStatus.valueOf(status),
+            status = parseAttendanceStatus(status),
             lateMinutes = lateMinutes,
             workingHours = workingHours
         )

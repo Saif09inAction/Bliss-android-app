@@ -46,7 +46,9 @@ class DashboardViewModel @Inject constructor(
                 it.status == AttendanceStatus.PRESENT || 
                 it.status == AttendanceStatus.ON_TIME || 
                 it.status == AttendanceStatus.LATE ||
-                it.status == AttendanceStatus.LEFT_EARLY
+                it.status == AttendanceStatus.LEFT_EARLY ||
+                it.status == AttendanceStatus.HALF_DAY ||
+                it.status == AttendanceStatus.FULL_DAY
             }
             val percentage = (presents.toDouble() / employees.size) * 100
             "${percentage.toInt()}%"
@@ -83,7 +85,12 @@ class DashboardViewModel @Inject constructor(
         .flatMapLatest { session ->
             if (session != null) {
                 attendanceRepository.getEmployeeAttendanceHistory(session.phone).map { list ->
-                    val presents = list.count { it.status == AttendanceStatus.PRESENT || it.status == AttendanceStatus.ON_TIME }
+                    val presents = list.count {
+                        it.status == AttendanceStatus.PRESENT ||
+                            it.status == AttendanceStatus.ON_TIME ||
+                            it.status == AttendanceStatus.HALF_DAY ||
+                            it.status == AttendanceStatus.FULL_DAY
+                    }
                     val lates = list.count { it.status == AttendanceStatus.LATE }
                     val earlyOuts = list.count { it.status == AttendanceStatus.LEFT_EARLY }
                     mapOf("presents" to presents, "lates" to lates, "earlyOuts" to earlyOuts)

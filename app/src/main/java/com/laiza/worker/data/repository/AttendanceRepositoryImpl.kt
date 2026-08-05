@@ -9,6 +9,7 @@ import com.laiza.worker.core.local.entity.AttendanceEntity
 import com.laiza.worker.core.local.entity.AttendanceSettingsEntity
 import com.laiza.worker.domain.models.Attendance
 import com.laiza.worker.domain.models.AttendanceStatus
+import com.laiza.worker.domain.models.parseAttendanceStatus
 import com.laiza.worker.domain.models.AttendanceSettings
 import com.laiza.worker.domain.repository.AttendanceRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -255,7 +256,7 @@ class AttendanceRepositoryImpl @Inject constructor(
                         signOutAddress = doc.getString("signOutAddress"),
                         signInImageLocalPath = doc.getString("signInImageLocalPath"),
                         signOutImageLocalPath = doc.getString("signOutImageLocalPath"),
-                        status = AttendanceStatus.valueOf(doc.getString("status") ?: "PRESENT"),
+                        status = parseAttendanceStatus(doc.getString("status")),
                         lateMinutes = doc.getLong("lateMinutes")?.toInt() ?: 0,
                         workingHours = doc.getDouble("workingHours") ?: 0.0
                     )
@@ -283,7 +284,7 @@ class AttendanceRepositoryImpl @Inject constructor(
                         signOutAddress = doc.getString("signOutAddress"),
                         signInImageLocalPath = doc.getString("signInImageLocalPath"),
                         signOutImageLocalPath = doc.getString("signOutImageLocalPath"),
-                        status = AttendanceStatus.valueOf(doc.getString("status") ?: "PRESENT"),
+                        status = parseAttendanceStatus(doc.getString("status")),
                         lateMinutes = doc.getLong("lateMinutes")?.toInt() ?: 0,
                         workingHours = doc.getDouble("workingHours") ?: 0.0
                     )
