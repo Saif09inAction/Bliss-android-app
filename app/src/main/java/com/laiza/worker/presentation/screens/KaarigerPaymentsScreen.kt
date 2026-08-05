@@ -76,9 +76,17 @@ fun KaarigerPaymentsScreen(
         orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid } +
             openingPayments.sumOf { it.amount }
     }
-    val totalPending = remember(orderSummaries, openingBalance) {
-        orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining } +
-            openingBalance.coerceAtLeast(0.0)
+    val totalPending = remember(orderSummaries, openingBalance, creditBalance) {
+        val gross =
+            orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining } +
+                openingBalance.coerceAtLeast(0.0)
+        (gross - creditBalance.coerceAtLeast(0.0)).coerceAtLeast(0.0)
+    }
+    val surplusCredit = remember(orderSummaries, openingBalance, creditBalance) {
+        val gross =
+            orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining } +
+                openingBalance.coerceAtLeast(0.0)
+        (creditBalance.coerceAtLeast(0.0) - gross).coerceAtLeast(0.0)
     }
 
     val allPayments = remember(orderSummaries, openingPayments) {
@@ -88,7 +96,7 @@ fun KaarigerPaymentsScreen(
         val fromOpening = openingPayments.map { payment ->
             val label = when {
                 payment.remarks?.contains("credit", ignoreCase = true) == true -> "Advance / credit"
-                else -> "Old remaining"
+                else -> "Opening balance"
             }
             PaymentWithOrder(payment, label)
         }
@@ -111,9 +119,9 @@ fun KaarigerPaymentsScreen(
 
         PaymentsSummaryCard(totalKharchaPaid, totalPending)
 
-        if (totalPending <= 0.0 && creditBalance > 0.0) {
+        if (totalPending <= 0.0 && surplusCredit > 0.0) {
             Spacer(modifier = Modifier.height(12.dp))
-            CreditBalanceCard(creditBalance)
+            CreditBalanceCard(surplusCredit)
         }
         Spacer(modifier = Modifier.height(20.dp))
 
