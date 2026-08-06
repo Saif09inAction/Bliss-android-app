@@ -72,22 +72,19 @@ fun KaarigerPaymentsScreen(
         payments.filter { isOpeningLikePayment(it) }
     }
 
+    val billsRemaining = remember(orderSummaries) {
+        orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining }
+    }
     val totalKharchaPaid = remember(orderSummaries, openingPayments) {
         orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid } +
             openingPayments.sumOf { it.amount }
     }
-    val totalPending = remember(orderSummaries, openingBalance, creditBalance) {
-        val gross =
-            orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining } +
-                openingBalance.coerceAtLeast(0.0)
-        (gross - creditBalance.coerceAtLeast(0.0)).coerceAtLeast(0.0)
-    }
-    val surplusCredit = remember(orderSummaries, openingBalance, creditBalance) {
-        val gross =
-            orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining } +
-                openingBalance.coerceAtLeast(0.0)
-        (creditBalance.coerceAtLeast(0.0) - gross).coerceAtLeast(0.0)
-    }
+    val safeOpening = openingBalance.coerceAtLeast(0.0)
+    val safeCredit = creditBalance.coerceAtLeast(0.0)
+    val grossOwed = billsRemaining + safeOpening
+    val totalPending = (grossOwed - safeCredit).coerceAtLeast(0.0)
+    val surplusCredit = (safeCredit - grossOwed).coerceAtLeast(0.0)
+    val creditApplied = minOf(safeCredit, grossOwed)
 
     val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)
     val creditProductLabel = stringResource(R.string.kaariger_payment_credit_product)
@@ -136,6 +133,16 @@ fun KaarigerPaymentsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         PaymentsSummaryCard(totalKharchaPaid, totalPending)
+
+        if (safeOpening > 0.0 || billsRemaining > 0.0 || creditApplied > 0.0) {
+            Spacer(modifier = Modifier.height(14.dp))
+            RemainingBreakdownCard(
+                openingBalance = safeOpening,
+                billsRemaining = billsRemaining,
+                creditApplied = creditApplied,
+                totalPending = totalPending
+            )
+        }
 
         if (totalPending <= 0.0 && surplusCredit > 0.0) {
             Spacer(modifier = Modifier.height(14.dp))
@@ -250,6 +257,84 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun RemainingBreakdownCard(
+    openingBalance: Double,
+    billsRemaining: Double,
+    creditApplied: Double,
+    totalPending: Double
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                stringResource(R.string.kaariger_payment_calc_title),
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                stringResource(R.string.kaariger_payment_calc_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            if (openingBalance > 0.0) {
+                BreakdownRow(
+                    label = stringResource(R.string.kaariger_payment_opening_label),
+                    value = formatIndianRupee(openingBalance),
+                    valueColor = Color(0xFFB45309)
+                )
+            }
+            BreakdownRow(
+                label = stringResource(R.string.kaariger_payment_bills_label),
+                value = formatIndianRupee(billsRemaining)
+            )
+            if (creditApplied > 0.0) {
+                BreakdownRow(
+                    label = stringResource(R.string.kaariger_payment_credit_label),
+                    value = "−${formatIndianRupee(creditApplied)}",
+                    valueColor = Color(0xFF047857)
+                )
+            }
+            HorizontalDivider()
+            BreakdownRow(
+                label = stringResource(R.string.kaariger_payment_remaining),
+                value = formatIndianRupee(totalPending),
+                bold = true,
+                valueColor = Color(0xFFB45309)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BreakdownRow(
+    label: String,
+    value: String,
+    bold: Boolean = false,
+    valueColor: Color = Color.Unspecified
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            label,
+            style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium
+        )
+        Text(
+            value,
+            style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Bold,
+            color = valueColor
+        )
     }
 }
 

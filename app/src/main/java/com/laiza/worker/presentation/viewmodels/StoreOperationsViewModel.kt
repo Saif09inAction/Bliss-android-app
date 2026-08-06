@@ -47,19 +47,22 @@ class StoreOperationsViewModel @Inject constructor(
     }
 
     fun recordPickup(
-        quantity: Int,
+        clarisQuantity: Int,
+        blissQuantity: Int,
         platform: String,
         deliveryPartner: String,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
-            if (quantity <= 0) {
-                onError("Enter a valid quantity")
+            val claris = clarisQuantity.coerceAtLeast(0)
+            val bliss = blissQuantity.coerceAtLeast(0)
+            if (claris + bliss <= 0) {
+                onError("Enter Claris and/or Bliss quantity")
                 return@launch
             }
             if (platform.isBlank()) {
-                onError("Select a marketplace (Amazon, Flipkart…)")
+                onError("Select a company (Amazon, Flipkart…)")
                 return@launch
             }
             if (deliveryPartner.isBlank()) {
@@ -69,9 +72,11 @@ class StoreOperationsViewModel @Inject constructor(
             val session = sessionManager.userSession.firstOrNull()
             val now = Date()
             val record = PickupRecord(
-                quantity = quantity,
+                quantity = claris + bliss,
+                clarisQuantity = claris,
+                blissQuantity = bliss,
                 partner = platform.trim(),
-                deliveryPartner = deliveryPartner.trim(),
+                deliveryPartner = DeliveryPartnerDefaults.normalize(deliveryPartner.trim()),
                 staffId = session?.phone ?: "",
                 staffName = session?.name ?: "Staff",
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now),
@@ -88,7 +93,8 @@ class StoreOperationsViewModel @Inject constructor(
     }
 
     fun recordReturn(
-        quantity: Int,
+        clarisQuantity: Int,
+        blissQuantity: Int,
         platform: String,
         deliveryPartner: String,
         returnType: ReturnType,
@@ -97,12 +103,14 @@ class StoreOperationsViewModel @Inject constructor(
         onError: (String) -> Unit
     ) {
         viewModelScope.launch {
-            if (quantity <= 0) {
-                onError("Enter a valid quantity")
+            val claris = clarisQuantity.coerceAtLeast(0)
+            val bliss = blissQuantity.coerceAtLeast(0)
+            if (claris + bliss <= 0) {
+                onError("Enter Claris and/or Bliss quantity")
                 return@launch
             }
             if (platform.isBlank()) {
-                onError("Select a marketplace (Amazon, Flipkart…)")
+                onError("Select a company (Amazon, Flipkart…)")
                 return@launch
             }
             if (deliveryPartner.isBlank()) {
@@ -112,9 +120,11 @@ class StoreOperationsViewModel @Inject constructor(
             val session = sessionManager.userSession.firstOrNull()
             val now = Date()
             val record = ReturnRecord(
-                quantity = quantity,
+                quantity = claris + bliss,
+                clarisQuantity = claris,
+                blissQuantity = bliss,
                 partner = platform.trim().ifBlank { EcommercePlatform.FLIPKART },
-                deliveryPartner = deliveryPartner.trim(),
+                deliveryPartner = DeliveryPartnerDefaults.normalize(deliveryPartner.trim()),
                 returnType = returnType,
                 staffId = session?.phone ?: "",
                 staffName = session?.name ?: "Staff",

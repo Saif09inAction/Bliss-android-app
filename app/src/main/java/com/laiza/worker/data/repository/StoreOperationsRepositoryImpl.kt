@@ -123,8 +123,8 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordPickup(record: PickupRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            if (record.quantity <= 0) {
-                emit(Resource.Error("Enter a valid quantity"))
+            if (record.totalQuantity <= 0) {
+                emit(Resource.Error("Enter Claris and/or Bliss quantity"))
                 return@flow
             }
             firestore.collection("pickup_records").document(record.id)
@@ -141,8 +141,8 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordReturn(record: ReturnRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            if (record.quantity <= 0) {
-                emit(Resource.Error("Enter a valid quantity"))
+            if (record.totalQuantity <= 0) {
+                emit(Resource.Error("Enter Claris and/or Bliss quantity"))
                 return@flow
             }
             firestore.collection("return_records").document(record.id)
@@ -172,8 +172,11 @@ class StoreOperationsRepositoryImpl @Inject constructor(
         val productId = d["productId"] as? String ?: items.firstOrNull()?.productId.orEmpty()
         val productName = d["productName"] as? String ?: items.firstOrNull()?.productName.orEmpty()
         val color = d["color"] as? String ?: items.firstOrNull()?.color.orEmpty()
+        val claris = (d["clarisQuantity"] as? Number)?.toInt() ?: 0
+        val bliss = (d["blissQuantity"] as? Number)?.toInt() ?: 0
         val quantity = (d["quantity"] as? Number)?.toInt()
-            ?: items.sumOf { it.quantity }
+            ?: items.sumOf { it.quantity }.takeIf { it > 0 }
+            ?: (claris + bliss)
 
         return PickupRecord(
             id = d["id"] as? String ?: docId,
@@ -182,8 +185,10 @@ class StoreOperationsRepositoryImpl @Inject constructor(
             productName = productName,
             color = color,
             quantity = quantity,
+            clarisQuantity = if (claris > 0 || bliss > 0) claris else quantity,
+            blissQuantity = bliss,
             partner = EcommercePlatform.normalize(d["partner"] as? String),
-            deliveryPartner = (d["deliveryPartner"] as? String)?.trim().orEmpty(),
+            deliveryPartner = DeliveryPartnerDefaults.normalize(d["deliveryPartner"] as? String),
             staffId = d["staffId"] as? String ?: "",
             staffName = d["staffName"] as? String ?: "",
             date = d["date"] as? String ?: "",
@@ -193,14 +198,19 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     }
 
     private fun parseReturn(docId: String, d: Map<String, Any>): ReturnRecord {
+        val claris = (d["clarisQuantity"] as? Number)?.toInt() ?: 0
+        val bliss = (d["blissQuantity"] as? Number)?.toInt() ?: 0
+        val quantity = (d["quantity"] as? Number)?.toInt() ?: (claris + bliss)
         return ReturnRecord(
             id = d["id"] as? String ?: docId,
             productId = d["productId"] as? String ?: "",
             productName = d["productName"] as? String ?: "",
             color = d["color"] as? String ?: "",
-            quantity = (d["quantity"] as? Number)?.toInt() ?: 0,
+            quantity = quantity,
+            clarisQuantity = if (claris > 0 || bliss > 0) claris else quantity,
+            blissQuantity = bliss,
             partner = EcommercePlatform.normalize(d["partner"] as? String),
-            deliveryPartner = (d["deliveryPartner"] as? String)?.trim().orEmpty(),
+            deliveryPartner = DeliveryPartnerDefaults.normalize(d["deliveryPartner"] as? String),
             returnType = ReturnType.fromString(d["returnType"] as? String ?: "RTO"),
             staffId = d["staffId"] as? String ?: "",
             staffName = d["staffName"] as? String ?: "",
@@ -214,6 +224,11 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     private fun pickupToMap(r: PickupRecord): Map<String, Any> {
         val lines = r.lineItems
         val first = lines.firstOrNull()
+        val claris = r.clarisQuantity.coerceAtLeast(0)
+        val bliss = r.blissQuantity.coerceAtLeast(0)
+        val total = (claris + bliss).takeIf { it > 0 }
+            ?: lines.sumOf { it.quantity }.takeIf { it > 0 }
+            ?: r.quantity
         return mapOf(
             "id" to r.id,
             "items" to lines.map {
@@ -227,9 +242,11 @@ class StoreOperationsRepositoryImpl @Inject constructor(
             "productId" to (first?.productId ?: r.productId),
             "productName" to (first?.productName ?: r.productName),
             "color" to (first?.color ?: r.color),
-            "quantity" to lines.sumOf { it.quantity }.let { if (it > 0) it else r.quantity },
+            "quantity" to total,
+            "clarisQuantity" to claris,
+            "blissQuantity" to bliss,
             "partner" to r.partner,
-            "deliveryPartner" to r.deliveryPartner,
+            "deliveryPartner" to DeliveryPartnerDefaults.normalize(r.deliveryPartner),
             "staffId" to r.staffId,
             "staffName" to r.staffName,
             "date" to r.date,
@@ -238,20 +255,27 @@ class StoreOperationsRepositoryImpl @Inject constructor(
         )
     }
 
-    private fun returnToMap(r: ReturnRecord) = mapOf(
-        "id" to r.id,
-        "productId" to r.productId,
-        "productName" to r.productName,
-        "color" to r.color,
-        "quantity" to r.quantity,
-        "partner" to r.partner,
-        "deliveryPartner" to r.deliveryPartner,
-        "returnType" to r.returnType.name,
-        "staffId" to r.staffId,
-        "staffName" to r.staffName,
-        "date" to r.date,
-        "time" to r.time,
-        "notes" to (r.notes ?: ""),
-        "timestamp" to r.timestamp
-    )
+    private fun returnToMap(r: ReturnRecord): Map<String, Any> {
+        val claris = r.clarisQuantity.coerceAtLeast(0)
+        val bliss = r.blissQuantity.coerceAtLeast(0)
+        val total = (claris + bliss).takeIf { it > 0 } ?: r.quantity
+        return mapOf(
+            "id" to r.id,
+            "productId" to r.productId,
+            "productName" to r.productName,
+            "color" to r.color,
+            "quantity" to total,
+            "clarisQuantity" to claris,
+            "blissQuantity" to bliss,
+            "partner" to r.partner,
+            "deliveryPartner" to DeliveryPartnerDefaults.normalize(r.deliveryPartner),
+            "returnType" to r.returnType.name,
+            "staffId" to r.staffId,
+            "staffName" to r.staffName,
+            "date" to r.date,
+            "time" to r.time,
+            "notes" to (r.notes ?: ""),
+            "timestamp" to r.timestamp
+        )
+    }
 }

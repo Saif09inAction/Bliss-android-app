@@ -61,7 +61,7 @@ fun StaffDispatchScreen(
         if (activeTab == 0) {
             DispatchHistoryTab(
                 title = "Handoff to delivery partner",
-                subtitle = "Enter quantity → marketplace → courier (BlueDart, Shiprocket…)",
+                subtitle = "Claris / Bliss qty → company (Amazon, Flipkart…) → delivery partner",
                 buttonText = "New Pickup",
                 historyTitle = "Pickup history",
                 emptyHistory = "No pickups recorded yet",
@@ -134,9 +134,10 @@ fun StaffDispatchScreen(
             confirmText = "Confirm Pickup",
             defaultPlatform = EcommercePlatform.AMAZON,
             onDismiss = { showPickupDialog = false },
-            onConfirm = { qty, platform, courier ->
+            onConfirm = { clarisQty, blissQty, platform, courier ->
                 viewModel.recordPickup(
-                    quantity = qty,
+                    clarisQuantity = clarisQty,
+                    blissQuantity = blissQty,
                     platform = platform,
                     deliveryPartner = courier,
                     onSuccess = {
@@ -155,9 +156,9 @@ fun StaffDispatchScreen(
         ReturnOperationDialog(
             viewModel = viewModel,
             onDismiss = { showReturnDialog = false },
-            onConfirm = { qty, platform, courier, returnType, notes ->
+            onConfirm = { clarisQty, blissQty, platform, courier, returnType, notes ->
                 viewModel.recordReturn(
-                    qty, platform, courier, returnType, notes,
+                    clarisQty, blissQty, platform, courier, returnType, notes,
                     onSuccess = {
                         showReturnDialog = false
                         Toast.makeText(context, "Return recorded successfully", Toast.LENGTH_SHORT).show()
@@ -282,6 +283,12 @@ private fun PickupHistoryCard(record: PickupRecord) {
                     color = MaterialTheme.colorScheme.primary
                 )
             }
+            Text(
+                record.qtyBreakdownLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
             Spacer(modifier = Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HistoryChip(record.partner)
@@ -329,11 +336,17 @@ private fun ReturnHistoryCard(record: ReturnRecord) {
                     }
                 }
                 Text(
-                    "+${record.quantity} pcs",
+                    "+${record.totalQuantity} pcs",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.tertiary
                 )
             }
+            Text(
+                record.qtyBreakdownLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
             Spacer(modifier = Modifier.height(10.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HistoryChip(record.returnType.displayName)
@@ -386,12 +399,13 @@ private fun DispatchDetailsDialog(
     confirmText: String,
     defaultPlatform: String,
     onDismiss: () -> Unit,
-    onConfirm: (Int, String, String) -> Unit
+    onConfirm: (clarisQty: Int, blissQty: Int, platform: String, courier: String) -> Unit
 ) {
     val context = LocalContext.current
     val partners by viewModel.deliveryPartners.collectAsState()
 
-    var quantity by remember { mutableStateOf("") }
+    var clarisQty by remember { mutableStateOf("") }
+    var blissQty by remember { mutableStateOf("") }
     var platform by remember { mutableStateOf(defaultPlatform) }
     var platformExpanded by remember { mutableStateOf(false) }
     var courier by remember { mutableStateOf("") }
@@ -432,14 +446,32 @@ private fun DispatchDetailsDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text("Quantity", fontWeight = FontWeight.SemiBold)
-                CustomTextField(
-                    value = quantity,
-                    onValueChange = { v -> quantity = v.filter { ch -> ch.isDigit() } },
-                    label = "Quantity (pcs)",
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    CustomTextField(
+                        value = clarisQty,
+                        onValueChange = { v -> clarisQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Claris qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    CustomTextField(
+                        value = blissQty,
+                        onValueChange = { v -> blissQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Bliss qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                val totalPreview = (clarisQty.toIntOrNull() ?: 0) + (blissQty.toIntOrNull() ?: 0)
+                if (totalPreview > 0) {
+                    Text(
+                        "Total: $totalPreview pcs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-                Text("Marketplace", fontWeight = FontWeight.SemiBold)
+                Text("Company", fontWeight = FontWeight.SemiBold)
                 ExposedDropdownMenuBox(
                     expanded = platformExpanded,
                     onExpandedChange = { platformExpanded = it }
@@ -448,7 +480,7 @@ private fun DispatchDetailsDialog(
                         value = platform,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Platform") },
+                        label = { Text("Amazon, Flipkart…") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(platformExpanded) },
                         modifier = Modifier
                             .menuAnchor()
@@ -543,13 +575,14 @@ private fun DispatchDetailsDialog(
                 text = if (submitting) "Saving…" else confirmText,
                 onClick = {
                     if (submitting) return@PrimaryButton
-                    val qty = quantity.toIntOrNull() ?: 0
-                    if (qty <= 0) {
-                        validationError = "Enter a valid quantity"
+                    val claris = clarisQty.toIntOrNull() ?: 0
+                    val bliss = blissQty.toIntOrNull() ?: 0
+                    if (claris + bliss <= 0) {
+                        validationError = "Enter Claris and/or Bliss quantity"
                         return@PrimaryButton
                     }
                     if (platform.isBlank()) {
-                        validationError = "Select a marketplace"
+                        validationError = "Select a company"
                         return@PrimaryButton
                     }
                     val courierName = courier.ifBlank { courierQuery }.trim()
@@ -559,7 +592,7 @@ private fun DispatchDetailsDialog(
                     }
                     validationError = null
                     submitting = true
-                    onConfirm(qty, platform, courierName)
+                    onConfirm(claris, bliss, platform, courierName)
                 },
                 enabled = !submitting
             )
@@ -610,12 +643,13 @@ private fun DispatchDetailsDialog(
 private fun ReturnOperationDialog(
     viewModel: StoreOperationsViewModel,
     onDismiss: () -> Unit,
-    onConfirm: (Int, String, String, ReturnType, String?) -> Unit
+    onConfirm: (clarisQty: Int, blissQty: Int, platform: String, courier: String, returnType: ReturnType, notes: String?) -> Unit
 ) {
     val context = LocalContext.current
     val partners by viewModel.deliveryPartners.collectAsState()
 
-    var quantity by remember { mutableStateOf("") }
+    var clarisQty by remember { mutableStateOf("") }
+    var blissQty by remember { mutableStateOf("") }
     var platform by remember { mutableStateOf(EcommercePlatform.FLIPKART) }
     var platformExpanded by remember { mutableStateOf(false) }
     var courier by remember { mutableStateOf("") }
@@ -650,20 +684,39 @@ private fun ReturnOperationDialog(
                 modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                CustomTextField(
-                    value = quantity,
-                    onValueChange = { v -> quantity = v.filter { ch -> ch.isDigit() } },
-                    label = "Quantity (pcs)",
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number)
-                )
+                Text("Quantity", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    CustomTextField(
+                        value = clarisQty,
+                        onValueChange = { v -> clarisQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Claris qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    CustomTextField(
+                        value = blissQty,
+                        onValueChange = { v -> blissQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Bliss qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                val returnTotal = (clarisQty.toIntOrNull() ?: 0) + (blissQty.toIntOrNull() ?: 0)
+                if (returnTotal > 0) {
+                    Text(
+                        "Total: $returnTotal pcs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
 
-                Text("Marketplace", fontWeight = FontWeight.SemiBold)
+                Text("Company", fontWeight = FontWeight.SemiBold)
                 ExposedDropdownMenuBox(expanded = platformExpanded, onExpandedChange = { platformExpanded = it }) {
                     OutlinedTextField(
                         value = platform,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Platform") },
+                        label = { Text("Amazon, Flipkart…") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(platformExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
@@ -740,16 +793,14 @@ private fun ReturnOperationDialog(
             PrimaryButton(
                 text = "Save Return",
                 onClick = {
-                    val q = quantity.toIntOrNull() ?: run {
-                        validationError = "Enter a valid quantity"
-                        return@PrimaryButton
-                    }
-                    if (q <= 0) {
-                        validationError = "Quantity must be greater than 0"
+                    val claris = clarisQty.toIntOrNull() ?: 0
+                    val bliss = blissQty.toIntOrNull() ?: 0
+                    if (claris + bliss <= 0) {
+                        validationError = "Enter Claris and/or Bliss quantity"
                         return@PrimaryButton
                     }
                     if (platform.isBlank()) {
-                        validationError = "Select a marketplace"
+                        validationError = "Select a company"
                         return@PrimaryButton
                     }
                     val courierName = courier.ifBlank { courierQuery }.trim()
@@ -758,7 +809,7 @@ private fun ReturnOperationDialog(
                         return@PrimaryButton
                     }
                     validationError = null
-                    onConfirm(q, platform, courierName, selectedReturnType, notes.ifBlank { null })
+                    onConfirm(claris, bliss, platform, courierName, selectedReturnType, notes.ifBlank { null })
                 }
             )
         },
