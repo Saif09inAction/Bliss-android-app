@@ -67,7 +67,9 @@ data class KaarigerOrderPayment(
     val date: String,
     val time: String,
     val remarks: String? = null,
-    val createdBy: String
+    val createdBy: String,
+    /** Epoch ms when written — preferred for newest-first lists. */
+    val createdAt: Long = 0L
 )
 
 enum class OrderPricingType {

@@ -9,6 +9,7 @@ import com.laiza.worker.domain.repository.EmployeeRepository
 import com.laiza.worker.domain.repository.InventoryRepository
 import com.laiza.worker.domain.repository.OrderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -85,21 +86,28 @@ class OrderViewModel @Inject constructor(
         }
     }
 
+    private var kaarigerDataJob: Job? = null
+
     fun loadKaarigerData(kaarigerId: String) {
-        viewModelScope.launch {
-            orderRepository.getOrdersForKaariger(kaarigerId).collect { orders ->
-                _kaarigerOrders.value = orders
+        // Cancel previous collectors so repeated screen opens don't stack listeners
+        // (which can race and briefly wipe the payment list).
+        kaarigerDataJob?.cancel()
+        kaarigerDataJob = viewModelScope.launch {
+            launch {
+                orderRepository.getOrdersForKaariger(kaarigerId).collect { orders ->
+                    _kaarigerOrders.value = orders
+                }
             }
-        }
-        viewModelScope.launch {
-            orderRepository.getPaymentsForKaariger(kaarigerId).collect { payments ->
-                _kaarigerPayments.value = payments
-                updatePaymentSummaries()
+            launch {
+                orderRepository.getPaymentsForKaariger(kaarigerId).collect { payments ->
+                    _kaarigerPayments.value = payments
+                    updatePaymentSummaries()
+                }
             }
-        }
-        viewModelScope.launch {
-            orderRepository.getRepairsForKaariger(kaarigerId).collect { repairs ->
-                _kaarigerRepairs.value = repairs
+            launch {
+                orderRepository.getRepairsForKaariger(kaarigerId).collect { repairs ->
+                    _kaarigerRepairs.value = repairs
+                }
             }
         }
     }

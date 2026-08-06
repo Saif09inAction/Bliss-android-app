@@ -358,7 +358,7 @@ class OrderRepositoryImpl @Inject constructor(
     }
 
     override fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>> {
-        val normalizedId = normalizePhone(kaarigerId)
+        val target = normalizePhone(kaarigerId)
         return callbackFlow {
             val listener = firestore.collection("kaariger_payments")
                 .addSnapshotListener { snapshot, error ->
@@ -377,10 +377,15 @@ class OrderRepositoryImpl @Inject constructor(
                             date = data["date"] as? String ?: "",
                             time = data["time"] as? String ?: "",
                             remarks = data["remarks"] as? String,
-                            createdBy = data["createdBy"] as? String ?: ""
+                            createdBy = data["createdBy"] as? String ?: "",
+                            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L
                         )
-                    }?.filter { normalizePhone(it.kaarigerId) == normalizedId }
-                        ?.sortedByDescending { it.date }
+                    }?.filter { phonesMatch(it.kaarigerId, target) }
+                        ?.sortedWith(
+                            compareByDescending<KaarigerOrderPayment> { it.createdAt }
+                                .thenByDescending { it.date }
+                                .thenByDescending { timeSortKey(it.time) }
+                        )
                         ?: emptyList()
                     trySend(payments)
                 }
@@ -620,6 +625,30 @@ class OrderRepositoryImpl @Inject constructor(
         return p
     }
 
+    private fun phonesMatch(a: String, b: String): Boolean {
+        val na = normalizePhone(a)
+        val nb = normalizePhone(b)
+        if (na.isEmpty() || nb.isEmpty()) return false
+        if (na == nb) return true
+        if (na.length >= 10 && nb.length >= 10) return na.takeLast(10) == nb.takeLast(10)
+        return false
+    }
+
+    /** Sort key for "2:29 pm" / "14:29" / "2:29 am" so newest-first works. */
+    private fun timeSortKey(time: String): String {
+        val t = time.trim().lowercase()
+        if (t.isEmpty()) return "00:00"
+        val am = t.endsWith("am")
+        val pm = t.endsWith("pm")
+        val core = t.replace("am", "").replace("pm", "").trim()
+        val parts = core.split(":")
+        var hour = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val minute = parts.getOrNull(1)?.filter { it.isDigit() }?.toIntOrNull() ?: 0
+        if (pm && hour < 12) hour += 12
+        if (am && hour == 12) hour = 0
+        return "%02d:%02d".format(hour, minute)
+    }
+
     private fun paymentsFlow(query: Query): Flow<List<KaarigerOrderPayment>> = callbackFlow {
         val listener = query.addSnapshotListener { snapshot, error ->
             if (error != null) {
@@ -636,7 +665,8 @@ class OrderRepositoryImpl @Inject constructor(
                     date = data["date"] as? String ?: "",
                     time = data["time"] as? String ?: "",
                     remarks = data["remarks"] as? String,
-                    createdBy = data["createdBy"] as? String ?: ""
+                    createdBy = data["createdBy"] as? String ?: "",
+                    createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L
                 )
             } ?: emptyList()
             trySend(payments)
