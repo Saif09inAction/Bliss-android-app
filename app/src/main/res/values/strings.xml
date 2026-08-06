@@ -137,9 +137,10 @@
     <string name="kaariger_payment_total_deal">Kul rakam</string>
     <string name="kaariger_payment_advance">Paise mile</string>
     <string name="kaariger_payment_remaining">Baaki paise</string>
-    <string name="kaariger_payment_history">Paise mile — list</string>
+    <string name="kaariger_payment_history">Recent payments</string>
+    <string name="kaariger_payment_history_hint">Newest on top. Opening balance payments also show here.</string>
     <string name="kaariger_no_payments">Abhi koi paise nahi mile</string>
-    <string name="kaariger_payment_received_amount">%1$s mila</string>
+    <string name="kaariger_payment_received_amount">%1$s received</string>
     <string name="kaariger_payment_extra_title">Zyada mila</string>
     <string name="kaariger_payment_extra_body">Bill clear hai. Ye paise agle hisaab mein katega.</string>
     <string name="kaariger_payment_show_less">Kam dikhao</string>
@@ -149,12 +150,34 @@
     <string name="kaariger_payment_hint_green">Hara = paise mil gaye</string>
     <string name="kaariger_payment_hint_amber">Peela = abhi baaki</string>
     <string name="kaariger_home_deductions_title">Jo saman / katauti lagi</string>
+    <string name="kaariger_home_hisaab_button">Mera Hisaab</string>
+    <string name="kaariger_home_hisaab_hint">Opening + order + katauti — poora hisaab</string>
+    <string name="kaariger_hisaab_title">Mera Hisaab</string>
+    <string name="kaariger_hisaab_subtitle">Opening balance + abhi ka order = total remaining</string>
+    <string name="kaariger_hisaab_calc_title">Hisab kaise nikla</string>
+    <string name="kaariger_hisaab_current_orders">Abhi ka order (baaki)</string>
+    <string name="kaariger_hisaab_repair_label">Repairing katauti</string>
+    <string name="kaariger_hisaab_credit_label">Zyada / advance</string>
+    <string name="kaariger_hisaab_total_remaining">Total remaining</string>
+    <string name="kaariger_hisaab_equation_with_opening">%1$s (opening) + %2$s (order) = %3$s</string>
+    <string name="kaariger_hisaab_equation_orders_only">Abhi ka order %1$s = total remaining %2$s</string>
+    <string name="kaariger_hisaab_orders_title">Order breakdown</string>
+    <string name="kaariger_hisaab_order_baaki">Is order ka baaki</string>
+    <string name="kaariger_hisaab_empty">Abhi koi pending hisaab nahi</string>
+    <string name="kaariger_hisaab_surplus_credit">Zyada mila: %1$s — agle bill mein katega</string>
+    <string name="kaariger_hisaab_payments_so_far">Payments jo mil chuki hain</string>
+    <string name="kaariger_hisaab_opening_paid">Opening pe mila</string>
+    <string name="kaariger_hisaab_orders_paid">Order pe mila</string>
+    <string name="kaariger_hisaab_total_paid">Kul paise mile</string>
+    <string name="kaariger_hisaab_all_payments">Saari payments</string>
+    <string name="kaariger_hisaab_all_payments_hint">Opening, order, advance — har payment yahan dikhegi</string>
+    <string name="kaariger_title_hisaab">Mera Hisaab</string>
     <string name="kaariger_logout_title">Logout?</string>
     <string name="kaariger_logout_message">App se bahar nikalna hai?</string>
     <string name="kaariger_logout_confirm">Haan, logout</string>
     <string name="kaariger_em_dash">—</string>
-    <string name="kaariger_payment_opening_product">Purana baaki</string>
-    <string name="kaariger_payment_credit_product">Zyada / advance</string>
+    <string name="kaariger_payment_opening_product">Opening balance</string>
+    <string name="kaariger_payment_credit_product">Credit / advance</string>
 
     <!-- Order receipt -->
     <string name="receipt_brand">BLISS BOMBAY</string>

@@ -13,6 +13,7 @@ import com.laiza.worker.presentation.components.KaarigerLocalizedContent
 import com.laiza.worker.presentation.components.LaizaTopAppBar
 import com.laiza.worker.presentation.components.PremiumCard
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
@@ -122,6 +123,15 @@ private fun KaarigerContainerContent(
                     }
                 )
                 DrawerItem(
+                    title = stringResource(R.string.kaariger_home_hisaab_button),
+                    icon = Icons.Default.Calculate,
+                    selected = currentRoute == KaarigerNav.Hisaab.route,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        childNavController.navigate(KaarigerNav.Hisaab.route)
+                    }
+                )
+                DrawerItem(
                     title = stringResource(R.string.kaariger_nav_payments),
                     icon = Icons.Default.Payments,
                     selected = currentRoute == KaarigerNav.Payments.route,
@@ -155,6 +165,7 @@ private fun KaarigerContainerContent(
                     title = when (currentRoute) {
                         KaarigerNav.Home.route -> stringResource(R.string.kaariger_title_dashboard)
                         KaarigerNav.Orders.route -> stringResource(R.string.kaariger_title_orders)
+                        KaarigerNav.Hisaab.route -> stringResource(R.string.kaariger_title_hisaab)
                         KaarigerNav.Payments.route -> stringResource(R.string.kaariger_title_payments)
                         else -> stringResource(R.string.kaariger_title_app)
                     },
@@ -204,6 +215,13 @@ private fun KaarigerContainerContent(
                         name = session?.name ?: stringResource(R.string.kaariger_default_name),
                         orders = orders,
                         payments = payments,
+                        onOpenHisaab = {
+                            childNavController.navigate(KaarigerNav.Hisaab.route) {
+                                popUpTo(KaarigerNav.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
                         onViewAllOrders = {
                             childNavController.navigate(KaarigerNav.Orders.route) {
                                 popUpTo(KaarigerNav.Home.route) { saveState = true }
@@ -215,6 +233,9 @@ private fun KaarigerContainerContent(
                 }
                 composable(KaarigerNav.Orders.route) {
                     KaarigerOrdersScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
+                }
+                composable(KaarigerNav.Hisaab.route) {
+                    KaarigerHisaabScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
                 }
                 composable(KaarigerNav.Payments.route) {
                     KaarigerPaymentsScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
@@ -240,6 +261,7 @@ private fun KaarigerDashboardContent(
     name: String,
     orders: List<KaarigerOrder>,
     payments: List<KaarigerOrderPayment>,
+    onOpenHisaab: () -> Unit,
     onViewAllOrders: () -> Unit
 ) {
     val activeOrders = orders.count { it.status != OrderStatus.COMPLETED }
@@ -311,6 +333,33 @@ private fun KaarigerDashboardContent(
                         )
                     }
                 }
+            }
+        }
+
+        Button(
+            onClick = onOpenHisaab,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = BlissLime,
+                contentColor = BlissBlack
+            )
+        ) {
+            Icon(Icons.Default.Calculate, contentDescription = null)
+            Spacer(modifier = Modifier.width(10.dp))
+            Column(horizontalAlignment = Alignment.Start) {
+                Text(
+                    stringResource(R.string.kaariger_home_hisaab_button),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    stringResource(R.string.kaariger_home_hisaab_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = BlissBlack.copy(alpha = 0.7f)
+                )
             }
         }
 
@@ -417,5 +466,6 @@ private fun DeductionChip(label: String, quantity: Int, modifier: Modifier = Mod
 private sealed class KaarigerNav(val route: String, @StringRes val titleRes: Int, val icon: ImageVector) {
     object Home : KaarigerNav("kaariger_home", R.string.kaariger_nav_home, Icons.Default.Home)
     object Orders : KaarigerNav("kaariger_orders", R.string.kaariger_nav_orders, Icons.Default.Task)
+    object Hisaab : KaarigerNav("kaariger_hisaab", R.string.kaariger_home_hisaab_button, Icons.Default.Calculate)
     object Payments : KaarigerNav("kaariger_payments", R.string.kaariger_nav_payments, Icons.Default.Payments)
 }

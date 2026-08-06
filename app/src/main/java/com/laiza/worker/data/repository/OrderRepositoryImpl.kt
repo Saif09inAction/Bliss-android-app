@@ -611,8 +611,14 @@ class OrderRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    private fun normalizePhone(phone: String): String =
-        phone.trim().replace(Regex("[\\s-]"), "")
+    private fun normalizePhone(phone: String): String {
+        var p = phone.trim().replace(Regex("[\\s-]"), "")
+        if (p.startsWith("+91")) p = p.removePrefix("+91")
+        else if (p.startsWith("91") && p.length > 10) p = p.removePrefix("91")
+        // Keep last 10 digits when value is an Indian mobile with junk prefix.
+        if (p.length > 10 && p.all { it.isDigit() }) p = p.takeLast(10)
+        return p
+    }
 
     private fun paymentsFlow(query: Query): Flow<List<KaarigerOrderPayment>> = callbackFlow {
         val listener = query.addSnapshotListener { snapshot, error ->

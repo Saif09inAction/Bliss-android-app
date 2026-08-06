@@ -17,15 +17,13 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
-import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
+import com.laiza.worker.presentation.components.KaarigerPaymentTimeline
+import com.laiza.worker.presentation.components.labeledKaarigerPayments
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 private const val DEFAULT_KHARCHA_ROWS = 6
-private const val OPENING_ORDER_ID = "__opening__"
 
 @Composable
 fun KaarigerPaymentsScreen(
@@ -68,19 +66,15 @@ fun KaarigerPaymentsScreen(
         }
     }
 
-    val openingPayments = remember(payments) {
-        payments.filter { isOpeningLikePayment(it) }
-    }
-
     val billsRemaining = remember(orderSummaries) {
         orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining }
     }
     val standaloneRepairTotal = remember(repairs) {
         repairs.filter { it.isStandalone && it.isApproved }.sumOf { it.totalRepairCost }
     }
-    val totalKharchaPaid = remember(orderSummaries, openingPayments) {
-        orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid } +
-            openingPayments.sumOf { it.amount }
+    // All kharcha ever received (orders + opening + credit) — every transaction counts.
+    val totalKharchaPaid = remember(payments) {
+        payments.sumOf { it.amount }
     }
     val safeOpening = openingBalance.coerceAtLeast(0.0)
     val safeCredit = creditBalance.coerceAtLeast(0.0)
@@ -93,18 +87,14 @@ fun KaarigerPaymentsScreen(
     val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)
     val creditProductLabel = stringResource(R.string.kaariger_payment_credit_product)
 
-    val allPayments = remember(orderSummaries, openingPayments, openingProductLabel, creditProductLabel) {
-        val fromOrders = orderSummaries.flatMap { summary ->
-            summary.payments.map { PaymentWithOrder(it, summary.productName) }
-        }
-        val fromOpening = openingPayments.map { payment ->
-            val label = when {
-                payment.remarks?.contains("credit", ignoreCase = true) == true -> creditProductLabel
-                else -> openingProductLabel
-            }
-            PaymentWithOrder(payment, label)
-        }
-        (fromOrders + fromOpening).sortedByDescending { it.payment.date + it.payment.time }
+    // Show every payment — including opening-balance clears — never drop orphans.
+    val allPayments = remember(payments, orders, openingProductLabel, creditProductLabel) {
+        labeledKaarigerPayments(
+            payments = payments,
+            orders = orders,
+            openingLabel = openingProductLabel,
+            creditLabel = creditProductLabel
+        )
     }
 
     Column(
@@ -139,7 +129,8 @@ fun KaarigerPaymentsScreen(
         PaymentsSummaryCard(
             totalPaid = totalKharchaPaid,
             totalPending = totalPending,
-            openingBalance = safeOpening
+            openingBalance = safeOpening,
+            billsRemaining = billsRemaining
         )
 
         if (totalPending <= 0.0 && surplusCredit > 0.0) {
@@ -153,66 +144,51 @@ fun KaarigerPaymentsScreen(
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleLarge
         )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.kaariger_payment_history_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
         Spacer(modifier = Modifier.height(12.dp))
 
-        if (allPayments.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                contentAlignment = Alignment.Center
+        // Newest payments first (opening-balance clears included).
+        val visible = if (showAllKharcha) allPayments else allPayments.take(DEFAULT_KHARCHA_ROWS)
+        KaarigerPaymentTimeline(visible)
+        if (allPayments.size > DEFAULT_KHARCHA_ROWS) {
+            Spacer(modifier = Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = { showAllKharcha = !showAllKharcha },
+                modifier = Modifier.fillMaxWidth().height(48.dp)
             ) {
                 Text(
-                    stringResource(R.string.kaariger_no_payments),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (showAllKharcha) {
+                        stringResource(R.string.kaariger_payment_show_less)
+                    } else {
+                        stringResource(R.string.kaariger_payment_view_all, allPayments.size)
+                    },
                     style = MaterialTheme.typography.titleMedium
                 )
-            }
-        } else {
-            val visible = if (showAllKharcha) allPayments else allPayments.take(DEFAULT_KHARCHA_ROWS)
-            RecentKharchaList(visible)
-            if (allPayments.size > DEFAULT_KHARCHA_ROWS) {
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedButton(
-                    onClick = { showAllKharcha = !showAllKharcha },
-                    modifier = Modifier.fillMaxWidth().height(48.dp)
-                ) {
-                    Text(
-                        if (showAllKharcha) {
-                            stringResource(R.string.kaariger_payment_show_less)
-                        } else {
-                            stringResource(R.string.kaariger_payment_view_all, allPayments.size)
-                        },
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                }
             }
         }
         Spacer(modifier = Modifier.height(24.dp))
     }
 }
 
-private fun isOpeningLikePayment(p: KaarigerOrderPayment): Boolean {
-    if (p.orderId == OPENING_ORDER_ID) return true
-    val r = p.remarks ?: return false
-    return r == "Opening / old remaining payment" ||
-        r == "Old remaining payment" ||
-        r == "Extra kharcha — carried as credit"
-}
-
 private data class OrderPaymentSummary(
-    val payments: List<KaarigerOrderPayment>,
+    val payments: List<com.laiza.worker.domain.models.KaarigerOrderPayment>,
     val productName: String,
     val totalPaid: Double,
     val remaining: Double,
     val isCompleted: Boolean
 )
 
-private data class PaymentWithOrder(val payment: KaarigerOrderPayment, val productName: String)
-
 @Composable
 private fun PaymentsSummaryCard(
     totalPaid: Double,
     totalPending: Double,
-    openingBalance: Double
+    openingBalance: Double,
+    billsRemaining: Double
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         Surface(
@@ -257,35 +233,26 @@ private fun PaymentsSummaryCard(
                     fontSize = 40.sp,
                     lineHeight = 44.sp
                 )
-                if (openingBalance > 0.0) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = Color(0xFFFCD34D))
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            stringResource(R.string.kaariger_payment_opening_label),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = Color(0xFFB45309),
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    if (openingBalance > 0.0) {
+                        stringResource(
+                            R.string.kaariger_hisaab_equation_with_opening,
                             formatIndianRupee(openingBalance),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Color(0xFFB45309),
-                            fontWeight = FontWeight.Bold
+                            formatIndianRupee(billsRemaining),
+                            formatIndianRupee(totalPending)
                         )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        stringResource(R.string.kaariger_payment_opening_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF92400E)
-                    )
-                }
+                    } else {
+                        stringResource(
+                            R.string.kaariger_hisaab_equation_orders_only,
+                            formatIndianRupee(billsRemaining),
+                            formatIndianRupee(totalPending)
+                        )
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color(0xFF92400E),
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -318,82 +285,3 @@ private fun CreditBalanceCard(creditBalance: Double) {
     }
 }
 
-@Composable
-private fun RecentKharchaList(entries: List<PaymentWithOrder>) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
-            entries.forEachIndexed { index, entry ->
-                val payment = entry.payment
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(50),
-                        color = Color(0xFFD1FAE5),
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                            Text(
-                                "₹",
-                                style = MaterialTheme.typography.titleLarge,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF047857)
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(14.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            stringResource(
-                                R.string.kaariger_payment_received_amount,
-                                formatIndianRupee(payment.amount)
-                            ),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            entry.productName,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            formatPaymentDayDate(payment.date, payment.time),
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        payment.remarks?.takeIf { it.isNotBlank() }?.let { note ->
-                            Text(
-                                note,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                }
-                if (index != entries.lastIndex) {
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp))
-                }
-            }
-        }
-    }
-}
-
-/** e.g. "Saturday, 1 Aug 2026 · 6:45 pm" */
-private fun formatPaymentDayDate(date: String, time: String): String {
-    val dayPart = try {
-        val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)
-        if (parsed != null) {
-            SimpleDateFormat("EEEE, d MMM yyyy", Locale.ENGLISH).format(parsed)
-        } else date
-    } catch (_: Exception) {
-        date
-    }
-    val timePart = time.trim().takeIf { it.isNotEmpty() } ?: return dayPart
-    return "$dayPart · $timePart"
-}

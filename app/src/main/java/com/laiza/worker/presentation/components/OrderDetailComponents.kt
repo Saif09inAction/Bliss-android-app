@@ -33,6 +33,8 @@ fun formatOrderDate(millis: Long?): String {
 fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
     payments: List<KaarigerOrderPayment> = emptyList(),
+    /** When > 0 and this is the only active bill, opening is folded into grand total. */
+    openingBalance: Double = 0.0,
     onDismiss: () -> Unit,
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
@@ -94,7 +96,7 @@ fun KaarigerOrderDetailSheet(
             if (order.products.isNotEmpty()) {
                 val orderPayments = payments.filter { it.orderId == order.id }
                 OrderHisaabBreakdown(order, orderPayments)
-                GrandTotalBox(order, orderPayments)
+                GrandTotalBox(order, orderPayments, openingBalance = openingBalance.coerceAtLeast(0.0))
             }
 
             if (order.status == OrderStatus.COMPLETED && order.rawMaterials.isNotEmpty() && !order.materialUsageReported && onReportMaterials != null) {
@@ -205,12 +207,20 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
  * actually been paid to show Extra paid / Total remaining / Fully cleared.
  */
 @Composable
-private fun GrandTotalBox(order: KaarigerOrder, orderPayments: List<KaarigerOrderPayment>) {
+private fun GrandTotalBox(
+    order: KaarigerOrder,
+    orderPayments: List<KaarigerOrderPayment>,
+    openingBalance: Double = 0.0
+) {
     val paid = orderPayments.sumOf { it.amount }
     val net = (order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal).coerceAtLeast(0.0)
-    val diff = paid - net
+    val orderRemaining = (net - paid).coerceAtLeast(0.0)
+    val orderExtra = (paid - net).coerceAtLeast(0.0)
+    val includeOpening = openingBalance > 0.0 && order.status != OrderStatus.COMPLETED
+    val totalRemaining = orderRemaining + if (includeOpening) openingBalance else 0.0
     val jade = Color(0xFF0D8F63)
     val jadeSoft = Color(0xFFD8F8EB)
+    val amber = Color(0xFFB45309)
 
     Surface(
         shape = RoundedCornerShape(14.dp),
@@ -237,9 +247,28 @@ private fun GrandTotalBox(order: KaarigerOrder, orderPayments: List<KaarigerOrde
             DetailRow(stringResource(R.string.kaariger_grand_total_paid), rupees(paid))
             Divider(modifier = Modifier.padding(vertical = 2.dp))
             when {
-                diff > 0.5 -> BoldRow(stringResource(R.string.kaariger_grand_total_extra), "+${rupees(diff)}", Color(0xFF047857))
-                diff < -0.5 -> BoldRow(stringResource(R.string.kaariger_grand_total_remaining), rupees(-diff), Color(0xFFB45309))
-                else -> BoldRow(stringResource(R.string.kaariger_grand_total_cleared), "₹0", Color(0xFF047857))
+                orderExtra > 0.5 && !includeOpening ->
+                    BoldRow(stringResource(R.string.kaariger_grand_total_extra), "+${rupees(orderExtra)}", Color(0xFF047857))
+                orderRemaining <= 0.5 && !includeOpening ->
+                    BoldRow(stringResource(R.string.kaariger_grand_total_cleared), "₹0", Color(0xFF047857))
+                else -> {
+                    if (includeOpening) {
+                        DetailRow(stringResource(R.string.kaariger_payment_opening_label), rupees(openingBalance))
+                        DetailRow(stringResource(R.string.kaariger_hisaab_order_baaki), rupees(orderRemaining))
+                        Text(
+                            stringResource(
+                                R.string.kaariger_hisaab_equation_with_opening,
+                                rupees(openingBalance),
+                                rupees(orderRemaining),
+                                rupees(totalRemaining)
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF92400E),
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                    BoldRow(stringResource(R.string.kaariger_grand_total_remaining), rupees(totalRemaining), amber)
+                }
             }
         }
     }
