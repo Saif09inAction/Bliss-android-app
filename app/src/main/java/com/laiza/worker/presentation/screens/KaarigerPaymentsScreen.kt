@@ -84,11 +84,11 @@ fun KaarigerPaymentsScreen(
     }
     val safeOpening = openingBalance.coerceAtLeast(0.0)
     val safeCredit = creditBalance.coerceAtLeast(0.0)
+    // Remaining = opening + unpaid bills − credit − standalone repairing (until opening is paid off).
     val grossOwed = billsRemaining + safeOpening
     val totalPending = (grossOwed - safeCredit - standaloneRepairTotal).coerceAtLeast(0.0)
     val afterRepairs = (grossOwed - standaloneRepairTotal).coerceAtLeast(0.0)
     val surplusCredit = (safeCredit - afterRepairs).coerceAtLeast(0.0)
-    val creditApplied = minOf(safeCredit, afterRepairs)
 
     val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)
     val creditProductLabel = stringResource(R.string.kaariger_payment_credit_product)
@@ -136,18 +136,11 @@ fun KaarigerPaymentsScreen(
         }
         Spacer(modifier = Modifier.height(16.dp))
 
-        PaymentsSummaryCard(totalKharchaPaid, totalPending)
-
-        if (safeOpening > 0.0 || billsRemaining > 0.0 || creditApplied > 0.0 || standaloneRepairTotal > 0.0) {
-            Spacer(modifier = Modifier.height(14.dp))
-            RemainingBreakdownCard(
-                openingBalance = safeOpening,
-                billsRemaining = billsRemaining,
-                repairDeduction = standaloneRepairTotal,
-                creditApplied = creditApplied,
-                totalPending = totalPending
-            )
-        }
+        PaymentsSummaryCard(
+            totalPaid = totalKharchaPaid,
+            totalPending = totalPending,
+            openingBalance = safeOpening
+        )
 
         if (totalPending <= 0.0 && surplusCredit > 0.0) {
             Spacer(modifier = Modifier.height(14.dp))
@@ -216,7 +209,11 @@ private data class OrderPaymentSummary(
 private data class PaymentWithOrder(val payment: KaarigerOrderPayment, val productName: String)
 
 @Composable
-private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
+private fun PaymentsSummaryCard(
+    totalPaid: Double,
+    totalPending: Double,
+    openingBalance: Double
+) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         Surface(
             shape = RoundedCornerShape(18.dp),
@@ -260,94 +257,37 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
                     fontSize = 40.sp,
                     lineHeight = 44.sp
                 )
+                if (openingBalance > 0.0) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(color = Color(0xFFFCD34D))
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            stringResource(R.string.kaariger_payment_opening_label),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color(0xFFB45309),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            formatIndianRupee(openingBalance),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = Color(0xFFB45309),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        stringResource(R.string.kaariger_payment_opening_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFF92400E)
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun RemainingBreakdownCard(
-    openingBalance: Double,
-    billsRemaining: Double,
-    repairDeduction: Double,
-    creditApplied: Double,
-    totalPending: Double
-) {
-    Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                stringResource(R.string.kaariger_payment_calc_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                stringResource(R.string.kaariger_payment_calc_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (openingBalance > 0.0) {
-                BreakdownRow(
-                    label = stringResource(R.string.kaariger_payment_opening_label),
-                    value = formatIndianRupee(openingBalance),
-                    valueColor = Color(0xFFB45309)
-                )
-            }
-            BreakdownRow(
-                label = stringResource(R.string.kaariger_payment_bills_label),
-                value = formatIndianRupee(billsRemaining)
-            )
-            if (repairDeduction > 0.0) {
-                BreakdownRow(
-                    label = stringResource(R.string.kaariger_payment_repair_label),
-                    value = "−${formatIndianRupee(repairDeduction)}",
-                    valueColor = Color(0xFFB91C1C)
-                )
-            }
-            if (creditApplied > 0.0) {
-                BreakdownRow(
-                    label = stringResource(R.string.kaariger_payment_credit_label),
-                    value = "−${formatIndianRupee(creditApplied)}",
-                    valueColor = Color(0xFF047857)
-                )
-            }
-            HorizontalDivider()
-            BreakdownRow(
-                label = stringResource(R.string.kaariger_payment_remaining),
-                value = formatIndianRupee(totalPending),
-                bold = true,
-                valueColor = Color(0xFFB45309)
-            )
-        }
-    }
-}
-
-@Composable
-private fun BreakdownRow(
-    label: String,
-    value: String,
-    bold: Boolean = false,
-    valueColor: Color = Color.Unspecified
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            label,
-            style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium
-        )
-        Text(
-            value,
-            style = if (bold) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyLarge,
-            fontWeight = FontWeight.Bold,
-            color = valueColor
-        )
     }
 }
 

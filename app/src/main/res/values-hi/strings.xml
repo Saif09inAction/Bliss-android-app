@@ -106,12 +106,8 @@
     <string name="kaariger_payment_extra_body">बिल क्लियर है। ये पैसे अगले हिसाब में कटेगा।</string>
     <string name="kaariger_payment_show_less">कम दिखाओ</string>
     <string name="kaariger_payment_view_all">सब देखो (%1$d)</string>
-    <string name="kaariger_payment_opening_label">पुराना बाकी</string>
-    <string name="kaariger_payment_credit_label">ज़्यादा / एडवांस</string>
-    <string name="kaariger_payment_bills_label">बिल बाकी</string>
-    <string name="kaariger_payment_repair_label">रिपेयरिंग कटौती</string>
-    <string name="kaariger_payment_calc_title">बाकी का हिसाब</string>
-    <string name="kaariger_payment_calc_hint">पुराना बाकी = पहले से पेंडिंग। नया बिल ऊपर जुड़ता है। बिना बिल रिपेयरिंग भी बाकी कम करती है।</string>
+    <string name="kaariger_payment_opening_label">ओपनिंग बैलेंस</string>
+    <string name="kaariger_payment_opening_hint">पुराना बाकी — जब तक क्लियर नहीं होता, बाकी पैसे में शामिल रहेगा</string>
     <string name="kaariger_payment_hint_green">हरा = पैसे मिल गए</string>
     <string name="kaariger_payment_hint_amber">पीला = अभी बाकी</string>
     <string name="kaariger_home_deductions_title">जो सामान / कटौती लगी</string>
