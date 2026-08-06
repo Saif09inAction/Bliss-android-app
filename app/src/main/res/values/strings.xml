@@ -147,8 +147,9 @@
     <string name="kaariger_payment_opening_label">Purana baaki</string>
     <string name="kaariger_payment_credit_label">Zyada / advance</string>
     <string name="kaariger_payment_bills_label">Bill baaki</string>
+    <string name="kaariger_payment_repair_label">Repairing katauti</string>
     <string name="kaariger_payment_calc_title">Baaki ka hisaab</string>
-    <string name="kaariger_payment_calc_hint">Purana baaki = pehle se pending. Naya bill add hota hai. Pay pehle purana clear karta hai.</string>
+    <string name="kaariger_payment_calc_hint">Purana baaki = pehle se pending. Naya bill add hota hai. Repairing bina bill ke bhi baaki kam karti hai.</string>
     <string name="kaariger_payment_hint_green">Hara = paise mil gaye</string>
     <string name="kaariger_payment_hint_amber">Peela = abhi baaki</string>
     <string name="kaariger_home_deductions_title">Jo saman / katauti lagi</string>

@@ -39,12 +39,16 @@ interface OrderRepository {
     fun addPayment(payment: KaarigerOrderPayment): Flow<Resource<Unit>>
     fun getRepairsForKaariger(kaarigerId: String): Flow<List<OrderRepair>>
     fun getRepairsForOrder(orderId: String): Flow<List<OrderRepair>>
+    fun getProductCatalogNames(): Flow<List<String>>
+
     fun createRepair(
         orderId: String,
         productName: String,
         faultyQuantity: Int,
         faultyPricePerPiece: Double,
         createdBy: String,
-        notes: String? = null
+        notes: String? = null,
+        kaarigerId: String = "",
+        kaarigerName: String = ""
     ): Flow<Resource<Unit>>
 }

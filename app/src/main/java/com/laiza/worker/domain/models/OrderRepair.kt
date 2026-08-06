@@ -14,11 +14,14 @@ object RepairStatus {
     const val PENDING = "PENDING"
     const val APPROVED = "APPROVED"
     const val REJECTED = "REJECTED"
+
+    /** Sentinel when repairing is recorded without an existing bill. */
+    const val STANDALONE_ORDER_ID = "__standalone__"
 }
 
 data class OrderRepair(
     val id: String = UUID.randomUUID().toString(),
-    val orderId: String,
+    val orderId: String = RepairStatus.STANDALONE_ORDER_ID,
     val kaarigerId: String,
     val kaarigerName: String,
     val productName: String,
@@ -42,4 +45,7 @@ data class OrderRepair(
 
     val isPending: Boolean
         get() = status == RepairStatus.PENDING
+
+    val isStandalone: Boolean
+        get() = orderId.isBlank() || orderId == RepairStatus.STANDALONE_ORDER_ID
 }

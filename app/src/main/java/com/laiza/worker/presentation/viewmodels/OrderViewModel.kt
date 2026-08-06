@@ -26,7 +26,9 @@ data class RepairSubmission(
     val orderId: String,
     val productName: String,
     val faultyQuantity: Int,
-    val faultyPricePerPiece: Double
+    val faultyPricePerPiece: Double = 0.0,
+    val kaarigerId: String = "",
+    val kaarigerName: String = ""
 )
 
 @HiltViewModel
@@ -68,6 +70,9 @@ class OrderViewModel @Inject constructor(
 
     private val _kaarigerRepairs = MutableStateFlow<List<OrderRepair>>(emptyList())
     val kaarigerRepairs = _kaarigerRepairs.asStateFlow()
+
+    val productCatalogNames: StateFlow<List<String>> = orderRepository.getProductCatalogNames()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _paymentSummaries = MutableStateFlow<List<OrderPaymentSummary>>(emptyList())
     val paymentSummaries = _paymentSummaries.asStateFlow()
@@ -267,7 +272,9 @@ class OrderViewModel @Inject constructor(
                 faultyQuantity = faultyQuantity,
                 faultyPricePerPiece = faultyPricePerPiece,
                 createdBy = createdBy,
-                notes = notes
+                notes = notes,
+                kaarigerId = "",
+                kaarigerName = ""
             ).collect { res ->
                 when (res) {
                     is Resource.Success -> onSuccess()
@@ -301,7 +308,9 @@ class OrderViewModel @Inject constructor(
                     faultyQuantity = submission.faultyQuantity,
                     faultyPricePerPiece = submission.faultyPricePerPiece,
                     createdBy = createdBy,
-                    notes = null
+                    notes = null,
+                    kaarigerId = submission.kaarigerId,
+                    kaarigerName = submission.kaarigerName
                 ).first { it !is Resource.Loading }
                 if (result is Resource.Error) {
                     onError(result.message ?: "Failed to update ${submission.productName}")

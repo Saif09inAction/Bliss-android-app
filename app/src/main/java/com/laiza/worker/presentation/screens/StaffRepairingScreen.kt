@@ -42,7 +42,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.domain.models.Employee
-import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.OrderProductLine
 import com.laiza.worker.domain.models.OrderRepair
 import com.laiza.worker.domain.models.OrderStatus
@@ -55,9 +54,11 @@ import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import com.laiza.worker.presentation.viewmodels.RepairSubmission
 
 private data class RepairProductOption(
-    val order: KaarigerOrder,
+    val orderId: String,
     val productName: String,
-    val pricePerPiece: Double
+    val pricePerPiece: Double,
+    val fromCatalog: Boolean,
+    val billLabel: String? = null
 )
 
 private data class RepairLineDraft(
@@ -73,6 +74,7 @@ fun StaffRepairingScreen(
     val kaarigers by orderViewModel.kaarigers.collectAsState()
     val kaarigerOrders by orderViewModel.kaarigerOrders.collectAsState()
     val kaarigerRepairs by orderViewModel.kaarigerRepairs.collectAsState()
+    val catalogNames by orderViewModel.productCatalogNames.collectAsState()
 
     var selectedKaariger by remember { mutableStateOf<Employee?>(null) }
     var kaarigerQuery by remember { mutableStateOf("") }
@@ -101,8 +103,8 @@ fun StaffRepairingScreen(
         kaarigerOrders.filter { it.status != OrderStatus.REJECTED }
     }
 
-    val productOptions = remember(activeOrders) {
-        activeOrders.flatMap { order ->
+    val productOptions = remember(activeOrders, catalogNames) {
+        val fromBills = activeOrders.flatMap { order ->
             val lines = if (order.products.isNotEmpty()) {
                 order.products
             } else {
@@ -111,9 +113,28 @@ fun StaffRepairingScreen(
                 listOf(OrderProductLine(order.productName, order.targetQuantity, fallbackPrice, 0.0))
             }
             lines.filter { it.productName.isNotBlank() }.map { line ->
-                RepairProductOption(order, line.productName, line.pricePerPiece)
+                RepairProductOption(
+                    orderId = order.id,
+                    productName = line.productName,
+                    pricePerPiece = line.pricePerPiece,
+                    fromCatalog = false,
+                    billLabel = "Bill · ${formatOrderDate(order.createdAt)}"
+                )
             }
         }
+        val billNames = fromBills.map { it.productName.lowercase() }.toSet()
+        val fromCatalog = catalogNames
+            .filter { it.lowercase() !in billNames }
+            .map { name ->
+                RepairProductOption(
+                    orderId = RepairStatus.STANDALONE_ORDER_ID,
+                    productName = name,
+                    pricePerPiece = 0.0,
+                    fromCatalog = true,
+                    billLabel = "Catalog · no bill"
+                )
+            }
+        fromBills + fromCatalog
     }
 
     val validLines = repairLines.filter { it.selectedProduct != null && (it.qtyText.toIntOrNull() ?: 0) > 0 }
@@ -131,7 +152,7 @@ fun StaffRepairingScreen(
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Select the kaariger and faulty products to update — no pricing needed",
+            text = "Kaariger + product + qty. Price is set by admin on approval. Works even without a bill.",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -189,13 +210,21 @@ fun StaffRepairingScreen(
             if (productOptions.isEmpty()) {
                 PremiumCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "No active bill found for this kaariger yet.",
+                        text = "No products found. Add products in Catalog (admin), then try again.",
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
+                if (activeOrders.isEmpty()) {
+                    Text(
+                        text = "No bill yet — pick a catalog product. Admin will set ₹/pc on approval.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFB45309)
+                    )
+                }
+
                 repairLines.forEachIndexed { index, line ->
                     RepairLineRow(
                         index = index,
@@ -243,13 +272,16 @@ fun StaffRepairingScreen(
                     onClick = {
                         saving = true
                         message = null
+                        val kaariger = selectedKaariger!!
                         val submissions = validLines.map { line ->
                             val product = line.selectedProduct!!
                             RepairSubmission(
-                                orderId = product.order.id,
+                                orderId = product.orderId,
                                 productName = product.productName,
                                 faultyQuantity = line.qtyText.toInt(),
-                                faultyPricePerPiece = product.pricePerPiece
+                                faultyPricePerPiece = product.pricePerPiece,
+                                kaarigerId = kaariger.phone,
+                                kaarigerName = kaariger.name
                             )
                         }
                         orderViewModel.createRepairs(
@@ -258,7 +290,7 @@ fun StaffRepairingScreen(
                                 saving = false
                                 isError = false
                                 val count = submissions.size
-                                message = "Updated $count product${if (count == 1) "" else "s"} for ${selectedKaariger?.name}."
+                                message = "Sent $count product${if (count == 1) "" else "s"} for admin approval."
                                 repairLines = listOf(RepairLineDraft())
                             },
                             onError = { err ->
@@ -343,7 +375,7 @@ private fun RepairLineRow(
                                 Column {
                                     Text(option.productName, fontWeight = FontWeight.SemiBold)
                                     Text(
-                                        text = "Bill of ${formatOrderDate(option.order.createdAt)}",
+                                        text = option.billLabel ?: if (option.fromCatalog) "Catalog" else "Bill",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
@@ -395,7 +427,8 @@ private fun RepairHistoryRow(repair: OrderRepair) {
             Text(repair.productName, fontWeight = FontWeight.SemiBold)
             if (repair.faultyQuantity > 0) {
                 Text(
-                    text = "${repair.faultyQuantity} pcs updated",
+                    text = "${repair.faultyQuantity} pcs" +
+                        if (repair.isStandalone) " · no bill" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

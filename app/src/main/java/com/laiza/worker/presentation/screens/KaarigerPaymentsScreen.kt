@@ -75,6 +75,9 @@ fun KaarigerPaymentsScreen(
     val billsRemaining = remember(orderSummaries) {
         orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining }
     }
+    val standaloneRepairTotal = remember(repairs) {
+        repairs.filter { it.isStandalone && it.isApproved }.sumOf { it.totalRepairCost }
+    }
     val totalKharchaPaid = remember(orderSummaries, openingPayments) {
         orderSummaries.filter { !it.isCompleted }.sumOf { it.totalPaid } +
             openingPayments.sumOf { it.amount }
@@ -82,9 +85,10 @@ fun KaarigerPaymentsScreen(
     val safeOpening = openingBalance.coerceAtLeast(0.0)
     val safeCredit = creditBalance.coerceAtLeast(0.0)
     val grossOwed = billsRemaining + safeOpening
-    val totalPending = (grossOwed - safeCredit).coerceAtLeast(0.0)
-    val surplusCredit = (safeCredit - grossOwed).coerceAtLeast(0.0)
-    val creditApplied = minOf(safeCredit, grossOwed)
+    val totalPending = (grossOwed - safeCredit - standaloneRepairTotal).coerceAtLeast(0.0)
+    val afterRepairs = (grossOwed - standaloneRepairTotal).coerceAtLeast(0.0)
+    val surplusCredit = (safeCredit - afterRepairs).coerceAtLeast(0.0)
+    val creditApplied = minOf(safeCredit, afterRepairs)
 
     val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)
     val creditProductLabel = stringResource(R.string.kaariger_payment_credit_product)
@@ -134,11 +138,12 @@ fun KaarigerPaymentsScreen(
 
         PaymentsSummaryCard(totalKharchaPaid, totalPending)
 
-        if (safeOpening > 0.0 || billsRemaining > 0.0 || creditApplied > 0.0) {
+        if (safeOpening > 0.0 || billsRemaining > 0.0 || creditApplied > 0.0 || standaloneRepairTotal > 0.0) {
             Spacer(modifier = Modifier.height(14.dp))
             RemainingBreakdownCard(
                 openingBalance = safeOpening,
                 billsRemaining = billsRemaining,
+                repairDeduction = standaloneRepairTotal,
                 creditApplied = creditApplied,
                 totalPending = totalPending
             )
@@ -264,6 +269,7 @@ private fun PaymentsSummaryCard(totalPaid: Double, totalPending: Double) {
 private fun RemainingBreakdownCard(
     openingBalance: Double,
     billsRemaining: Double,
+    repairDeduction: Double,
     creditApplied: Double,
     totalPending: Double
 ) {
@@ -294,6 +300,13 @@ private fun RemainingBreakdownCard(
                 label = stringResource(R.string.kaariger_payment_bills_label),
                 value = formatIndianRupee(billsRemaining)
             )
+            if (repairDeduction > 0.0) {
+                BreakdownRow(
+                    label = stringResource(R.string.kaariger_payment_repair_label),
+                    value = "−${formatIndianRupee(repairDeduction)}",
+                    valueColor = Color(0xFFB91C1C)
+                )
+            }
             if (creditApplied > 0.0) {
                 BreakdownRow(
                     label = stringResource(R.string.kaariger_payment_credit_label),

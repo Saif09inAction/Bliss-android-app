@@ -430,13 +430,32 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
+    override fun getProductCatalogNames(): Flow<List<String>> = callbackFlow {
+        val registration = firestore.collection("product_catalog")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+                val names = snapshot?.documents
+                    ?.mapNotNull { it.getString("name")?.trim()?.takeIf { n -> n.isNotEmpty() } }
+                    ?.distinct()
+                    ?.sorted()
+                    ?: emptyList()
+                trySend(names)
+            }
+        awaitClose { registration.remove() }
+    }
+
     override fun createRepair(
         orderId: String,
         productName: String,
         faultyQuantity: Int,
         faultyPricePerPiece: Double,
         createdBy: String,
-        notes: String?
+        notes: String?,
+        kaarigerId: String,
+        kaarigerName: String
     ): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
@@ -444,18 +463,53 @@ class OrderRepositoryImpl @Inject constructor(
                 emit(Resource.Error("Enter a quantity greater than 0"))
                 return@flow
             }
+            if (productName.isBlank()) {
+                emit(Resource.Error("Select a product"))
+                return@flow
+            }
+
+            val standalone = orderId.isBlank() || orderId == RepairStatus.STANDALONE_ORDER_ID
+            val id = UUID.randomUUID().toString()
+            val faultyTotal = faultyQuantity * faultyPricePerPiece
+
+            if (standalone) {
+                if (kaarigerId.isBlank()) {
+                    emit(Resource.Error("Select a kaariger"))
+                    return@flow
+                }
+                val repair = mapOf(
+                    "id" to id,
+                    "orderId" to RepairStatus.STANDALONE_ORDER_ID,
+                    "kaarigerId" to kaarigerId,
+                    "kaarigerName" to kaarigerName,
+                    "productName" to productName,
+                    "faultyQuantity" to faultyQuantity,
+                    "faultyPricePerPiece" to faultyPricePerPiece,
+                    "faultyTotal" to faultyTotal,
+                    "items" to emptyList<Map<String, Any>>(),
+                    "totalRepairCost" to faultyTotal,
+                    "originalDealAmount" to 0.0,
+                    "dealAfterThisRepair" to 0.0,
+                    "notes" to (notes ?: ""),
+                    "createdBy" to createdBy,
+                    "createdAt" to System.currentTimeMillis(),
+                    "status" to RepairStatus.PENDING
+                )
+                firestore.collection("order_repairs").document(id).set(repair).await()
+                emit(Resource.Success(Unit))
+                return@flow
+            }
+
             val doc = firestore.collection("kaariger_orders").document(orderId).get().await()
             if (!doc.exists()) {
                 emit(Resource.Error("Order not found"))
                 return@flow
             }
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
-            val faultyTotal = faultyQuantity * faultyPricePerPiece
             val original = order.originalDealAmount ?: order.totalDealAmount
             // Preview only — amount is NOT deducted until admin approves in the panel.
             val dealAfterIfApproved =
                 (original - order.repairDeductionTotal - faultyTotal).coerceAtLeast(0.0)
-            val id = UUID.randomUUID().toString()
             val repair = mapOf(
                 "id" to id,
                 "orderId" to order.id,
@@ -517,7 +571,8 @@ class OrderRepositoryImpl @Inject constructor(
         } ?: emptyList()
         return OrderRepair(
             id = data["id"] as? String ?: id,
-            orderId = data["orderId"] as? String ?: "",
+            orderId = (data["orderId"] as? String)?.takeIf { it.isNotBlank() }
+                ?: RepairStatus.STANDALONE_ORDER_ID,
             kaarigerId = data["kaarigerId"] as? String ?: "",
             kaarigerName = data["kaarigerName"] as? String ?: "",
             productName = data["productName"] as? String ?: "",
