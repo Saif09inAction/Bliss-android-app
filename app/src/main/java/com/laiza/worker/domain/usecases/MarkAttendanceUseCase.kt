@@ -1,16 +1,19 @@
 package com.laiza.worker.domain.usecases
 
+import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.Resource
 import com.laiza.worker.domain.models.Attendance
+import com.laiza.worker.domain.models.AttendanceSettings
 import com.laiza.worker.domain.models.AttendanceStatus
 import com.laiza.worker.domain.models.AttendanceType
+import com.laiza.worker.domain.models.Employee
 import com.laiza.worker.domain.repository.AttendanceRepository
+import com.laiza.worker.domain.repository.EmployeeRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
-import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -20,7 +23,8 @@ import java.util.Locale
 import javax.inject.Inject
 
 class MarkAttendanceUseCase @Inject constructor(
-    private val attendanceRepository: AttendanceRepository
+    private val attendanceRepository: AttendanceRepository,
+    private val employeeRepository: EmployeeRepository
 ) {
     operator fun invoke(
         employeeId: String,
@@ -36,7 +40,9 @@ class MarkAttendanceUseCase @Inject constructor(
             // Stable doc id so sign-in/out update the same Firestore document
             val recordId = "${employeeId}_$dateStr"
 
-            val settings = attendanceRepository.getFreshSettings()
+            val globalSettings = attendanceRepository.getFreshSettings()
+            val employee = employeeRepository.getEmployee(employeeId).first()
+            val settings = resolveShiftSettings(employee, globalSettings)
             val todayHistory = attendanceRepository.getEmployeeAttendanceHistory(employeeId).first()
             val existingToday = todayHistory.firstOrNull { it.date == dateStr }
                 ?: todayHistory.firstOrNull { it.id == recordId }
@@ -108,6 +114,20 @@ class MarkAttendanceUseCase @Inject constructor(
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to record attendance"))
         }
+    }
+
+    /** Staff custom shift if set; otherwise company Attendance defaults. */
+    private fun resolveShiftSettings(
+        employee: Employee?,
+        global: AttendanceSettings
+    ): AttendanceSettings {
+        val inTime = employee?.dailySignInTime?.trim().orEmpty()
+        val outTime = employee?.dailySignOutTime?.trim().orEmpty()
+        if (inTime.isEmpty() && outTime.isEmpty()) return global
+        return AttendanceSettings(
+            dailySignInTime = inTime.ifEmpty { global.dailySignInTime },
+            dailySignOutTime = outTime.ifEmpty { global.dailySignOutTime }
+        )
     }
 
     private fun safeParseTime(timeStr: String?, defaultTime: LocalTime): LocalTime {

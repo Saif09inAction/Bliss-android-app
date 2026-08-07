@@ -12,7 +12,13 @@ data class Employee(
     /** Overpaid kharcha carried forward from a previous order — auto-applied to the next bill. */
     val creditBalance: Double = 0.0,
     /** Old remaining owed to this kaariger when migrating onto the software. */
-    val openingBalance: Double = 0.0
+    val openingBalance: Double = 0.0,
+    /**
+     * Optional per-staff shift. When blank, punch late/early uses company
+     * Attendance settings defaults.
+     */
+    val dailySignInTime: String = "",
+    val dailySignOutTime: String = ""
 )
 
 data class EmployeeExtraProfile(

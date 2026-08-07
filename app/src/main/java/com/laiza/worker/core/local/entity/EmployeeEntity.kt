@@ -17,7 +17,9 @@ data class EmployeeEntity(
     val attendancePercentage: Double = 0.0,
     val role: String = Role.STAFF.name,
     val creditBalance: Double = 0.0,
-    val openingBalance: Double = 0.0
+    val openingBalance: Double = 0.0,
+    val dailySignInTime: String = "",
+    val dailySignOutTime: String = ""
 ) {
     fun toDomain(): Employee {
         return Employee(
@@ -30,7 +32,9 @@ data class EmployeeEntity(
             attendancePercentage = attendancePercentage,
             role = Role.fromFirestore(role),
             creditBalance = creditBalance,
-            openingBalance = openingBalance
+            openingBalance = openingBalance,
+            dailySignInTime = dailySignInTime,
+            dailySignOutTime = dailySignOutTime
         )
     }
 
@@ -46,7 +50,9 @@ data class EmployeeEntity(
                 attendancePercentage = domain.attendancePercentage,
                 role = domain.role.name,
                 creditBalance = domain.creditBalance,
-                openingBalance = domain.openingBalance
+                openingBalance = domain.openingBalance,
+                dailySignInTime = domain.dailySignInTime,
+                dailySignOutTime = domain.dailySignOutTime
             )
         }
     }

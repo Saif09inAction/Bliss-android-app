@@ -2,6 +2,7 @@ package com.laiza.worker.data.repository
 
 import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.laiza.worker.core.utils.Resource
 import com.laiza.worker.core.utils.FirebaseStorageHelper
 import com.laiza.worker.core.local.dao.EmployeeDao
@@ -76,7 +77,9 @@ class EmployeeRepositoryImpl @Inject constructor(
                                 attendancePercentage = doc.getDouble("attendancePercentage") ?: 0.0,
                                 role = com.laiza.worker.domain.models.Role.fromFirestore(doc.getString("role")),
                                 creditBalance = doc.getDouble("creditBalance") ?: 0.0,
-                                openingBalance = doc.getDouble("openingBalance") ?: 0.0
+                                openingBalance = doc.getDouble("openingBalance") ?: 0.0,
+                                dailySignInTime = doc.getString("dailySignInTime") ?: "",
+                                dailySignOutTime = doc.getString("dailySignOutTime") ?: ""
                             )
                             try {
                                 employeeDao.insertEmployee(EmployeeEntity.fromDomain(emp))
@@ -181,7 +184,9 @@ class EmployeeRepositoryImpl @Inject constructor(
                         attendancePercentage = doc.getDouble("attendancePercentage") ?: 0.0,
                         role = com.laiza.worker.domain.models.Role.fromFirestore(doc.getString("role")),
                         creditBalance = doc.getDouble("creditBalance") ?: 0.0,
-                        openingBalance = doc.getDouble("openingBalance") ?: 0.0
+                        openingBalance = doc.getDouble("openingBalance") ?: 0.0,
+                        dailySignInTime = doc.getString("dailySignInTime") ?: "",
+                        dailySignOutTime = doc.getString("dailySignOutTime") ?: ""
                     )
                 }
                 continuation.resume(list)
@@ -192,7 +197,8 @@ class EmployeeRepositoryImpl @Inject constructor(
     }
 
     private suspend fun saveEmployeeToFirestore(employee: Employee): Unit = suspendCancellableCoroutine { continuation ->
-        val data = hashMapOf(
+        // Merge so admin-only fields (custom shift, password, etc.) are not wiped.
+        val data = hashMapOf<String, Any>(
             "id" to employee.id,
             "name" to employee.name,
             "phone" to employee.phone,
@@ -201,11 +207,17 @@ class EmployeeRepositoryImpl @Inject constructor(
             "profilePhotoUrl" to (employee.profilePhotoUrl ?: ""),
             "attendancePercentage" to employee.attendancePercentage,
             "role" to employee.role.name,
-            "password" to "123123",
             "creditBalance" to employee.creditBalance,
             "openingBalance" to employee.openingBalance
         )
-        firestore.collection("employees").document(employee.phone).set(data)
+        if (employee.dailySignInTime.isNotBlank()) {
+            data["dailySignInTime"] = employee.dailySignInTime
+        }
+        if (employee.dailySignOutTime.isNotBlank()) {
+            data["dailySignOutTime"] = employee.dailySignOutTime
+        }
+        firestore.collection("employees").document(employee.phone)
+            .set(data, SetOptions.merge())
             .addOnSuccessListener { continuation.resume(Unit) }
             .addOnFailureListener { err -> continuation.resumeWithException(err) }
     }
