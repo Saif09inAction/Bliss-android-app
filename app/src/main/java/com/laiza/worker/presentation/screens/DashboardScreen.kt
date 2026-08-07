@@ -420,7 +420,7 @@ fun NotificationItemRow(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "${alert.date}  •  ${alert.time}",
+                    text = "${alert.date}  •  ${com.laiza.worker.core.utils.DateFormatter.formatStoredTime(alert.time).ifBlank { alert.time }}",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)

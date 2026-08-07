@@ -22,6 +22,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laiza.worker.R
+import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import java.text.SimpleDateFormat
@@ -111,7 +112,7 @@ private fun PaymentTimelineRow(payment: KaarigerOrderPayment, label: String) {
     }
 }
 
-/** e.g. "Saturday, 1 Aug 2026 · 6:45 pm" */
+/** e.g. "Saturday, 1 Aug 2026 · 6:45 PM" */
 private fun formatPaymentDayDate(date: String, time: String): String {
     val dayPart = try {
         val parsed = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)
@@ -121,6 +122,6 @@ private fun formatPaymentDayDate(date: String, time: String): String {
     } catch (_: Exception) {
         date
     }
-    val timePart = time.trim().takeIf { it.isNotEmpty() } ?: return dayPart
+    val timePart = DateFormatter.formatStoredTime(time).takeIf { it.isNotEmpty() } ?: return dayPart
     return "$dayPart · $timePart"
 }

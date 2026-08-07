@@ -31,18 +31,17 @@ import com.laiza.worker.core.theme.BlissGold
 import com.laiza.worker.core.theme.BlissGreen
 import com.laiza.worker.core.theme.BlissGreenDark
 import com.laiza.worker.core.utils.OrderReceiptImageHelper
+import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderPricingType
 import com.laiza.worker.domain.models.OrderReceiptData
-import java.text.SimpleDateFormat
-import java.util.Locale
 
 private fun formatPaymentDateTime(date: String, time: String): String {
-    return try {
-        val parsed = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).parse("$date $time")
-        SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(parsed!!)
-    } catch (_: Exception) {
-        "$date · $time"
+    val clock = DateFormatter.formatStoredTime(time)
+    return when {
+        date.isBlank() -> clock
+        clock.isBlank() -> date
+        else -> "$date, $clock"
     }
 }
 

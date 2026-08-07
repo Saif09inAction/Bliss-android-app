@@ -15,17 +15,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.laiza.worker.R
+import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 
 fun formatOrderDate(millis: Long?): String {
     if (millis == null || millis <= 0) return "—"
-    return SimpleDateFormat("dd MMM yyyy, hh:mm a", Locale.getDefault()).format(Date(millis))
+    return DateFormatter.formatEpochToDisplayDateTime(millis)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -187,7 +185,10 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
                 sortedPayments.forEach { p ->
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("${p.date} · ${p.time}", style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                DateFormatter.formatStoredDateTime(p.date, p.time),
+                                style = MaterialTheme.typography.bodySmall
+                            )
                             p.remarks?.takeIf { it.isNotBlank() }?.let {
                                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }

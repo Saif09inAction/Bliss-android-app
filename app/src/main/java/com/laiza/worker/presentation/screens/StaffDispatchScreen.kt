@@ -295,7 +295,7 @@ private fun PickupHistoryCard(record: PickupRecord) {
                 if (record.deliveryPartner.isNotBlank()) {
                     HistoryChip(record.deliveryPartner)
                 }
-                HistoryChip("${record.date} · ${record.time}")
+                HistoryChip(com.laiza.worker.core.utils.DateFormatter.formatStoredDateTime(record.date, record.time))
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
@@ -354,7 +354,7 @@ private fun ReturnHistoryCard(record: ReturnRecord) {
                 if (record.deliveryPartner.isNotBlank()) {
                     HistoryChip(record.deliveryPartner)
                 }
-                HistoryChip("${record.date} · ${record.time}")
+                HistoryChip(com.laiza.worker.core.utils.DateFormatter.formatStoredDateTime(record.date, record.time))
             }
             record.notes?.takeIf { it.isNotBlank() }?.let { note ->
                 Spacer(modifier = Modifier.height(6.dp))

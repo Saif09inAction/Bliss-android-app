@@ -38,6 +38,7 @@ import com.laiza.worker.presentation.components.premiumClickable
 import com.laiza.worker.presentation.viewmodels.EmployeeViewModel
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.google.firebase.firestore.FirebaseFirestore
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -833,7 +834,7 @@ fun PaymentItemRow(transaction: PaymentTransaction) {
                     fontSize = 14.sp
                 )
                 Text(
-                    text = "${transaction.date} • ${transaction.time}",
+                    text = DateFormatter.formatStoredDateTime(transaction.date, transaction.time),
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                 )
@@ -1125,7 +1126,7 @@ fun AddPaymentDialog(
                                 amount = amtVal,
                                 type = selectedType,
                                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
-                                time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()),
+                                time = DateFormatter.nowTime12HourWithSeconds(),
                                 remarks = remarks,
                                 createdBy = "Admin"
                             )

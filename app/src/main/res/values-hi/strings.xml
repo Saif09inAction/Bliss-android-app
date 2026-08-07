@@ -123,16 +123,14 @@
     <string name="kaariger_hisaab_total_remaining">टोटल बाकी</string>
     <string name="kaariger_hisaab_equation_with_opening">%1$s (ओपनिंग) + %2$s (ऑर्डर) = %3$s</string>
     <string name="kaariger_hisaab_equation_orders_only">अभी का ऑर्डर %1$s = टोटल बाकी %2$s</string>
-    <string name="kaariger_hisaab_orders_title">ऑर्डर ब्रेकडाउन</string>
-    <string name="kaariger_hisaab_order_baaki">इस ऑर्डर का बाकी</string>
+    <string name="kaariger_hisaab_orders_title">अभी के ऑर्डर</string>
+    <string name="kaariger_hisaab_order_baaki">बाकी</string>
     <string name="kaariger_hisaab_empty">अभी कोई पेंडिंग हिसाब नहीं</string>
     <string name="kaariger_hisaab_surplus_credit">ज़्यादा मिला: %1$s — अगले बिल में कटेगा</string>
-    <string name="kaariger_hisaab_payments_so_far">पेमेंट्स जो मिल चुकी हैं</string>
-    <string name="kaariger_hisaab_opening_paid">ओपनिंग पर मिला</string>
-    <string name="kaariger_hisaab_orders_paid">ऑर्डर पर मिला</string>
-    <string name="kaariger_hisaab_total_paid">कुल पैसे मिले</string>
+    <string name="kaariger_hisaab_show_payments">पेमेंट्स देखो (%1$d)</string>
+    <string name="kaariger_hisaab_hide_payments">पेमेंट्स छुपाओ</string>
     <string name="kaariger_hisaab_all_payments">सारी पेमेंट्स</string>
-    <string name="kaariger_hisaab_all_payments_hint">ओपनिंग, ऑर्डर, एडवांस — हर पेमेंट यहाँ दिखेगी</string>
+    <string name="kaariger_hisaab_all_payments_hint">जो पैसे मिल चुके हैं — उनकी लिस्ट</string>
     <string name="kaariger_title_hisaab">मेरा हिसाब</string>
     <string name="kaariger_logout_title">बाहर निकलना है?</string>
     <string name="kaariger_logout_message">ऐप से बाहर निकलना है?</string>

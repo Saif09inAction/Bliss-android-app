@@ -9,6 +9,7 @@ import com.laiza.worker.domain.repository.StoreOperationsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -80,7 +81,7 @@ class StoreOperationsViewModel @Inject constructor(
                 staffId = session?.phone ?: "",
                 staffName = session?.name ?: "Staff",
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now),
-                time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now)
+                time = DateFormatter.nowTime12Hour()
             )
             storeOperationsRepository.recordPickup(record).collect { res ->
                 when (res) {
@@ -129,7 +130,7 @@ class StoreOperationsViewModel @Inject constructor(
                 staffId = session?.phone ?: "",
                 staffName = session?.name ?: "Staff",
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now),
-                time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now),
+                time = DateFormatter.nowTime12Hour(),
                 notes = notes
             )
             storeOperationsRepository.recordReturn(record).collect { res ->

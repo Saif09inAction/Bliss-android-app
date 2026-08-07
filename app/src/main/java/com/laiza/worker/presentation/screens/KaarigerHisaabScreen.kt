@@ -12,15 +12,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,14 +41,14 @@ import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.KaarigerPaymentTimeline
-import com.laiza.worker.presentation.components.isOpeningBalancePayment
 import com.laiza.worker.presentation.components.labeledKaarigerPayments
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 
 /**
- * Full hisaab for the logged-in kaariger:
+ * Simple hisaab for the logged-in kaariger:
  * Opening (if any) + current unpaid orders − katauti/credit = total remaining.
+ * Payment history stays behind a toggle so the main view stays easy to read.
  */
 @Composable
 fun KaarigerHisaabScreen(
@@ -55,6 +60,7 @@ fun KaarigerHisaabScreen(
     val payments by orderViewModel.kaarigerPayments.collectAsState()
     val repairs by orderViewModel.kaarigerRepairs.collectAsState()
     val kaarigers by orderViewModel.kaarigers.collectAsState()
+    var showPayments by remember { mutableStateOf(false) }
 
     LaunchedEffect(session?.phone) {
         session?.phone?.let { orderViewModel.loadKaarigerData(it) }
@@ -114,7 +120,7 @@ fun KaarigerHisaabScreen(
             summary.orderLines.forEach { line ->
                 OrderHisaabLineCard(line)
             }
-        } else if (summary.opening <= 0.0 && summary.openingPaid <= 0.0 && allPayments.isEmpty()) {
+        } else if (summary.opening <= 0.0 && summary.totalRemaining <= 0.0 && allPayments.isEmpty()) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -128,17 +134,40 @@ fun KaarigerHisaabScreen(
             }
         }
 
-        Text(
-            stringResource(R.string.kaariger_hisaab_all_payments),
-            fontWeight = FontWeight.Bold,
-            style = MaterialTheme.typography.titleMedium
-        )
-        Text(
-            stringResource(R.string.kaariger_hisaab_all_payments_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        KaarigerPaymentTimeline(allPayments)
+        if (showPayments) {
+            OutlinedButton(
+                onClick = { showPayments = false },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(stringResource(R.string.kaariger_hisaab_hide_payments))
+            }
+            Text(
+                stringResource(R.string.kaariger_hisaab_all_payments),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                stringResource(R.string.kaariger_hisaab_all_payments_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            KaarigerPaymentTimeline(allPayments)
+        } else if (allPayments.isNotEmpty()) {
+            Button(
+                onClick = { showPayments = true },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xFF047857)
+                )
+            ) {
+                Text(
+                    stringResource(
+                        R.string.kaariger_hisaab_show_payments,
+                        allPayments.size
+                    )
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
     }
@@ -155,19 +184,13 @@ internal data class KaarigerOrderHisaabLine(
 
 internal data class KaarigerHisaabSummary(
     val opening: Double,
-    val openingPaid: Double,
     val billsRemaining: Double,
-    val billsPaid: Double,
-    val orderDeductions: Double,
     val standaloneRepair: Double,
     val creditApplied: Double,
-    val totalPaid: Double,
     val totalRemaining: Double,
     val surplusCredit: Double,
     val orderLines: List<KaarigerOrderHisaabLine>
-) {
-    val katautiTotal: Double get() = orderDeductions + standaloneRepair
-}
+)
 
 internal fun buildKaarigerHisaabSummary(
     openingBalance: Double,
@@ -178,7 +201,6 @@ internal fun buildKaarigerHisaabSummary(
 ): KaarigerHisaabSummary {
     val opening = openingBalance.coerceAtLeast(0.0)
     val credit = creditBalance.coerceAtLeast(0.0)
-    val openingPaid = payments.filter { isOpeningBalancePayment(it) }.sumOf { it.amount }
     val active = orders.filter { it.status != OrderStatus.REJECTED && it.status != OrderStatus.COMPLETED }
 
     val orderLines = active.map { order ->
@@ -212,8 +234,6 @@ internal fun buildKaarigerHisaabSummary(
     }
 
     val billsRemaining = orderLines.sumOf { it.remaining }
-    val billsPaid = orderLines.sumOf { it.paid }
-    val orderDeductions = orderLines.sumOf { it.deductions }
     val standaloneRepair = repairs
         .filter { it.isStandalone && it.isApproved }
         .sumOf { it.totalRepairCost }
@@ -222,17 +242,12 @@ internal fun buildKaarigerHisaabSummary(
     val creditApplied = minOf(credit, afterRepairs)
     val totalRemaining = (afterRepairs - creditApplied).coerceAtLeast(0.0)
     val surplusCredit = (credit - afterRepairs).coerceAtLeast(0.0)
-    val totalPaid = payments.sumOf { it.amount }
 
     return KaarigerHisaabSummary(
         opening = opening,
-        openingPaid = openingPaid,
         billsRemaining = billsRemaining,
-        billsPaid = billsPaid,
-        orderDeductions = orderDeductions,
         standaloneRepair = standaloneRepair,
         creditApplied = creditApplied,
-        totalPaid = totalPaid,
         totalRemaining = totalRemaining,
         surplusCredit = surplusCredit,
         orderLines = orderLines
@@ -258,7 +273,7 @@ private fun HisaabEquationCard(summary: KaarigerHisaabSummary) {
                 color = amber
             )
 
-            if (summary.opening > 0.0 || summary.openingPaid > 0.0) {
+            if (summary.opening > 0.0) {
                 HisaabRow(
                     label = stringResource(R.string.kaariger_payment_opening_label),
                     value = formatIndianRupee(summary.opening),
@@ -284,41 +299,8 @@ private fun HisaabEquationCard(summary: KaarigerHisaabSummary) {
                 )
             }
 
-            if (summary.openingPaid > 0.0 || summary.billsPaid > 0.0 || summary.totalPaid > 0.0) {
-                HorizontalDivider(color = Color(0xFFFCD34D))
-                Text(
-                    stringResource(R.string.kaariger_hisaab_payments_so_far),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFF047857)
-                )
-                if (summary.openingPaid > 0.0) {
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_opening_paid),
-                        value = formatIndianRupee(summary.openingPaid),
-                        valueColor = Color(0xFF047857)
-                    )
-                }
-                if (summary.billsPaid > 0.0) {
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_orders_paid),
-                        value = formatIndianRupee(summary.billsPaid),
-                        valueColor = Color(0xFF047857)
-                    )
-                }
-                if (summary.totalPaid > 0.0) {
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_total_paid),
-                        value = formatIndianRupee(summary.totalPaid),
-                        valueColor = Color(0xFF047857),
-                        bold = true
-                    )
-                }
-            }
-
             HorizontalDivider(color = Color(0xFFFCD34D))
 
-            // Simple equation line
             Text(
                 if (summary.opening > 0.0) {
                     stringResource(
@@ -380,40 +362,32 @@ private fun OrderHisaabLineCard(line: KaarigerOrderHisaabLine) {
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
         modifier = Modifier.fillMaxWidth()
     ) {
-        Column(
-            modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(line.productName, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-            HisaabRow(stringResource(R.string.kaariger_detail_products_total), formatIndianRupee(line.productsTotal))
-            if (line.deductions > 0.0) {
-                HisaabRow(
-                    stringResource(R.string.kaariger_detail_deductions),
-                    "−${formatIndianRupee(line.deductions)}",
-                    Color(0xFFB91C1C)
-                )
-            }
-            if (line.repair > 0.0) {
-                HisaabRow(
-                    stringResource(R.string.kaariger_detail_repair_deduction),
-                    "−${formatIndianRupee(line.repair)}",
-                    Color(0xFFB91C1C)
-                )
-            }
-            if (line.paid > 0.0) {
-                HisaabRow(
-                    stringResource(R.string.kaariger_grand_total_paid),
-                    "−${formatIndianRupee(line.paid)}",
-                    Color(0xFF047857)
-                )
-            }
-            HorizontalDivider()
-            HisaabRow(
-                stringResource(R.string.kaariger_hisaab_order_baaki),
-                formatIndianRupee(line.remaining),
-                Color(0xFFB45309),
-                bold = true
+            Text(
+                line.productName,
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.weight(1f).padding(end = 12.dp)
             )
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    stringResource(R.string.kaariger_hisaab_order_baaki),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    formatIndianRupee(line.remaining),
+                    fontWeight = FontWeight.ExtraBold,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color(0xFFB45309)
+                )
+            }
         }
     }
 }

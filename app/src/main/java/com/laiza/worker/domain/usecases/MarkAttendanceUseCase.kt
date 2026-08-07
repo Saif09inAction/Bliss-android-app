@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -31,7 +32,7 @@ class MarkAttendanceUseCase @Inject constructor(
         emit(Resource.Loading())
         try {
             val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-            val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+            val timeStr = DateFormatter.nowTime12HourWithSeconds()
             // Stable doc id so sign-in/out update the same Firestore document
             val recordId = "${employeeId}_$dateStr"
 
@@ -111,7 +112,15 @@ class MarkAttendanceUseCase @Inject constructor(
 
     private fun safeParseTime(timeStr: String?, defaultTime: LocalTime): LocalTime {
         if (timeStr.isNullOrBlank()) return defaultTime
-        val formats = listOf("HH:mm:ss", "HH:mm", "h:mm a", "hh:mm a", "H:mm")
+        val formats = listOf(
+            "h:mm:ss a",
+            "hh:mm:ss a",
+            "HH:mm:ss",
+            "HH:mm",
+            "h:mm a",
+            "hh:mm a",
+            "H:mm"
+        )
         for (fmt in formats) {
             try {
                 return LocalTime.parse(timeStr, DateTimeFormatter.ofPattern(fmt, Locale.US))

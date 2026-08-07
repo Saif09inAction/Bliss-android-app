@@ -244,7 +244,12 @@ fun TodayStatusCard(
             ) {
                 TimeSlot(
                     label = "Punch In",
-                    time = if (state.clockInTime.isNullOrBlank()) "-- : --" else state.clockInTime,
+                    time = if (state.clockInTime.isNullOrBlank()) {
+                        "-- : --"
+                    } else {
+                        com.laiza.worker.core.utils.DateFormatter.formatStoredTime(state.clockInTime)
+                            .ifBlank { state.clockInTime!! }
+                    },
                     iconColor = MaterialTheme.colorScheme.secondary
                 )
                 Divider(
@@ -255,7 +260,12 @@ fun TodayStatusCard(
                 )
                 TimeSlot(
                     label = "Punch Out",
-                    time = if (state.clockOutTime.isNullOrBlank()) "-- : --" else state.clockOutTime,
+                    time = if (state.clockOutTime.isNullOrBlank()) {
+                        "-- : --"
+                    } else {
+                        com.laiza.worker.core.utils.DateFormatter.formatStoredTime(state.clockOutTime)
+                            .ifBlank { state.clockOutTime!! }
+                    },
                     iconColor = Color.White.copy(alpha = 0.8f)
                 )
             }

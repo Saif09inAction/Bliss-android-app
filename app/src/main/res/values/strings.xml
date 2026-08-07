@@ -161,16 +161,14 @@
     <string name="kaariger_hisaab_total_remaining">Total remaining</string>
     <string name="kaariger_hisaab_equation_with_opening">%1$s (opening) + %2$s (order) = %3$s</string>
     <string name="kaariger_hisaab_equation_orders_only">Abhi ka order %1$s = total remaining %2$s</string>
-    <string name="kaariger_hisaab_orders_title">Order breakdown</string>
-    <string name="kaariger_hisaab_order_baaki">Is order ka baaki</string>
+    <string name="kaariger_hisaab_orders_title">Abhi ke orders</string>
+    <string name="kaariger_hisaab_order_baaki">Baaki</string>
     <string name="kaariger_hisaab_empty">Abhi koi pending hisaab nahi</string>
     <string name="kaariger_hisaab_surplus_credit">Zyada mila: %1$s — agle bill mein katega</string>
-    <string name="kaariger_hisaab_payments_so_far">Payments jo mil chuki hain</string>
-    <string name="kaariger_hisaab_opening_paid">Opening pe mila</string>
-    <string name="kaariger_hisaab_orders_paid">Order pe mila</string>
-    <string name="kaariger_hisaab_total_paid">Kul paise mile</string>
+    <string name="kaariger_hisaab_show_payments">Payments dekho (%1$d)</string>
+    <string name="kaariger_hisaab_hide_payments">Payments chhupao</string>
     <string name="kaariger_hisaab_all_payments">Saari payments</string>
-    <string name="kaariger_hisaab_all_payments_hint">Opening, order, advance — har payment yahan dikhegi</string>
+    <string name="kaariger_hisaab_all_payments_hint">Jo paise mil chuke hain — unki list</string>
     <string name="kaariger_title_hisaab">Mera Hisaab</string>
     <string name="kaariger_logout_title">Logout?</string>
     <string name="kaariger_logout_message">App se bahar nikalna hai?</string>

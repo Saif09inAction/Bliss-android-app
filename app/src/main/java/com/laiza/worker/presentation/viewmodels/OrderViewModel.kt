@@ -12,6 +12,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -245,7 +246,7 @@ class OrderViewModel @Inject constructor(
                 kaarigerId = kaarigerId,
                 amount = amount,
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now),
-                time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now),
+                time = DateFormatter.nowTime12Hour(),
                 remarks = remarks,
                 createdBy = createdBy
             )

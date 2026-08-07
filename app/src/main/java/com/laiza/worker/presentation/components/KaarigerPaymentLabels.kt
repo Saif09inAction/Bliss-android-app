@@ -49,7 +49,7 @@ fun labeledKaarigerPayments(
     return payments
         .sortedWith(
             compareByDescending<KaarigerOrderPayment> { it.date }
-                .thenByDescending { it.time }
+                .thenByDescending { com.laiza.worker.core.utils.DateFormatter.timeSortKey(it.time) }
         )
         .map { payment ->
             val label = when {

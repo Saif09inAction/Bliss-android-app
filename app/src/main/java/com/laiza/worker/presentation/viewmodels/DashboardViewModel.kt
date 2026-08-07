@@ -9,6 +9,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -146,7 +147,7 @@ class DashboardViewModel @Inject constructor(
                 title = title,
                 message = message,
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
-                time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()),
+                time = DateFormatter.nowTime12HourWithSeconds(),
                 isRead = false
             )
             notificationRepository.addNotification(alert)
