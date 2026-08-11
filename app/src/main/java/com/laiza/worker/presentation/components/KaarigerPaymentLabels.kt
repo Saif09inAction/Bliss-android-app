@@ -45,7 +45,9 @@ fun labeledKaarigerPayments(
     creditLabel: String,
     orphanLabel: String = "Kharcha"
 ): List<LabeledKaarigerPayment> {
-    val orderName = orders.associate { it.id to it.productName.ifBlank { orphanLabel } }
+    val orderName = orders.associate {
+        it.id to it.displayWeekLabel().ifBlank { it.productName.ifBlank { orphanLabel } }
+    }
     return payments
         .sortedWith(
             compareByDescending<KaarigerOrderPayment> { it.date }

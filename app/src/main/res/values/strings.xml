@@ -162,6 +162,7 @@
     <string name="kaariger_hisaab_kharcha_label">Kharcha</string>
     <string name="kaariger_hisaab_kharcha_hint">Is hafte — thoda thoda pay</string>
     <string name="kaariger_hisaab_tap_calc">Tap — calculation dekho</string>
+    <string name="kaariger_hisaab_tap_ledger">Tap — full ledger</string>
     <string name="kaariger_hisaab_tap_payments">Tap — payments dekho</string>
     <string name="kaariger_hisaab_kharcha_breakup_title">Kharcha breakup</string>
     <string name="kaariger_hisaab_kharcha_budget">Is hafte ka kharcha</string>

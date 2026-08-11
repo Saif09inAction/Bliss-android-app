@@ -176,6 +176,7 @@ fun KaarigerHisaabScreen(
 
 internal data class KaarigerOrderHisaabLine(
     val productName: String,
+    val weekLabel: String,
     val productsTotal: Double,
     val deductions: Double,
     val repair: Double,
@@ -226,6 +227,7 @@ internal fun buildKaarigerHisaabSummary(
         val kharchaRemaining = (weekDue - paid).coerceAtLeast(0.0)
         KaarigerOrderHisaabLine(
             productName = order.productName.ifBlank { "Order" },
+            weekLabel = order.displayWeekLabel(),
             productsTotal = productsTotal,
             deductions = deductions,
             repair = repair,
@@ -305,7 +307,7 @@ private fun HisaabEquationCard(
                         color = amber
                     )
                     Text(
-                        stringResource(R.string.kaariger_hisaab_tap_calc),
+                        stringResource(R.string.kaariger_hisaab_tap_ledger),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color(0xFF92400E)
                     )
@@ -369,7 +371,7 @@ private fun HisaabEquationCard(
                     )
                     summary.orderLines.filter { it.weekKharcha > 0.0 }.forEach { line ->
                         HisaabRow(
-                            label = "${line.productName} · ${formatIndianRupee(line.weekKharcha)} − ${formatIndianRupee(line.paid)}",
+                            label = "${line.weekLabel} kharcha · ${formatIndianRupee(line.weekKharcha)} − ${formatIndianRupee(line.paid)}",
                             value = formatIndianRupee(line.kharchaRemaining),
                             valueColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -399,6 +401,26 @@ private fun HisaabEquationCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFF92400E)
                     )
+                    if (weekPayments.isNotEmpty()) {
+                        HorizontalDivider(color = Color(0xFFFCD34D))
+                        Text(
+                            stringResource(R.string.kaariger_hisaab_kharcha_payments_title),
+                            fontWeight = FontWeight.SemiBold,
+                            color = amber
+                        )
+                        var running = summary.totalRemaining + weekPayments.sumOf { it.amount }
+                        weekPayments.forEach { p ->
+                            val before = running
+                            running = (running - p.amount).coerceAtLeast(0.0)
+                            val whenLabel = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · ")
+                            HisaabRow(
+                                label = "Paid ${formatIndianRupee(p.amount)}" +
+                                    if (whenLabel.isNotBlank()) " · $whenLabel" else "",
+                                value = "${formatIndianRupee(before)} → ${formatIndianRupee(running)}",
+                                valueColor = amber
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -488,12 +510,20 @@ private fun OrderHisaabLineCard(line: KaarigerOrderHisaabLine) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                line.productName,
-                fontWeight = FontWeight.Bold,
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.weight(1f).padding(end = 12.dp)
-            )
+            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                Text(
+                    line.weekLabel,
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                if (line.productName.isNotBlank() && line.productName != "Order") {
+                    Text(
+                        line.productName,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
                     stringResource(R.string.kaariger_hisaab_order_baaki),

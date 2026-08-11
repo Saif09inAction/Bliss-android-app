@@ -34,7 +34,10 @@ data class KaarigerOrder(
     val materialDeductionsTotal: Double = 0.0,
     val kharchaGiven: Double = 0.0,
     /** Portion of week kharcha already folded into running balance. */
-    val kharchaCarriedForward: Double = 0.0
+    val kharchaCarriedForward: Double = 0.0,
+    /** e.g. "October 1st week" — from admin bill create. */
+    val weekLabel: String = "",
+    val weekKey: String = ""
 ) {
     fun remainingQuantity(): Int = (targetQuantity - approvedQuantity).coerceAtLeast(0)
 
@@ -42,6 +45,36 @@ data class KaarigerOrder(
         val original = originalDealAmount ?: totalDealAmount
         return (original - repairDeductionTotal).coerceAtLeast(0.0)
     }
+
+    /** Prefer stored weekLabel; otherwise derive Saturday-week label from createdAt. */
+    fun displayWeekLabel(): String {
+        if (weekLabel.isNotBlank()) return weekLabel
+        return weekLabelFromMillis(createdAt)
+    }
+}
+
+/** Saturday-start week-of-month, e.g. "October 1st week". */
+fun weekLabelFromMillis(ms: Long): String {
+    if (ms <= 0L) return "Week bill"
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = ms }
+    val monthName = cal.getDisplayName(
+        java.util.Calendar.MONTH,
+        java.util.Calendar.LONG,
+        java.util.Locale.ENGLISH
+    ) ?: "Month"
+    val day = cal.get(java.util.Calendar.DAY_OF_MONTH)
+    val dow = cal.get(java.util.Calendar.DAY_OF_WEEK) // Sun=1 … Sat=7
+    val daysSinceSaturday = (dow % 7) // Sat→0, Sun→1, … Fri→6
+    val saturdayDate = day - daysSinceSaturday
+    val weekNum = ((saturdayDate.coerceAtLeast(1) - 1) / 7) + 1
+    val ordinal = when {
+        weekNum % 100 in 11..13 -> "${weekNum}th"
+        weekNum % 10 == 1 -> "${weekNum}st"
+        weekNum % 10 == 2 -> "${weekNum}nd"
+        weekNum % 10 == 3 -> "${weekNum}rd"
+        else -> "${weekNum}th"
+    }
+    return "$monthName $ordinal week"
 }
 
 data class OrderMaterial(
