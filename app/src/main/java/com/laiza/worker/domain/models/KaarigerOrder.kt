@@ -32,7 +32,9 @@ data class KaarigerOrder(
     val productsTotal: Double = 0.0,
     val materialDeductions: List<OrderRepairLine> = emptyList(),
     val materialDeductionsTotal: Double = 0.0,
-    val kharchaGiven: Double = 0.0
+    val kharchaGiven: Double = 0.0,
+    /** Portion of week kharcha already folded into running balance. */
+    val kharchaCarriedForward: Double = 0.0
 ) {
     fun remainingQuantity(): Int = (targetQuantity - approvedQuantity).coerceAtLeast(0)
 

@@ -813,7 +813,8 @@ class OrderRepositoryImpl @Inject constructor(
                 )
             } ?: emptyList(),
             materialDeductionsTotal = (data["materialDeductionsTotal"] as? Number)?.toDouble() ?: 0.0,
-            kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0
+            kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0,
+            kharchaCarriedForward = (data["kharchaCarriedForward"] as? Number)?.toDouble() ?: 0.0
         )
     }
 

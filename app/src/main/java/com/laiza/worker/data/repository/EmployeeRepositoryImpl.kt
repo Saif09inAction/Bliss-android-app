@@ -78,6 +78,7 @@ class EmployeeRepositoryImpl @Inject constructor(
                                 role = com.laiza.worker.domain.models.Role.fromFirestore(doc.getString("role")),
                                 creditBalance = doc.getDouble("creditBalance") ?: 0.0,
                                 openingBalance = doc.getDouble("openingBalance") ?: 0.0,
+                                oldKharcha = doc.getDouble("oldKharcha") ?: 0.0,
                                 dailySignInTime = doc.getString("dailySignInTime") ?: "",
                                 dailySignOutTime = doc.getString("dailySignOutTime") ?: ""
                             )
@@ -185,6 +186,7 @@ class EmployeeRepositoryImpl @Inject constructor(
                         role = com.laiza.worker.domain.models.Role.fromFirestore(doc.getString("role")),
                         creditBalance = doc.getDouble("creditBalance") ?: 0.0,
                         openingBalance = doc.getDouble("openingBalance") ?: 0.0,
+                        oldKharcha = doc.getDouble("oldKharcha") ?: 0.0,
                         dailySignInTime = doc.getString("dailySignInTime") ?: "",
                         dailySignOutTime = doc.getString("dailySignOutTime") ?: ""
                     )

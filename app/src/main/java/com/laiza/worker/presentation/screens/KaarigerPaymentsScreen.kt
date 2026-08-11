@@ -45,29 +45,26 @@ fun KaarigerPaymentsScreen(
         kaarigers.find { it.phone == session?.phone }
     }
     val openingBalance = me?.openingBalance ?: 0.0
+    val oldKharcha = me?.oldKharcha ?: 0.0
     val creditBalance = me?.creditBalance ?: 0.0
 
     val activeOrders = remember(orders) {
-        orders.filter { it.status != OrderStatus.REJECTED }
+        orders.filter { it.status != OrderStatus.REJECTED && it.status != OrderStatus.COMPLETED }
     }
 
     val orderSummaries = remember(activeOrders, payments, repairs) {
         activeOrders.map { order ->
             val orderPayments = payments.filter { it.orderId == order.id }
-            val orderRepairs = repairs.filter { it.orderId == order.id && it.isApproved }
             val totalPaid = orderPayments.sumOf { it.amount }
-            val originalDeal = order.originalDealAmount ?: order.totalDealAmount
-            val repairTotal = order.repairDeductionTotal.takeIf { it > 0 }
-                ?: orderRepairs.sumOf { it.totalRepairCost }
-            val netDeal = (originalDeal - repairTotal).coerceAtLeast(0.0)
+            val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
+            val remaining = (weekDue - totalPaid).coerceAtLeast(0.0)
             val isCompleted = order.status == OrderStatus.COMPLETED
-            val remaining = if (isCompleted) 0.0 else (netDeal - totalPaid).coerceAtLeast(0.0)
             OrderPaymentSummary(orderPayments, order.productName, totalPaid, remaining, isCompleted)
         }
     }
 
-    val billsRemaining = remember(orderSummaries) {
-        orderSummaries.filter { !it.isCompleted }.sumOf { it.remaining }
+    val weekKharchaRemaining = remember(orderSummaries) {
+        orderSummaries.sumOf { it.remaining }
     }
     val standaloneRepairTotal = remember(repairs) {
         repairs.filter { it.isStandalone && it.isApproved }.sumOf { it.totalRepairCost }
@@ -76,10 +73,10 @@ fun KaarigerPaymentsScreen(
     val totalKharchaPaid = remember(payments) {
         payments.sumOf { it.amount }
     }
-    val safeOpening = openingBalance.coerceAtLeast(0.0)
+    val safeOpening = (openingBalance + oldKharcha).coerceAtLeast(0.0)
     val safeCredit = creditBalance.coerceAtLeast(0.0)
-    // Remaining = opening + unpaid bills − credit − standalone repairing (until opening is paid off).
-    val grossOwed = billsRemaining + safeOpening
+    // Total remaining = running balance + week kharcha unpaid − credit − repairs.
+    val grossOwed = weekKharchaRemaining + safeOpening
     val totalPending = (grossOwed - safeCredit - standaloneRepairTotal).coerceAtLeast(0.0)
     val afterRepairs = (grossOwed - standaloneRepairTotal).coerceAtLeast(0.0)
     val surplusCredit = (safeCredit - afterRepairs).coerceAtLeast(0.0)
@@ -130,7 +127,7 @@ fun KaarigerPaymentsScreen(
             totalPaid = totalKharchaPaid,
             totalPending = totalPending,
             openingBalance = safeOpening,
-            billsRemaining = billsRemaining
+            billsRemaining = weekKharchaRemaining
         )
 
         if (totalPending <= 0.0 && surplusCredit > 0.0) {
