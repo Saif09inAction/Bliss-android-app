@@ -270,20 +270,32 @@ fun StaffRepairingScreen(
                     enabled = validLines.isNotEmpty() && !saving,
                     isLoading = saving,
                     onClick = {
-                        saving = true
-                        message = null
-                        val kaariger = selectedKaariger!!
-                        val submissions = validLines.map { line ->
-                            val product = line.selectedProduct!!
+                        val kaariger = selectedKaariger
+                        if (kaariger == null) {
+                            isError = true
+                            message = "Select a kaariger first"
+                            return@onClick
+                        }
+                        val submissions = validLines.mapNotNull { line ->
+                            val product = line.selectedProduct ?: return@mapNotNull null
+                            val qty = line.qtyText.toIntOrNull() ?: return@mapNotNull null
+                            if (qty <= 0) return@mapNotNull null
                             RepairSubmission(
                                 orderId = product.orderId,
                                 productName = product.productName,
-                                faultyQuantity = line.qtyText.toInt(),
+                                faultyQuantity = qty,
                                 faultyPricePerPiece = product.pricePerPiece,
                                 kaarigerId = kaariger.phone,
                                 kaarigerName = kaariger.name
                             )
                         }
+                        if (submissions.isEmpty()) {
+                            isError = true
+                            message = "Add at least one product with quantity"
+                            return@onClick
+                        }
+                        saving = true
+                        message = null
                         orderViewModel.createRepairs(
                             submissions = submissions,
                             onSuccess = {

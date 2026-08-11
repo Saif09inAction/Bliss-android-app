@@ -309,24 +309,28 @@ class OrderViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
-            for (submission in submissions) {
-                val result = orderRepository.createRepair(
-                    orderId = submission.orderId,
-                    productName = submission.productName,
-                    faultyQuantity = submission.faultyQuantity,
-                    faultyPricePerPiece = submission.faultyPricePerPiece,
-                    createdBy = createdBy,
-                    notes = null,
-                    kaarigerId = submission.kaarigerId,
-                    kaarigerName = submission.kaarigerName
-                ).first { it !is Resource.Loading }
-                if (result is Resource.Error) {
-                    onError(result.message ?: "Failed to update ${submission.productName}")
-                    return@launch
+            try {
+                val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
+                for (submission in submissions) {
+                    val result = orderRepository.createRepair(
+                        orderId = submission.orderId,
+                        productName = submission.productName,
+                        faultyQuantity = submission.faultyQuantity,
+                        faultyPricePerPiece = submission.faultyPricePerPiece,
+                        createdBy = createdBy,
+                        notes = null,
+                        kaarigerId = submission.kaarigerId,
+                        kaarigerName = submission.kaarigerName
+                    ).first { it !is Resource.Loading }
+                    if (result is Resource.Error) {
+                        onError(result.message ?: "Failed to update ${submission.productName}")
+                        return@launch
+                    }
                 }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to save repairing")
             }
-            onSuccess()
         }
     }
 }

@@ -8,6 +8,7 @@ import com.laiza.worker.core.local.entity.FinishedProductEntity
 import com.laiza.worker.core.utils.Resource
 import com.laiza.worker.domain.models.*
 import com.laiza.worker.domain.repository.OrderRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -541,6 +542,8 @@ class OrderRepositoryImpl @Inject constructor(
                 ).await()
             }
             emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to save repairing deduction"))
         }
@@ -563,39 +566,48 @@ class OrderRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun docToRepair(data: Map<String, Any>, id: String): OrderRepair {
-        val items = (data["items"] as? List<Map<String, Any>>)?.map {
-            OrderRepairLine(
-                type = it["type"] as? String ?: "",
-                label = it["label"] as? String ?: "",
-                quantity = (it["quantity"] as? Number)?.toInt() ?: 0,
-                pricePerPiece = (it["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
-                lineTotal = (it["lineTotal"] as? Number)?.toDouble() ?: 0.0
+    private fun docToRepair(data: Map<String, Any>, id: String): OrderRepair? {
+        return try {
+            val rawItems = data["items"]
+            val items = when (rawItems) {
+                is List<*> -> rawItems.mapNotNull { item ->
+                    val map = item as? Map<*, *> ?: return@mapNotNull null
+                    OrderRepairLine(
+                        type = map["type"] as? String ?: "",
+                        label = map["label"] as? String ?: "",
+                        quantity = (map["quantity"] as? Number)?.toInt() ?: 0,
+                        pricePerPiece = (map["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                        lineTotal = (map["lineTotal"] as? Number)?.toDouble() ?: 0.0
+                    )
+                }
+                else -> emptyList()
+            }
+            OrderRepair(
+                id = data["id"] as? String ?: id,
+                orderId = (data["orderId"] as? String)?.takeIf { it.isNotBlank() }
+                    ?: RepairStatus.STANDALONE_ORDER_ID,
+                kaarigerId = data["kaarigerId"] as? String ?: "",
+                kaarigerName = data["kaarigerName"] as? String ?: "",
+                productName = data["productName"] as? String ?: "",
+                faultyQuantity = (data["faultyQuantity"] as? Number)?.toInt() ?: 0,
+                faultyPricePerPiece = (data["faultyPricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                faultyTotal = (data["faultyTotal"] as? Number)?.toDouble() ?: 0.0,
+                items = items,
+                totalRepairCost = (data["totalRepairCost"] as? Number)?.toDouble() ?: 0.0,
+                originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble() ?: 0.0,
+                dealAfterThisRepair = (data["dealAfterThisRepair"] as? Number)?.toDouble() ?: 0.0,
+                notes = data["notes"] as? String,
+                createdBy = data["createdBy"] as? String ?: "",
+                createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
+                // Legacy docs (no status) were already deducted → treat as APPROVED.
+                status = (data["status"] as? String)?.takeIf { it.isNotBlank() } ?: RepairStatus.APPROVED,
+                reviewedBy = data["reviewedBy"] as? String,
+                reviewedAt = (data["reviewedAt"] as? Number)?.toLong()
             )
-        } ?: emptyList()
-        return OrderRepair(
-            id = data["id"] as? String ?: id,
-            orderId = (data["orderId"] as? String)?.takeIf { it.isNotBlank() }
-                ?: RepairStatus.STANDALONE_ORDER_ID,
-            kaarigerId = data["kaarigerId"] as? String ?: "",
-            kaarigerName = data["kaarigerName"] as? String ?: "",
-            productName = data["productName"] as? String ?: "",
-            faultyQuantity = (data["faultyQuantity"] as? Number)?.toInt() ?: 0,
-            faultyPricePerPiece = (data["faultyPricePerPiece"] as? Number)?.toDouble() ?: 0.0,
-            faultyTotal = (data["faultyTotal"] as? Number)?.toDouble() ?: 0.0,
-            items = items,
-            totalRepairCost = (data["totalRepairCost"] as? Number)?.toDouble() ?: 0.0,
-            originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble() ?: 0.0,
-            dealAfterThisRepair = (data["dealAfterThisRepair"] as? Number)?.toDouble() ?: 0.0,
-            notes = data["notes"] as? String,
-            createdBy = data["createdBy"] as? String ?: "",
-            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
-            // Legacy docs (no status) were already deducted → treat as APPROVED.
-            status = (data["status"] as? String)?.takeIf { it.isNotBlank() } ?: RepairStatus.APPROVED,
-            reviewedBy = data["reviewedBy"] as? String,
-            reviewedAt = (data["reviewedAt"] as? Number)?.toLong()
-        )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse repair $id", e)
+            null
+        }
     }
 
     private fun ordersFlow(
