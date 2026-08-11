@@ -238,14 +238,15 @@ internal fun buildKaarigerHisaabSummary(
         )
     }
 
-    const weekKharcha = orderLines.sumOf { it.kharchaRemaining }
+    val weekKharcha = orderLines.sumOf { it.kharchaRemaining }
     val weekKharchaBudget = orderLines.sumOf { it.weekKharcha }
     val weekKharchaPaid = orderLines.sumOf { it.paid }
     val standaloneRepair = repairs
         .filter { it.isStandalone && it.isApproved }
         .sumOf { it.totalRepairCost }
-    // openingBalance is already net of week kharcha given at bill create.
-    val gross = running
+    // Live Remaining = stored opening + unpaid week budget − repairs − credit.
+    // Budget alone does not drop live; each Pay transfer does (unpaid shrinks).
+    val gross = (running + weekKharcha).coerceAtLeast(0.0)
     val afterRepairs = (gross - standaloneRepair).coerceAtLeast(0.0)
     val creditApplied = minOf(credit, afterRepairs)
     val totalRemaining = (afterRepairs - creditApplied).coerceAtLeast(0.0)
