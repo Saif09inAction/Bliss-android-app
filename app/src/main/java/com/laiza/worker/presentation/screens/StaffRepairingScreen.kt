@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,6 +53,7 @@ import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.formatOrderDate
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import com.laiza.worker.presentation.viewmodels.RepairSubmission
+import java.util.UUID
 
 private data class RepairProductOption(
     val orderId: String,
@@ -62,6 +64,7 @@ private data class RepairProductOption(
 )
 
 private data class RepairLineDraft(
+    val id: String = UUID.randomUUID().toString(),
     val selectedProduct: RepairProductOption? = null,
     val qtyText: String = ""
 )
@@ -226,26 +229,28 @@ fun StaffRepairingScreen(
                 }
 
                 repairLines.forEachIndexed { index, line ->
-                    RepairLineRow(
-                        index = index,
-                        line = line,
-                        productOptions = productOptions,
-                        onProductSelected = { option ->
-                            repairLines = repairLines.toMutableList().also {
-                                it[index] = it[index].copy(selectedProduct = option)
-                            }
-                        },
-                        onQtyChanged = { qty ->
-                            repairLines = repairLines.toMutableList().also {
-                                it[index] = it[index].copy(qtyText = qty)
-                            }
-                        },
-                        onRemove = if (repairLines.size > 1) {
-                            {
-                                repairLines = repairLines.toMutableList().also { it.removeAt(index) }
-                            }
-                        } else null
-                    )
+                    key(line.id) {
+                        RepairLineRow(
+                            index = index,
+                            line = line,
+                            productOptions = productOptions,
+                            onProductSelected = { option ->
+                                repairLines = repairLines.map { draft ->
+                                    if (draft.id == line.id) draft.copy(selectedProduct = option) else draft
+                                }
+                            },
+                            onQtyChanged = { qty ->
+                                repairLines = repairLines.map { draft ->
+                                    if (draft.id == line.id) draft.copy(qtyText = qty) else draft
+                                }
+                            },
+                            onRemove = if (repairLines.size > 1) {
+                                {
+                                    repairLines = repairLines.filter { it.id != line.id }
+                                }
+                            } else null
+                        )
+                    }
                 }
 
                 OutlinedButton(

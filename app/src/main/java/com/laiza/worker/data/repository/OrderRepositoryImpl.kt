@@ -794,28 +794,44 @@ class OrderRepositoryImpl @Inject constructor(
             notes = data["notes"] as? String,
             originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble(),
             repairDeductionTotal = (data["repairDeductionTotal"] as? Number)?.toDouble() ?: 0.0,
-            products = (data["products"] as? List<Map<String, Any>>)?.map {
-                OrderProductLine(
-                    productName = it["productName"] as? String ?: "",
-                    quantity = (it["quantity"] as? Number)?.toInt() ?: 0,
-                    pricePerPiece = (it["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
-                    lineTotal = (it["lineTotal"] as? Number)?.toDouble() ?: 0.0
-                )
-            } ?: emptyList(),
+            products = parseProductLines(data["products"]),
             productsTotal = (data["productsTotal"] as? Number)?.toDouble() ?: 0.0,
-            materialDeductions = (data["materialDeductions"] as? List<Map<String, Any>>)?.map {
-                OrderRepairLine(
-                    type = it["type"] as? String ?: "",
-                    label = it["label"] as? String ?: "",
-                    quantity = (it["quantity"] as? Number)?.toInt() ?: 0,
-                    pricePerPiece = (it["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
-                    lineTotal = (it["lineTotal"] as? Number)?.toDouble() ?: 0.0
-                )
-            } ?: emptyList(),
+            materialDeductions = parseMaterialDeductions(data["materialDeductions"]),
             materialDeductionsTotal = (data["materialDeductionsTotal"] as? Number)?.toDouble() ?: 0.0,
             kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0,
             kharchaCarriedForward = (data["kharchaCarriedForward"] as? Number)?.toDouble() ?: 0.0
         )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun parseProductLines(raw: Any?): List<OrderProductLine> {
+        val list = raw as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            val name = (m["productName"] as? String)?.trim().orEmpty()
+            if (name.isEmpty()) return@mapNotNull null
+            OrderProductLine(
+                productName = name,
+                quantity = (m["quantity"] as? Number)?.toInt() ?: 0,
+                pricePerPiece = (m["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                lineTotal = (m["lineTotal"] as? Number)?.toDouble() ?: 0.0
+            )
+        }
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun parseMaterialDeductions(raw: Any?): List<OrderRepairLine> {
+        val list = raw as? List<*> ?: return emptyList()
+        return list.mapNotNull { item ->
+            val m = item as? Map<*, *> ?: return@mapNotNull null
+            OrderRepairLine(
+                type = m["type"] as? String ?: "",
+                label = m["label"] as? String ?: "",
+                quantity = (m["quantity"] as? Number)?.toInt() ?: 0,
+                pricePerPiece = (m["pricePerPiece"] as? Number)?.toDouble() ?: 0.0,
+                lineTotal = (m["lineTotal"] as? Number)?.toDouble() ?: 0.0
+            )
+        }
     }
 
     private fun docToApprovalRecord(data: Map<String, Any>, id: String): OrderApprovalRecord {

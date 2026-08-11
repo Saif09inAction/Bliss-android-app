@@ -308,10 +308,14 @@ class OrderViewModel @Inject constructor(
             onError("Add at least one product to update.")
             return
         }
+        // Snapshot so each product is saved even if the UI list changes mid-submit.
+        val toSave = submissions.toList()
         viewModelScope.launch {
             try {
                 val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
-                for (submission in submissions) {
+                val failed = mutableListOf<String>()
+                var saved = 0
+                for (submission in toSave) {
                     val result = orderRepository.createRepair(
                         orderId = submission.orderId,
                         productName = submission.productName,
@@ -322,12 +326,21 @@ class OrderViewModel @Inject constructor(
                         kaarigerId = submission.kaarigerId,
                         kaarigerName = submission.kaarigerName
                     ).first { it !is Resource.Loading }
-                    if (result is Resource.Error) {
-                        onError(result.message ?: "Failed to update ${submission.productName}")
-                        return@launch
+                    when (result) {
+                        is Resource.Error -> {
+                            failed += "${submission.productName}: ${result.message ?: "failed"}"
+                        }
+                        is Resource.Success -> saved += 1
+                        else -> {}
                     }
                 }
-                onSuccess()
+                when {
+                    saved == 0 -> onError(failed.firstOrNull() ?: "Failed to save repairing")
+                    failed.isNotEmpty() -> onError(
+                        "Saved $saved of ${toSave.size}. ${failed.joinToString("; ")}"
+                    )
+                    else -> onSuccess()
+                }
             } catch (e: Exception) {
                 onError(e.message ?: "Failed to save repairing")
             }

@@ -162,6 +162,12 @@
     <string name="kaariger_hisaab_kharcha_label">Kharcha</string>
     <string name="kaariger_hisaab_kharcha_hint">Is hafte — thoda thoda pay</string>
     <string name="kaariger_hisaab_tap_calc">Tap — calculation dekho</string>
+    <string name="kaariger_hisaab_tap_payments">Tap — payments dekho</string>
+    <string name="kaariger_hisaab_kharcha_breakup_title">Kharcha breakup</string>
+    <string name="kaariger_hisaab_kharcha_budget">Is hafte ka kharcha</string>
+    <string name="kaariger_hisaab_kharcha_payments_title">Payments (line by line)</string>
+    <string name="kaariger_hisaab_kharcha_no_payments">Abhi koi payment nahi — jab pay hoga to date ke sath dikhega</string>
+    <string name="kaariger_hisaab_kharcha_paid_total">Total paid</string>
     <string name="kaariger_hisaab_running_balance">Running balance</string>
     <string name="kaariger_hisaab_fold_hint">Agle Saturday unpaid kharcha running balance mein chala jayega; naya kharcha Kharcha box mein aayega.</string>
     <string name="kaariger_hisaab_equation_with_opening">%1$s (opening) + %2$s (order) = %3$s</string>
