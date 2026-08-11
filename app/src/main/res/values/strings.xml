@@ -153,7 +153,8 @@
     <string name="kaariger_home_hisaab_button">Mera Hisaab</string>
     <string name="kaariger_home_hisaab_hint">Opening + order + katauti — poora hisaab</string>
     <string name="kaariger_hisaab_title">Mera Hisaab</string>
-    <string name="kaariger_hisaab_subtitle">Total remaining = running balance + is hafte ka kharcha</string>
+    <string name="kaariger_hisaab_subtitle">Total remaining = opening (kharcha given already deducted). Kharcha box = breakup only.</string>
+    <string name="kaariger_hisaab_fold_hint">Kharcha Pay is breakup only (already deducted on bill). Unused leftover next Saturday adds back to remaining.</string>
     <string name="kaariger_hisaab_calc_title">Hisab kaise nikla</string>
     <string name="kaariger_hisaab_current_orders">Abhi ka order (baaki)</string>
     <string name="kaariger_hisaab_repair_label">Repairing katauti</string>
@@ -170,7 +171,6 @@
     <string name="kaariger_hisaab_kharcha_no_payments">Abhi koi payment nahi — jab pay hoga to date ke sath dikhega</string>
     <string name="kaariger_hisaab_kharcha_paid_total">Total paid</string>
     <string name="kaariger_hisaab_running_balance">Running balance</string>
-    <string name="kaariger_hisaab_fold_hint">Agle Saturday unpaid kharcha running balance mein chala jayega; naya kharcha Kharcha box mein aayega.</string>
     <string name="kaariger_hisaab_equation_with_opening">%1$s (opening) + %2$s (order) = %3$s</string>
     <string name="kaariger_hisaab_equation_orders_only">Abhi ka order %1$s = total remaining %2$s</string>
     <string name="kaariger_hisaab_orders_title">Abhi ke orders</string>
