@@ -800,6 +800,7 @@ class OrderRepositoryImpl @Inject constructor(
             materialDeductionsTotal = (data["materialDeductionsTotal"] as? Number)?.toDouble() ?: 0.0,
             kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0,
             kharchaCarriedForward = (data["kharchaCarriedForward"] as? Number)?.toDouble() ?: 0.0,
+            kharchaCarryIn = (data["kharchaCarryIn"] as? Number)?.toDouble() ?: 0.0,
             weekLabel = data["weekLabel"] as? String ?: "",
             weekKey = data["weekKey"] as? String ?: ""
         )

@@ -115,7 +115,7 @@
     <string name="kaariger_home_hisaab_button">मेरा हिसाब</string>
     <string name="kaariger_home_hisaab_hint">ओपनिंग + ऑर्डर + कटौती — पूरा हिसाब</string>
     <string name="kaariger_hisaab_title">मेरा हिसाब</string>
-    <string name="kaariger_hisaab_subtitle">ओपनिंग बैलेंस + अभी का ऑर्डर = टोटल बाकी</string>
+    <string name="kaariger_hisaab_subtitle">ओपनिंग = पुराना बाकी Remaining में। Pay सिर्फ खर्चा बॉक्स पर लगता है।</string>
     <string name="kaariger_hisaab_calc_title">हिसाब कैसे निकला</string>
     <string name="kaariger_hisaab_current_orders">अभी का ऑर्डर (बाकी)</string>
     <string name="kaariger_hisaab_repair_label">रिपेयरिंग कटौती</string>
@@ -124,7 +124,7 @@
     <string name="kaariger_hisaab_equation_with_opening">%1$s (ओपनिंग) + %2$s (ऑर्डर) = %3$s</string>
     <string name="kaariger_hisaab_equation_orders_only">अभी का ऑर्डर %1$s = टोटल बाकी %2$s</string>
     <string name="kaariger_hisaab_orders_title">अभी के ऑर्डर</string>
-    <string name="kaariger_hisaab_order_baaki">बाकी</string>
+    <string name="kaariger_hisaab_order_baaki">खर्चा बॉक्स</string>
     <string name="kaariger_hisaab_empty">अभी कोई पेंडिंग हिसाब नहीं</string>
     <string name="kaariger_hisaab_surplus_credit">ज़्यादा मिला: %1$s — अगले बिल में कटेगा</string>
     <string name="kaariger_hisaab_show_payments">पेमेंट्स देखो (%1$d)</string>

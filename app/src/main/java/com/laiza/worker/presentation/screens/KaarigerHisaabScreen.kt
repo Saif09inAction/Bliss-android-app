@@ -224,7 +224,8 @@ internal fun buildKaarigerHisaabSummary(
         val repair = order.repairDeductionTotal.takeIf { it > 0 }
             ?: orderRepairs.sumOf { it.totalRepairCost }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
-        val kharchaRemaining = (weekDue - paid).coerceAtLeast(0.0)
+        // Signed box: budget − carryIn − paid (negative = overpay).
+        val kharchaRemaining = weekDue - order.kharchaCarryIn - paid
         KaarigerOrderHisaabLine(
             productName = order.productName.ifBlank { "Order" },
             weekLabel = order.displayWeekLabel(),
@@ -244,10 +245,8 @@ internal fun buildKaarigerHisaabSummary(
     val standaloneRepair = repairs
         .filter { it.isStandalone && it.isApproved }
         .sumOf { it.totalRepairCost }
-    // Live Remaining = stored opening + unpaid week budget − repairs − credit.
-    // Budget alone does not drop live; each Pay transfer does (unpaid shrinks).
-    val gross = (running + weekKharcha).coerceAtLeast(0.0)
-    val afterRepairs = (gross - standaloneRepair).coerceAtLeast(0.0)
+    // Remaining = opening − repairs − credit. Pay does not change Remaining.
+    val afterRepairs = (running - standaloneRepair).coerceAtLeast(0.0)
     val creditApplied = minOf(credit, afterRepairs)
     val totalRemaining = (afterRepairs - creditApplied).coerceAtLeast(0.0)
     val surplusCredit = (credit - afterRepairs).coerceAtLeast(0.0)
@@ -410,16 +409,17 @@ private fun HisaabEquationCard(
                             fontWeight = FontWeight.SemiBold,
                             color = amber
                         )
-                        var running = summary.totalRemaining + weekPayments.sumOf { it.amount }
+                        var boxRunning =
+                            summary.weekKharcha + weekPayments.sumOf { it.amount }
                         weekPayments.forEach { p ->
-                            val before = running
-                            running = (running - p.amount).coerceAtLeast(0.0)
+                            val before = boxRunning
+                            boxRunning -= p.amount
                             val whenLabel = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · ")
                             HisaabRow(
                                 label = "Paid ${formatIndianRupee(p.amount)}" +
                                     if (whenLabel.isNotBlank()) " · $whenLabel" else "",
-                                value = "${formatIndianRupee(before)} → ${formatIndianRupee(running)}",
-                                valueColor = amber
+                                value = "${formatIndianRupee(before)} → ${formatIndianRupee(boxRunning)}",
+                                valueColor = Color(0xFF047857)
                             )
                         }
                     }

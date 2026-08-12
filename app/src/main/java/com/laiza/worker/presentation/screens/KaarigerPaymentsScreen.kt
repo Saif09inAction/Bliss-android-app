@@ -57,7 +57,7 @@ fun KaarigerPaymentsScreen(
             val orderPayments = payments.filter { it.orderId == order.id }
             val totalPaid = orderPayments.sumOf { it.amount }
             val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
-            val remaining = (weekDue - totalPaid).coerceAtLeast(0.0)
+            val remaining = weekDue - order.kharchaCarryIn - totalPaid
             val isCompleted = order.status == OrderStatus.COMPLETED
             OrderPaymentSummary(orderPayments, order.productName, totalPaid, remaining, isCompleted)
         }
@@ -75,10 +75,9 @@ fun KaarigerPaymentsScreen(
     }
     val safeOpening = (openingBalance + oldKharcha).coerceAtLeast(0.0)
     val safeCredit = creditBalance.coerceAtLeast(0.0)
-    // Total remaining = running balance + week kharcha unpaid − credit − repairs.
-    val grossOwed = weekKharchaRemaining + safeOpening
-    val totalPending = (grossOwed - safeCredit - standaloneRepairTotal).coerceAtLeast(0.0)
-    val afterRepairs = (grossOwed - standaloneRepairTotal).coerceAtLeast(0.0)
+    // Remaining = opening − credit − repairs (Pay does not change Remaining).
+    val afterRepairs = (safeOpening - standaloneRepairTotal).coerceAtLeast(0.0)
+    val totalPending = (afterRepairs - safeCredit).coerceAtLeast(0.0)
     val surplusCredit = (safeCredit - afterRepairs).coerceAtLeast(0.0)
 
     val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)

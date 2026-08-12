@@ -33,8 +33,10 @@ data class KaarigerOrder(
     val materialDeductions: List<OrderRepairLine> = emptyList(),
     val materialDeductionsTotal: Double = 0.0,
     val kharchaGiven: Double = 0.0,
-    /** Portion of week kharcha already folded into running balance. */
+    /** Portion of week kharcha already folded into running balance (legacy). */
     val kharchaCarriedForward: Double = 0.0,
+    /** Signed carry from prior week into this box only (paid − budget). */
+    val kharchaCarryIn: Double = 0.0,
     /** e.g. "October 1st week" — from admin bill create. */
     val weekLabel: String = "",
     val weekKey: String = ""
