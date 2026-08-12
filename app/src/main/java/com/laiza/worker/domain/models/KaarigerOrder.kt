@@ -37,6 +37,12 @@ data class KaarigerOrder(
     val kharchaCarriedForward: Double = 0.0,
     /** Signed carry from prior week into this box only (paid − budget). */
     val kharchaCarryIn: Double = 0.0,
+    /** Opening snapshot when this week bill was created (before ADD). */
+    val openingAtCreation: Double? = null,
+    /** ADD = MAAL − deductions − repair at creation. */
+    val addBalance: Double? = null,
+    /** Closing = opening + ADD − week kharcha at creation. */
+    val closingAtCreation: Double? = null,
     /** e.g. "October 1st week" — from admin bill create. */
     val weekLabel: String = "",
     val weekKey: String = ""

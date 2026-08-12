@@ -229,7 +229,7 @@ fun StaffContainerScreen(
                             BottomNavItem.Home.route -> "Good Morning • ${java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())}"
                             BottomNavItem.Dispatch.route -> "E-commerce partner handoffs"
                             BottomNavItem.Attendance.route -> "Today's Shift"
-                            "repairing_tab" -> "Deduct faulty pieces from kaariger hisaab"
+                            "repairing_tab" -> "Repairing"
                             "employee_profile" -> "Manage Bank & Account Settings"
                             else -> null
                         },

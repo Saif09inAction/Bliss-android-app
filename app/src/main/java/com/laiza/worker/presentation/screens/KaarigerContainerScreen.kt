@@ -349,18 +349,11 @@ private fun KaarigerDashboardContent(
         ) {
             Icon(Icons.Default.Calculate, contentDescription = null)
             Spacer(modifier = Modifier.width(10.dp))
-            Column(horizontalAlignment = Alignment.Start) {
-                Text(
-                    stringResource(R.string.kaariger_home_hisaab_button),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    stringResource(R.string.kaariger_home_hisaab_hint),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = BlissBlack.copy(alpha = 0.7f)
-                )
-            }
+            Text(
+                stringResource(R.string.kaariger_home_hisaab_button),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
         }
 
         if (hasPendingDeductions) {
@@ -383,20 +376,6 @@ private fun KaarigerDashboardContent(
                     onReportMaterials = onViewAllOrders,
                     compact = true
                 )
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-        ) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text(stringResource(R.string.kaariger_how_it_works), fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(stringResource(R.string.kaariger_step_1))
-                Text(stringResource(R.string.kaariger_step_2))
-                Text(stringResource(R.string.kaariger_step_3))
-                Text(stringResource(R.string.kaariger_step_4))
             }
         }
     }

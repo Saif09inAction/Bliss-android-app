@@ -53,20 +53,20 @@
     <string name="kaariger_english">English</string>
     <string name="kaariger_hindi">Hindi</string>
     <string name="kaariger_welcome">Namaste, %1$s</string>
-    <string name="kaariger_active_summary">%1$d hisaab chal raha</string>
+    <string name="kaariger_active_summary">%1$d current bill</string>
     <string name="kaariger_pending_batches">%1$d piece check ho rahe hain</string>
     <string name="kaariger_recent_orders">Aaj ka hisaab</string>
     <string name="kaariger_view_all">Sab dekho</string>
     <string name="kaariger_how_it_works">Kaise kaam karta hai</string>
-    <string name="kaariger_step_1">1. Office hisaab bhejta hai</string>
-    <string name="kaariger_step_2">2. Hisaab mein dekh lo kitna kaam hai</string>
-    <string name="kaariger_step_3">3. Paise mile / baaki yahan dikhega</string>
-    <string name="kaariger_step_4">4. Kaam khatam → hisaab pura</string>
-    <string name="kaariger_search_orders">Hisaab dhoondho…</string>
-    <string name="kaariger_tab_pending">Chal raha</string>
-    <string name="kaariger_tab_completed">Pura</string>
-    <string name="kaariger_no_pending_orders">Abhi koi hisaab nahi</string>
-    <string name="kaariger_no_completed_orders">Abhi koi pura hisaab nahi</string>
+    <string name="kaariger_step_1">1. Office bill bhejta hai</string>
+    <string name="kaariger_step_2">2. Current bill mein dekh lo</string>
+    <string name="kaariger_step_3">3. Remaining / Kharcha yahan dikhega</string>
+    <string name="kaariger_step_4">4. Naya bill aaye → purana Previous bill</string>
+    <string name="kaariger_search_orders">Bill dhoondho…</string>
+    <string name="kaariger_tab_pending">Current bill</string>
+    <string name="kaariger_tab_completed">Previous bill</string>
+    <string name="kaariger_no_pending_orders">Abhi koi current bill nahi</string>
+    <string name="kaariger_no_completed_orders">Abhi koi previous bill nahi</string>
     <string name="kaariger_no_pending_payments">Koi baaki paise nahi</string>
     <string name="kaariger_no_completed_payments">Abhi koi payment nahi</string>
     <string name="kaariger_payment_status_pending">Paise baaki</string>
@@ -82,9 +82,9 @@
     <string name="kaariger_chip_approved">OK</string>
     <string name="kaariger_chip_pending">Check</string>
     <string name="kaariger_chip_left">Baaki</string>
-    <string name="kaariger_status_in_progress">Chal raha</string>
+    <string name="kaariger_status_in_progress">Current bill</string>
     <string name="kaariger_status_pending_approval">Check mein</string>
-    <string name="kaariger_status_completed">Pura</string>
+    <string name="kaariger_status_completed">Previous bill</string>
     <string name="kaariger_status_rejected">Reject</string>
     <string name="kaariger_detail_received_on">Kab mila</string>
     <string name="kaariger_detail_color">Color</string>
@@ -110,11 +110,13 @@
     <string name="kaariger_detail_repair_deduction">Repair katauti</string>
     <string name="kaariger_detail_final_balance">Abhi baaki</string>
     <string name="kaariger_grand_total_title">Aapka hisaab</string>
-    <string name="kaariger_grand_total_net">Kul rakam</string>
+    <string name="kaariger_grand_total_net">ADD</string>
     <string name="kaariger_grand_total_paid">Paise mile</string>
     <string name="kaariger_grand_total_extra">Zyada mila</string>
-    <string name="kaariger_grand_total_remaining">Baaki paise</string>
+    <string name="kaariger_grand_total_remaining">Total remaining</string>
     <string name="kaariger_grand_total_cleared">Sab clear ✓</string>
+    <string name="kaariger_bill_add">ADD</string>
+    <string name="kaariger_bill_remaining_equation">%1$s (before) + %2$s (ADD) − %3$s (kharcha) = %4$s</string>
     <string name="kaariger_pcs">%1$d pcs</string>
     <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/pc)</string>
     <string name="kaariger_deal_total">₹%1$d</string>
@@ -148,7 +150,8 @@
     <string name="kaariger_payment_opening_label">Opening balance</string>
     <string name="kaariger_payment_opening_hint">Purana baaki — jab tak clear nahi hota, baaki paise mein shamil rahega</string>
     <string name="kaariger_payment_hint_green">Hara = paise mil gaye</string>
-    <string name="kaariger_payment_hint_amber">Peela = abhi baaki</string>
+    <string name="kaariger_payment_hint_amber">Peela = Total remaining</string>
+    <string name="kaariger_payment_remaining_hint">Remaining %1$s · Kharcha box %2$s (Pay sirf box pe)</string>
     <string name="kaariger_home_deductions_title">Jo saman / katauti lagi</string>
     <string name="kaariger_home_hisaab_button">Mera Hisaab</string>
     <string name="kaariger_home_hisaab_hint">Opening + order + katauti — poora hisaab</string>
@@ -156,7 +159,33 @@
     <string name="kaariger_hisaab_subtitle">Opening = purana baaki in Remaining. Pay only hits Kharcha box.</string>
     <string name="kaariger_hisaab_fold_hint">Remaining moves on bill create (+ADD − kharcha). Pay only changes Kharcha box; under/over next week box mein carry.</string>
     <string name="kaariger_hisaab_calc_title">Hisab kaise nikla</string>
+    <string name="kaariger_hisaab_remaining_breakdown_title">Remaining breakdown</string>
+    <string name="kaariger_hisaab_remaining_breakdown_hint">Sirf jo lines Total Remaining badalti hain. Kharcha Pays Kharcha box mein hain.</string>
+    <string name="kaariger_hisaab_remaining_after">Remaining %1$s</string>
+    <string name="kaariger_hisaab_tap_remaining_breakdown">Tap — Remaining breakdown</string>
+    <string name="kaariger_hisaab_tap_kharcha_breakdown">Tap — Kharcha records</string>
     <string name="kaariger_hisaab_current_orders">Abhi ka order (baaki)</string>
+    <string name="kaariger_hisaab_this_week_title">Is hafte ka bill</string>
+    <string name="kaariger_hisaab_previous_bills_title">Previous bills</string>
+    <string name="kaariger_hisaab_previous_bills_hint">Har naye bill pe purana week yahan save hota hai — Remaining + Kharcha</string>
+    <string name="kaariger_previous_hisaab_badge">Previous hisaab</string>
+    <string name="kaariger_previous_less">Less: %1$s</string>
+    <string name="kaariger_previous_paid_total">Paid total</string>
+    <string name="kaariger_previous_remaining_note">%1$s + %2$s ADD − %3$s kharcha = %4$s Remaining. Pays that week did not change Remaining.</string>
+    <string name="kaariger_hisaab_previous_bill_tap">Tap — week bill + kharcha (admin jaisa)</string>
+    <string name="kaariger_hisaab_week_bill_col">Week bill</string>
+    <string name="kaariger_hisaab_kharcha_that_week">Kharcha that week</string>
+    <string name="kaariger_hisaab_outstanding_before">Outstanding before</string>
+    <string name="kaariger_hisaab_outstanding_after">Outstanding after create</string>
+    <string name="kaariger_hisaab_after_create">After create</string>
+    <string name="kaariger_hisaab_kharcha_on_bill">Kharcha on bill</string>
+    <string name="kaariger_hisaab_week_paid_left">Paid %1$s · box %2$s</string>
+    <string name="kaariger_hisaab_prior_overpay">Prior overpay (last week)</string>
+    <string name="kaariger_hisaab_prior_overpay_hint">Is week ke budget mein pehle se count</string>
+    <string name="kaariger_hisaab_kharcha_left">Left</string>
+    <string name="kaariger_hisaab_kharcha_extra">Extra</string>
+    <string name="kaariger_hisaab_kharcha_equation">%1$s − %2$s paid = %3$s left</string>
+    <string name="kaariger_hisaab_kharcha_remaining_note">Pay Remaining nahi badalta — sirf Kharcha box</string>
     <string name="kaariger_hisaab_repair_label">Repairing katauti</string>
     <string name="kaariger_hisaab_credit_label">Zyada / advance</string>
     <string name="kaariger_hisaab_total_remaining">Total remaining</string>
@@ -165,22 +194,18 @@
     <string name="kaariger_hisaab_tap_calc">Tap — calculation dekho</string>
     <string name="kaariger_hisaab_tap_ledger">Tap — full ledger</string>
     <string name="kaariger_hisaab_tap_payments">Tap — payments dekho</string>
-    <string name="kaariger_hisaab_kharcha_breakup_title">Kharcha breakup</string>
-    <string name="kaariger_hisaab_kharcha_budget">Is hafte ka budget</string>
-    <string name="kaariger_hisaab_kharcha_payments_title">Transfers (thoda thoda)</string>
-    <string name="kaariger_hisaab_kharcha_no_payments">Abhi koi transfer nahi — 10k, 20k, 5k Pay karo, date ke sath dikhega</string>
-    <string name="kaariger_hisaab_kharcha_paid_total">Total paid</string>
-    <string name="kaariger_hisaab_running_balance">Running balance</string>
-    <string name="kaariger_hisaab_equation_with_opening">%1$s (opening) + %2$s (order) = %3$s</string>
-    <string name="kaariger_hisaab_equation_orders_only">Abhi ka order %1$s = total remaining %2$s</string>
-    <string name="kaariger_hisaab_orders_title">Abhi ke orders</string>
+    <string name="kaariger_hisaab_kharcha_breakup_title">Kharcha records</string>
+    <string name="kaariger_hisaab_kharcha_budget">Budget</string>
+    <string name="kaariger_hisaab_kharcha_payments_title">Payments</string>
+    <string name="kaariger_hisaab_kharcha_no_payments">No payments</string>
+    <string name="kaariger_hisaab_kharcha_paid_total">Paid</string>
+    <string name="kaariger_hisaab_running_balance">Opening</string>
     <string name="kaariger_hisaab_order_baaki">Kharcha box</string>
-    <string name="kaariger_hisaab_empty">Abhi koi pending hisaab nahi</string>
-    <string name="kaariger_hisaab_surplus_credit">Zyada mila: %1$s — agle bill mein katega</string>
-    <string name="kaariger_hisaab_show_payments">Payments dekho (%1$d)</string>
-    <string name="kaariger_hisaab_hide_payments">Payments chhupao</string>
-    <string name="kaariger_hisaab_all_payments">Saari payments</string>
-    <string name="kaariger_hisaab_all_payments_hint">Jo paise mil chuke hain — unki list</string>
+    <string name="kaariger_hisaab_empty">No pending hisaab</string>
+    <string name="kaariger_hisaab_surplus_credit">Credit: %1$s</string>
+    <string name="kaariger_hisaab_show_payments">Payments (%1$d)</string>
+    <string name="kaariger_hisaab_hide_payments">Hide payments</string>
+    <string name="kaariger_hisaab_all_payments">Payments</string>
     <string name="kaariger_title_hisaab">Mera Hisaab</string>
     <string name="kaariger_logout_title">Logout?</string>
     <string name="kaariger_logout_message">App se bahar nikalna hai?</string>

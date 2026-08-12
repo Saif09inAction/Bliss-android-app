@@ -42,7 +42,6 @@ fun KaarigerOrdersScreen(
     val session by authViewModel.userSession.collectAsState()
     val orders by orderViewModel.kaarigerOrders.collectAsState()
     val payments by orderViewModel.kaarigerPayments.collectAsState()
-    val kaarigers by orderViewModel.kaarigers.collectAsState()
     var search by remember { mutableStateOf("") }
     var detailOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
     var materialOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
@@ -51,13 +50,6 @@ fun KaarigerOrdersScreen(
 
     LaunchedEffect(session?.phone) {
         session?.phone?.let { orderViewModel.loadKaarigerData(it) }
-    }
-
-    val openingBalance = remember(kaarigers, session?.phone) {
-        kaarigers.find { it.phone == session?.phone }?.openingBalance?.coerceAtLeast(0.0) ?: 0.0
-    }
-    val activeOrderCount = remember(orders) {
-        orders.count { it.status != OrderStatus.COMPLETED && it.status != OrderStatus.REJECTED }
     }
 
     val filtered = remember(orders, search) {
@@ -139,13 +131,9 @@ fun KaarigerOrdersScreen(
     }
 
     detailOrder?.let { order ->
-        // Fold opening into this order's grand total only when it's the sole active bill.
-        val openingForOrder =
-            if (activeOrderCount == 1 && order.status != OrderStatus.COMPLETED) openingBalance else 0.0
         KaarigerOrderDetailSheet(
             order = order,
             payments = payments,
-            openingBalance = openingForOrder,
             onDismiss = { detailOrder = null },
             onReportMaterials = {
                 detailOrder = null
@@ -222,7 +210,7 @@ fun KaarigerOrderCard(
             if (!compact && order.status == OrderStatus.COMPLETED && order.materialUsageReported) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    stringResource(R.string.receipt_available_hint),
+                    stringResource(R.string.receipt_view),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )

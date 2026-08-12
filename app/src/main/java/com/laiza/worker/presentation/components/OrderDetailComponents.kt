@@ -31,8 +31,6 @@ fun formatOrderDate(millis: Long?): String {
 fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
     payments: List<KaarigerOrderPayment> = emptyList(),
-    /** When > 0 and this is the only active bill, opening is folded into grand total. */
-    openingBalance: Double = 0.0,
     onDismiss: () -> Unit,
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
@@ -93,8 +91,16 @@ fun KaarigerOrderDetailSheet(
 
             if (order.products.isNotEmpty()) {
                 val orderPayments = payments.filter { it.orderId == order.id }
-                OrderHisaabBreakdown(order, orderPayments)
-                GrandTotalBox(order, orderPayments, openingBalance = openingBalance.coerceAtLeast(0.0))
+                if (order.status == OrderStatus.COMPLETED) {
+                    KaarigerPreviousHisaabPanel(
+                        order = order,
+                        payments = orderPayments,
+                        showHeader = true
+                    )
+                } else {
+                    OrderHisaabBreakdown(order, orderPayments)
+                    GrandTotalBox(order, orderPayments)
+                }
             }
 
             if (order.status == OrderStatus.COMPLETED && order.rawMaterials.isNotEmpty() && !order.materialUsageReported && onReportMaterials != null) {
@@ -124,7 +130,9 @@ private fun rupees(amount: Double): String = formatIndianRupee(amount)
 @Composable
 private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<KaarigerOrderPayment>) {
     val sortedPayments = remember(orderPayments) {
-        orderPayments.sortedBy { "${it.date} ${it.time}" }
+        orderPayments
+            .filter { !isOpeningOrCreditPayment(it) }
+            .sortedBy { "${it.date} ${it.time}" }
     }
     val totalKharcha = sortedPayments.sumOf { it.amount }
     Surface(
@@ -203,22 +211,26 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
 }
 
 /**
- * Mirrors the admin panel's Grand Total box: product cost total minus
- * deductions/repairs gives the net Total, then compares it against what's
- * actually been paid to show Extra paid / Total remaining / Fully cleared.
+ * Same money model as admin bill:
+ * Remaining = opening + ADD − week kharcha (Pay does not add into Remaining).
+ * Kharcha box = week budget − carry − week Pays.
  */
 @Composable
 private fun GrandTotalBox(
     order: KaarigerOrder,
-    orderPayments: List<KaarigerOrderPayment>,
-    openingBalance: Double = 0.0
+    orderPayments: List<KaarigerOrderPayment>
 ) {
-    val paid = orderPayments.sumOf { it.amount }
-    val net = (order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal).coerceAtLeast(0.0)
-    val orderRemaining = (net - paid).coerceAtLeast(0.0)
-    val orderExtra = (paid - net).coerceAtLeast(0.0)
-    val includeOpening = openingBalance > 0.0 && order.status != OrderStatus.COMPLETED
-    val totalRemaining = orderRemaining + if (includeOpening) openingBalance else 0.0
+    val weekPays = orderPayments.filter { !isOpeningOrCreditPayment(it) }
+    val paidCash = weekPays.sumOf { it.amount.coerceAtLeast(0.0) }
+    val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
+    val paidDisplay = paidCash + priorOverpay
+    val net = order.addBalance
+        ?: (order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal)
+    val budget = order.kharchaGiven.coerceAtLeast(0.0)
+    val opening = order.openingAtCreation?.coerceAtLeast(0.0)
+    val closing = order.closingAtCreation
+        ?: opening?.let { (it + net - budget).coerceAtLeast(0.0) }
+    val kharchaBox = budget - order.kharchaCarryIn - paidCash
     val jade = Color(0xFF0D8F63)
     val jadeSoft = Color(0xFFD8F8EB)
     val amber = Color(0xFFB45309)
@@ -244,35 +256,66 @@ private fun GrandTotalBox(
                 DetailRow(stringResource(R.string.kaariger_detail_repair_deduction), "−${rupees(order.repairDeductionTotal)}")
             }
             Divider(modifier = Modifier.padding(vertical = 2.dp))
-            BoldRow(stringResource(R.string.kaariger_grand_total_net), rupees(net))
-            DetailRow(stringResource(R.string.kaariger_grand_total_paid), rupees(paid))
-            Divider(modifier = Modifier.padding(vertical = 2.dp))
-            when {
-                orderExtra > 0.5 && !includeOpening ->
-                    BoldRow(stringResource(R.string.kaariger_grand_total_extra), "+${rupees(orderExtra)}", Color(0xFF047857))
-                orderRemaining <= 0.5 && !includeOpening ->
-                    BoldRow(stringResource(R.string.kaariger_grand_total_cleared), "₹0", Color(0xFF047857))
-                else -> {
-                    if (includeOpening) {
-                        DetailRow(stringResource(R.string.kaariger_payment_opening_label), rupees(openingBalance))
-                        DetailRow(stringResource(R.string.kaariger_hisaab_order_baaki), rupees(orderRemaining))
-                        Text(
-                            stringResource(
-                                R.string.kaariger_hisaab_equation_with_opening,
-                                rupees(openingBalance),
-                                rupees(orderRemaining),
-                                rupees(totalRemaining)
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF92400E),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                    BoldRow(stringResource(R.string.kaariger_grand_total_remaining), rupees(totalRemaining), amber)
+            BoldRow(stringResource(R.string.kaariger_bill_add), rupees(net))
+
+            if (opening != null || closing != null || budget > 0.0) {
+                Divider(modifier = Modifier.padding(vertical = 2.dp))
+                Text(
+                    stringResource(R.string.kaariger_hisaab_week_bill_col),
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = amber
+                )
+                if (opening != null) {
+                    DetailRow(stringResource(R.string.kaariger_hisaab_outstanding_before), rupees(opening))
+                }
+                DetailRow(stringResource(R.string.kaariger_bill_add), "+${rupees(net)}")
+                if (budget > 0.0) {
+                    DetailRow(
+                        stringResource(R.string.kaariger_hisaab_kharcha_on_bill),
+                        "−${rupees(budget)}"
+                    )
+                }
+                if (closing != null) {
+                    BoldRow(
+                        stringResource(R.string.kaariger_grand_total_remaining),
+                        rupees(closing),
+                        amber
+                    )
                 }
             }
+
+            Divider(modifier = Modifier.padding(vertical = 2.dp))
+            Text(
+                stringResource(R.string.kaariger_hisaab_kharcha_that_week),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.labelLarge,
+                color = jade
+            )
+            DetailRow(stringResource(R.string.kaariger_hisaab_kharcha_budget), rupees(budget))
+            DetailRow(stringResource(R.string.kaariger_hisaab_kharcha_paid_total), rupees(paidDisplay))
+            if (priorOverpay > 0.0) {
+                DetailRow(stringResource(R.string.kaariger_hisaab_prior_overpay), rupees(priorOverpay))
+            }
+            BoldRow(
+                if (kharchaBox < 0) {
+                    stringResource(R.string.kaariger_hisaab_kharcha_extra)
+                } else {
+                    stringResource(R.string.kaariger_hisaab_order_baaki)
+                },
+                rupees(kharchaBox),
+                if (kharchaBox < 0) amber else jade
+            )
         }
     }
+}
+
+private fun isOpeningOrCreditPayment(p: KaarigerOrderPayment): Boolean {
+    val remarks = (p.remarks ?: "").lowercase()
+    if (remarks.contains("carried as credit") || remarks.contains("credit carried")) return true
+    return p.orderId == "__opening__" ||
+        remarks.contains("opening balance") ||
+        remarks.contains("old remaining")
 }
 
 @Composable

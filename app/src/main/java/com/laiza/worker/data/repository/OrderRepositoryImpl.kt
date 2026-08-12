@@ -801,6 +801,9 @@ class OrderRepositoryImpl @Inject constructor(
             kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0,
             kharchaCarriedForward = (data["kharchaCarriedForward"] as? Number)?.toDouble() ?: 0.0,
             kharchaCarryIn = (data["kharchaCarryIn"] as? Number)?.toDouble() ?: 0.0,
+            openingAtCreation = (data["openingAtCreation"] as? Number)?.toDouble(),
+            addBalance = (data["addBalance"] as? Number)?.toDouble(),
+            closingAtCreation = (data["closingAtCreation"] as? Number)?.toDouble(),
             weekLabel = data["weekLabel"] as? String ?: "",
             weekKey = data["weekKey"] as? String ?: ""
         )

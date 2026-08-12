@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
-import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.KaarigerPaymentTimeline
 import com.laiza.worker.presentation.components.labeledKaarigerPayments
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
@@ -44,41 +43,19 @@ fun KaarigerPaymentsScreen(
     val me = remember(kaarigers, session?.phone) {
         kaarigers.find { it.phone == session?.phone }
     }
-    val openingBalance = me?.openingBalance ?: 0.0
-    val oldKharcha = me?.oldKharcha ?: 0.0
-    val creditBalance = me?.creditBalance ?: 0.0
-
-    val activeOrders = remember(orders) {
-        orders.filter { it.status != OrderStatus.REJECTED && it.status != OrderStatus.COMPLETED }
+    val summary = remember(me, orders, payments, repairs) {
+        buildKaarigerHisaabSummary(
+            openingBalance = me?.openingBalance ?: 0.0,
+            oldKharcha = me?.oldKharcha ?: 0.0,
+            creditBalance = me?.creditBalance ?: 0.0,
+            orders = orders,
+            payments = payments,
+            repairs = repairs
+        )
     }
-
-    val orderSummaries = remember(activeOrders, payments, repairs) {
-        activeOrders.map { order ->
-            val orderPayments = payments.filter { it.orderId == order.id }
-            val totalPaid = orderPayments.sumOf { it.amount }
-            val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
-            val remaining = weekDue - order.kharchaCarryIn - totalPaid
-            val isCompleted = order.status == OrderStatus.COMPLETED
-            OrderPaymentSummary(orderPayments, order.productName, totalPaid, remaining, isCompleted)
-        }
-    }
-
-    val weekKharchaRemaining = remember(orderSummaries) {
-        orderSummaries.sumOf { it.remaining }
-    }
-    val standaloneRepairTotal = remember(repairs) {
-        repairs.filter { it.isStandalone && it.isApproved }.sumOf { it.totalRepairCost }
-    }
-    // All kharcha ever received (orders + opening + credit) — every transaction counts.
-    val totalKharchaPaid = remember(payments) {
-        payments.sumOf { it.amount }
-    }
-    val safeOpening = (openingBalance + oldKharcha).coerceAtLeast(0.0)
-    val safeCredit = creditBalance.coerceAtLeast(0.0)
-    // Remaining = opening − credit − repairs (Pay does not change Remaining).
-    val afterRepairs = (safeOpening - standaloneRepairTotal).coerceAtLeast(0.0)
-    val totalPending = (afterRepairs - safeCredit).coerceAtLeast(0.0)
-    val surplusCredit = (safeCredit - afterRepairs).coerceAtLeast(0.0)
+    val totalPending = summary.totalRemaining
+    val surplusCredit = summary.surplusCredit
+    val totalKharchaPaid = remember(payments) { payments.sumOf { it.amount } }
 
     val openingProductLabel = stringResource(R.string.kaariger_payment_opening_product)
     val creditProductLabel = stringResource(R.string.kaariger_payment_credit_product)
@@ -105,28 +82,11 @@ fun KaarigerPaymentsScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(
-                stringResource(R.string.kaariger_payment_hint_green),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF047857),
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                stringResource(R.string.kaariger_payment_hint_amber),
-                style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFFB45309),
-                fontWeight = FontWeight.Medium
-            )
-        }
         Spacer(modifier = Modifier.height(16.dp))
 
         PaymentsSummaryCard(
             totalPaid = totalKharchaPaid,
-            totalPending = totalPending,
-            openingBalance = safeOpening,
-            billsRemaining = weekKharchaRemaining
+            totalPending = totalPending
         )
 
         if (totalPending <= 0.0 && surplusCredit > 0.0) {
@@ -139,12 +99,6 @@ fun KaarigerPaymentsScreen(
             stringResource(R.string.kaariger_payment_history),
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.titleLarge
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            stringResource(R.string.kaariger_payment_history_hint),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -171,20 +125,10 @@ fun KaarigerPaymentsScreen(
     }
 }
 
-private data class OrderPaymentSummary(
-    val payments: List<com.laiza.worker.domain.models.KaarigerOrderPayment>,
-    val productName: String,
-    val totalPaid: Double,
-    val remaining: Double,
-    val isCompleted: Boolean
-)
-
 @Composable
 private fun PaymentsSummaryCard(
     totalPaid: Double,
-    totalPending: Double,
-    openingBalance: Double,
-    billsRemaining: Double
+    totalPending: Double
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
         Surface(
@@ -229,26 +173,6 @@ private fun PaymentsSummaryCard(
                     fontSize = 40.sp,
                     lineHeight = 44.sp
                 )
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    if (openingBalance > 0.0) {
-                        stringResource(
-                            R.string.kaariger_hisaab_equation_with_opening,
-                            formatIndianRupee(openingBalance),
-                            formatIndianRupee(billsRemaining),
-                            formatIndianRupee(totalPending)
-                        )
-                    } else {
-                        stringResource(
-                            R.string.kaariger_hisaab_equation_orders_only,
-                            formatIndianRupee(billsRemaining),
-                            formatIndianRupee(totalPending)
-                        )
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF92400E),
-                    fontWeight = FontWeight.Medium
-                )
             }
         }
     }
@@ -265,12 +189,6 @@ private fun CreditBalanceCard(creditBalance: Double) {
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                stringResource(R.string.kaariger_payment_extra_body),
-                style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF047857)
-            )
-            Spacer(modifier = Modifier.height(10.dp))
             Text(
                 formatIndianRupee(creditBalance),
                 fontWeight = FontWeight.ExtraBold,

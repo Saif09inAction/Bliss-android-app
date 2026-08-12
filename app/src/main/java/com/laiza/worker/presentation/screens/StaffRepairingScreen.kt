@@ -3,8 +3,8 @@ package com.laiza.worker.presentation.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,16 +16,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Inventory2
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +45,7 @@ import com.laiza.worker.domain.models.RepairStatus
 import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.PremiumCard
 import com.laiza.worker.presentation.components.PrimaryButton
+import com.laiza.worker.presentation.components.SearchablePickerField
 import com.laiza.worker.presentation.components.formatOrderDate
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import com.laiza.worker.presentation.viewmodels.RepairSubmission
@@ -69,7 +65,6 @@ private data class RepairLineDraft(
     val qtyText: String = ""
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StaffRepairingScreen(
     orderViewModel: OrderViewModel = hiltViewModel()
@@ -80,9 +75,6 @@ fun StaffRepairingScreen(
     val catalogNames by orderViewModel.productCatalogNames.collectAsState()
 
     var selectedKaariger by remember { mutableStateOf<Employee?>(null) }
-    var kaarigerQuery by remember { mutableStateOf("") }
-    var kaarigerExpanded by remember { mutableStateOf(false) }
-
     var repairLines by remember { mutableStateOf(listOf(RepairLineDraft())) }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
@@ -91,16 +83,11 @@ fun StaffRepairingScreen(
     LaunchedEffect(selectedKaariger?.phone) {
         repairLines = listOf(RepairLineDraft())
         message = null
-        val phone = selectedKaariger?.phone
-        if (phone != null) {
-            orderViewModel.loadKaarigerData(phone)
-        }
+        selectedKaariger?.phone?.let { orderViewModel.loadKaarigerData(it) }
     }
 
-    val filteredKaarigers = remember(kaarigers, kaarigerQuery) {
-        if (kaarigerQuery.isBlank()) kaarigers
-        else kaarigers.filter { it.name.contains(kaarigerQuery, ignoreCase = true) || it.phone.contains(kaarigerQuery) }
-    }
+    val kaarigerNames = remember(kaarigers) { kaarigers.map { it.name } }
+    val kaarigerByName = remember(kaarigers) { kaarigers.associateBy { it.name } }
 
     val activeOrders = remember(kaarigerOrders) {
         kaarigerOrders.filter { it.status != OrderStatus.REJECTED }
@@ -134,10 +121,19 @@ fun StaffRepairingScreen(
                     productName = name,
                     pricePerPiece = 0.0,
                     fromCatalog = true,
-                    billLabel = "Catalog · no bill"
+                    billLabel = "Catalog"
                 )
             }
         fromBills + fromCatalog
+    }
+
+    val productLabels = remember(productOptions) {
+        productOptions.map { opt ->
+            if (opt.billLabel != null) "${opt.productName} · ${opt.billLabel}" else opt.productName
+        }
+    }
+    val productByLabel = remember(productOptions, productLabels) {
+        productLabels.zip(productOptions).toMap()
     }
 
     val validLines = repairLines.filter { it.selectedProduct != null && (it.qtyText.toIntOrNull() ?: 0) > 0 }
@@ -154,58 +150,21 @@ fun StaffRepairingScreen(
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            text = "Kaariger + product + qty. Price is set by admin on approval. Works even without a bill.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
 
         PremiumCard(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = "Kaariger",
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.SemiBold
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Kaariger", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+                SearchablePickerField(
+                    selected = selectedKaariger?.name.orEmpty(),
+                    onSelected = { name ->
+                        selectedKaariger = if (name.isBlank()) null else kaarigerByName[name]
+                    },
+                    options = kaarigerNames,
+                    label = "Kaariger",
+                    placeholder = "Search name",
+                    emptyText = "No kaariger found",
+                    optionSubtitle = { name -> kaarigerByName[name]?.phone }
                 )
-                ExposedDropdownMenuBox(
-                    expanded = kaarigerExpanded,
-                    onExpandedChange = { kaarigerExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = selectedKaariger?.name ?: kaarigerQuery,
-                        onValueChange = {
-                            kaarigerQuery = it
-                            selectedKaariger = null
-                            kaarigerExpanded = true
-                        },
-                        placeholder = { Text("Search kaariger by name or phone") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(kaarigerExpanded) },
-                        singleLine = true,
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = kaarigerExpanded && filteredKaarigers.isNotEmpty(),
-                        onDismissRequest = { kaarigerExpanded = false }
-                    ) {
-                        filteredKaarigers.forEach { k ->
-                            DropdownMenuItem(
-                                text = {
-                                    Column {
-                                        Text(k.name, fontWeight = FontWeight.SemiBold)
-                                        Text(k.phone, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    }
-                                },
-                                onClick = {
-                                    selectedKaariger = k
-                                    kaarigerQuery = k.name
-                                    kaarigerExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
             }
         }
 
@@ -213,30 +172,34 @@ fun StaffRepairingScreen(
             if (productOptions.isEmpty()) {
                 PremiumCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "No products found. Add products in Catalog (admin), then try again.",
+                        text = "No products available",
                         modifier = Modifier.padding(16.dp),
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             } else {
-                if (activeOrders.isEmpty()) {
-                    Text(
-                        text = "No bill yet — pick a catalog product. Admin will set ₹/pc on approval.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFB45309)
-                    )
-                }
-
                 repairLines.forEachIndexed { index, line ->
                     key(line.id) {
+                        val selectedLabel = line.selectedProduct?.let { opt ->
+                            productLabels.getOrNull(productOptions.indexOf(opt))
+                                ?: opt.productName
+                        }.orEmpty()
+
                         RepairLineRow(
                             index = index,
                             line = line,
-                            productOptions = productOptions,
+                            selectedLabel = selectedLabel,
+                            productLabels = productLabels,
+                            productByLabel = productByLabel,
                             onProductSelected = { option ->
                                 repairLines = repairLines.map { draft ->
                                     if (draft.id == line.id) draft.copy(selectedProduct = option) else draft
+                                }
+                            },
+                            onProductCleared = {
+                                repairLines = repairLines.map { draft ->
+                                    if (draft.id == line.id) draft.copy(selectedProduct = null) else draft
                                 }
                             },
                             onQtyChanged = { qty ->
@@ -245,9 +208,7 @@ fun StaffRepairingScreen(
                                 }
                             },
                             onRemove = if (repairLines.size > 1) {
-                                {
-                                    repairLines = repairLines.filter { it.id != line.id }
-                                }
+                                { repairLines = repairLines.filter { it.id != line.id } }
                             } else null
                         )
                     }
@@ -259,7 +220,7 @@ fun StaffRepairingScreen(
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Add more product")
+                    Text("Add product")
                 }
 
                 message?.let {
@@ -275,47 +236,41 @@ fun StaffRepairingScreen(
                     enabled = validLines.isNotEmpty() && !saving,
                     isLoading = saving,
                     onClick = {
-                        val kaariger = selectedKaariger
-                        if (kaariger == null) {
-                            isError = true
-                            message = "Select a kaariger first"
-                        } else {
-                            val submissions = validLines.mapNotNull { line ->
-                                val product = line.selectedProduct ?: return@mapNotNull null
-                                val qty = line.qtyText.toIntOrNull() ?: return@mapNotNull null
-                                if (qty <= 0) return@mapNotNull null
-                                RepairSubmission(
-                                    orderId = product.orderId,
-                                    productName = product.productName,
-                                    faultyQuantity = qty,
-                                    faultyPricePerPiece = product.pricePerPiece,
-                                    kaarigerId = kaariger.phone,
-                                    kaarigerName = kaariger.name
-                                )
-                            }
-                            if (submissions.isEmpty()) {
-                                isError = true
-                                message = "Add at least one product with quantity"
-                            } else {
-                                saving = true
-                                message = null
-                                orderViewModel.createRepairs(
-                                    submissions = submissions,
-                                    onSuccess = {
-                                        saving = false
-                                        isError = false
-                                        val count = submissions.size
-                                        message = "Sent $count product${if (count == 1) "" else "s"} for admin approval."
-                                        repairLines = listOf(RepairLineDraft())
-                                    },
-                                    onError = { err ->
-                                        saving = false
-                                        isError = true
-                                        message = err
-                                    }
-                                )
-                            }
+                        val kaariger = selectedKaariger ?: return@PrimaryButton
+                        val submissions = validLines.mapNotNull { line ->
+                            val product = line.selectedProduct ?: return@mapNotNull null
+                            val qty = line.qtyText.toIntOrNull() ?: return@mapNotNull null
+                            if (qty <= 0) return@mapNotNull null
+                            RepairSubmission(
+                                orderId = product.orderId,
+                                productName = product.productName,
+                                faultyQuantity = qty,
+                                faultyPricePerPiece = product.pricePerPiece,
+                                kaarigerId = kaariger.phone,
+                                kaarigerName = kaariger.name
+                            )
                         }
+                        if (submissions.isEmpty()) {
+                            isError = true
+                            message = "Add product and quantity"
+                            return@PrimaryButton
+                        }
+                        saving = true
+                        message = null
+                        orderViewModel.createRepairs(
+                            submissions = submissions,
+                            onSuccess = {
+                                saving = false
+                                isError = false
+                                message = "Submitted"
+                                repairLines = listOf(RepairLineDraft())
+                            },
+                            onError = { err ->
+                                saving = false
+                                isError = true
+                                message = err
+                            }
+                        )
                     }
                 )
             }
@@ -323,7 +278,7 @@ fun StaffRepairingScreen(
 
         if (selectedKaariger != null && kaarigerRepairs.isNotEmpty()) {
             Text(
-                text = "Recent deductions",
+                text = "Recent",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
@@ -336,23 +291,24 @@ fun StaffRepairingScreen(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun RepairLineRow(
     index: Int,
     line: RepairLineDraft,
-    productOptions: List<RepairProductOption>,
+    selectedLabel: String,
+    productLabels: List<String>,
+    productByLabel: Map<String, RepairProductOption>,
     onProductSelected: (RepairProductOption) -> Unit,
+    onProductCleared: () -> Unit,
     onQtyChanged: (String) -> Unit,
     onRemove: (() -> Unit)?
 ) {
-    var productExpanded by remember { mutableStateOf(false) }
-
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = "Product ${index + 1}",
@@ -361,56 +317,27 @@ private fun RepairLineRow(
                 )
                 if (onRemove != null) {
                     IconButton(onClick = onRemove) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove product")
+                        Icon(Icons.Default.Close, contentDescription = "Remove")
                     }
                 }
             }
 
-            ExposedDropdownMenuBox(
-                expanded = productExpanded,
-                onExpandedChange = { productExpanded = it }
-            ) {
-                OutlinedTextField(
-                    value = line.selectedProduct?.productName ?: "",
-                    onValueChange = {},
-                    readOnly = true,
-                    placeholder = { Text("Select product") },
-                    leadingIcon = { Icon(Icons.Default.Inventory2, contentDescription = null) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(productExpanded) },
-                    singleLine = true,
-                    modifier = Modifier
-                        .menuAnchor()
-                        .fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = productExpanded,
-                    onDismissRequest = { productExpanded = false }
-                ) {
-                    productOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = {
-                                Column {
-                                    Text(option.productName, fontWeight = FontWeight.SemiBold)
-                                    Text(
-                                        text = option.billLabel ?: if (option.fromCatalog) "Catalog" else "Bill",
-                                        style = MaterialTheme.typography.labelSmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            },
-                            onClick = {
-                                onProductSelected(option)
-                                productExpanded = false
-                            }
-                        )
-                    }
-                }
-            }
+            SearchablePickerField(
+                selected = selectedLabel,
+                onSelected = { label ->
+                    if (label.isBlank()) onProductCleared()
+                    else productByLabel[label]?.let(onProductSelected)
+                },
+                options = productLabels,
+                label = "Product",
+                placeholder = "Search product",
+                emptyText = "No products"
+            )
 
             CustomTextField(
                 value = line.qtyText,
                 onValueChange = { input -> onQtyChanged(input.filter { it.isDigit() }.take(6)) },
-                label = "Faulty / rejected quantity",
+                label = "Quantity",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
             )
         }
@@ -419,42 +346,50 @@ private fun RepairLineRow(
 
 @Composable
 private fun RepairHistoryRow(repair: OrderRepair) {
+    val statusLabel = when {
+        repair.isPending -> "Pending"
+        repair.status == RepairStatus.REJECTED -> "Rejected"
+        else -> "Approved"
+    }
+    val statusColor = when {
+        repair.isPending -> Color(0xFFB45309)
+        repair.status == RepairStatus.REJECTED -> MaterialTheme.colorScheme.error
+        else -> Color(0xFF047857)
+    }
+
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Default.Build, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(repair.productName, fontWeight = FontWeight.SemiBold)
+                if (repair.faultyQuantity > 0) {
+                    Text(
+                        "${repair.faultyQuantity} pcs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
                 Text(
-                    text = when {
-                        repair.isPending -> "Pending approval"
-                        repair.status == RepairStatus.REJECTED -> "Rejected"
-                        else -> "Approved"
-                    },
+                    formatOrderDate(repair.createdAt),
                     style = MaterialTheme.typography.labelSmall,
-                    color = when {
-                        repair.isPending -> Color(0xFFB45309)
-                        repair.status == RepairStatus.REJECTED -> MaterialTheme.colorScheme.error
-                        else -> Color(0xFF047857)
-                    }
-                )
-            }
-            Text(repair.productName, fontWeight = FontWeight.SemiBold)
-            if (repair.faultyQuantity > 0) {
-                Text(
-                    text = "${repair.faultyQuantity} pcs" +
-                        if (repair.isStandalone) " · no bill" else "",
-                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Text(
-                text = formatOrderDate(repair.createdAt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Surface(shape = MaterialTheme.shapes.small, color = statusColor.copy(alpha = 0.12f)) {
+                Text(
+                    statusLabel,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    color = statusColor
+                )
+            }
         }
     }
 }

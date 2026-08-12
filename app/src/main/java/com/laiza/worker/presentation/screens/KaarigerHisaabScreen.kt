@@ -1,5 +1,6 @@
 package com.laiza.worker.presentation.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -41,14 +42,19 @@ import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.KaarigerPaymentTimeline
+import com.laiza.worker.presentation.components.KaarigerPreviousHisaabPanel
+import com.laiza.worker.presentation.components.formatOrderDate
 import com.laiza.worker.presentation.components.labeledKaarigerPayments
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 
+private val Amber = Color(0xFFB45309)
+private val AmberSoft = Color(0xFFFEF3C7)
+private val Jade = Color(0xFF047857)
+private val JadeSoft = Color(0xFFD1FAE5)
+
 /**
- * Simple hisaab for the logged-in kaariger:
- * Opening (if any) + current unpaid orders − katauti/credit = total remaining.
- * Payment history stays behind a toggle so the main view stays easy to read.
+ * Mera Hisaab — mirrors admin Remaining + Kharcha box + Previous bills.
  */
 @Composable
 fun KaarigerHisaabScreen(
@@ -91,6 +97,12 @@ fun KaarigerHisaabScreen(
         )
     }
 
+    val previousBills = remember(orders) {
+        orders
+            .filter { it.status == OrderStatus.COMPLETED }
+            .sortedByDescending { it.createdAt }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -104,24 +116,28 @@ fun KaarigerHisaabScreen(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
-        Text(
-            stringResource(R.string.kaariger_hisaab_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
 
-        HisaabEquationCard(summary = summary, payments = payments)
+        HisaabEquationCard(
+            summary = summary,
+            payments = payments,
+            orders = orders
+        )
 
         if (summary.orderLines.isNotEmpty()) {
             Text(
-                stringResource(R.string.kaariger_hisaab_orders_title),
+                stringResource(R.string.kaariger_hisaab_this_week_title),
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
             )
             summary.orderLines.forEach { line ->
                 OrderHisaabLineCard(line)
             }
-        } else if (summary.runningBalance <= 0.0 && summary.totalRemaining <= 0.0 && allPayments.isEmpty()) {
+        } else if (
+            summary.runningBalance <= 0.0 &&
+            summary.totalRemaining <= 0.0 &&
+            allPayments.isEmpty() &&
+            previousBills.isEmpty()
+        ) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
@@ -131,6 +147,20 @@ fun KaarigerHisaabScreen(
                     stringResource(R.string.kaariger_hisaab_empty),
                     modifier = Modifier.padding(20.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        if (previousBills.isNotEmpty()) {
+            Text(
+                stringResource(R.string.kaariger_hisaab_previous_bills_title),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+            previousBills.forEach { order ->
+                PreviousBillCard(
+                    order = order,
+                    payments = payments.filter { it.orderId == order.id }
                 )
             }
         }
@@ -147,19 +177,12 @@ fun KaarigerHisaabScreen(
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium
             )
-            Text(
-                stringResource(R.string.kaariger_hisaab_all_payments_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
             KaarigerPaymentTimeline(allPayments)
         } else if (allPayments.isNotEmpty()) {
             Button(
                 onClick = { showPayments = true },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF047857)
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = Jade)
             ) {
                 Text(
                     stringResource(
@@ -175,29 +198,68 @@ fun KaarigerHisaabScreen(
 }
 
 internal data class KaarigerOrderHisaabLine(
+    val orderId: String,
     val productName: String,
     val weekLabel: String,
     val productsTotal: Double,
     val deductions: Double,
     val repair: Double,
     val weekKharcha: Double,
+    val paidCash: Double,
+    val priorOverpay: Double,
     val paid: Double,
     val kharchaRemaining: Double,
     val createdAt: Long
+)
+
+internal data class RemainingLedgerLine(
+    val title: String,
+    val subtitle: String? = null,
+    val delta: Double,
+    val remainingAfter: Double
 )
 
 internal data class KaarigerHisaabSummary(
     val runningBalance: Double,
     val weekKharcha: Double,
     val weekKharchaBudget: Double,
+    val weekKharchaPaidCash: Double,
+    val priorOverpayApplied: Double,
     val weekKharchaPaid: Double,
     val standaloneRepair: Double,
     val creditApplied: Double,
     val totalRemaining: Double,
     val surplusCredit: Double,
     val orderLines: List<KaarigerOrderHisaabLine>,
-    val activeOrderIds: Set<String>
+    val activeOrderIds: Set<String>,
+    val remainingLedger: List<RemainingLedgerLine>
 )
+
+private fun orderAddBalance(order: KaarigerOrder): Double {
+    if (order.addBalance != null) return order.addBalance
+    val products = if (order.productsTotal > 0) order.productsTotal
+    else order.originalDealAmount ?: order.totalDealAmount
+    return products - order.materialDeductionsTotal.coerceAtLeast(0.0) -
+        order.repairDeductionTotal.coerceAtLeast(0.0)
+}
+
+private fun isOpeningPayment(p: KaarigerOrderPayment): Boolean {
+    val remarks = (p.remarks ?: "").lowercase()
+    if (remarks.contains("carried as credit") || remarks.contains("credit carried")) return false
+    return p.orderId == "__opening__" ||
+        remarks.contains("opening balance") ||
+        remarks.contains("old remaining")
+}
+
+private fun isCreditPayment(p: KaarigerOrderPayment): Boolean {
+    val remarks = (p.remarks ?: "").lowercase()
+    return remarks.contains("carried as credit") || remarks.contains("credit carried")
+}
+
+private fun paymentSortKey(p: KaarigerOrderPayment): Long {
+    if (p.createdAt > 0L) return p.createdAt
+    return 0L
+}
 
 internal fun buildKaarigerHisaabSummary(
     openingBalance: Double,
@@ -209,12 +271,16 @@ internal fun buildKaarigerHisaabSummary(
 ): KaarigerHisaabSummary {
     val running = (openingBalance.coerceAtLeast(0.0) + oldKharcha.coerceAtLeast(0.0))
     val credit = creditBalance.coerceAtLeast(0.0)
-    val active = orders.filter { it.status != OrderStatus.REJECTED && it.status != OrderStatus.COMPLETED }
+    val usable = orders.filter { it.status != OrderStatus.REJECTED }
+    val active = usable.filter { it.status != OrderStatus.COMPLETED }
 
     val orderLines = active.map { order ->
-        val orderPayments = payments.filter { it.orderId == order.id }
+        val orderPayments = payments.filter {
+            it.orderId == order.id && !isOpeningPayment(it) && !isCreditPayment(it)
+        }
         val orderRepairs = repairs.filter { it.orderId == order.id && it.isApproved }
-        val paid = orderPayments.sumOf { it.amount }
+        val paidCash = orderPayments.sumOf { it.amount }
+        val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
         val productsTotal = if (order.productsTotal > 0) {
             order.productsTotal
         } else {
@@ -224,16 +290,18 @@ internal fun buildKaarigerHisaabSummary(
         val repair = order.repairDeductionTotal.takeIf { it > 0 }
             ?: orderRepairs.sumOf { it.totalRepairCost }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
-        // Signed box: budget − carryIn − paid (negative = overpay).
-        val kharchaRemaining = weekDue - order.kharchaCarryIn - paid
+        val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(
+            orderId = order.id,
             productName = order.productName.ifBlank { "Order" },
             weekLabel = order.displayWeekLabel(),
             productsTotal = productsTotal,
             deductions = deductions,
             repair = repair,
             weekKharcha = weekDue,
-            paid = paid,
+            paidCash = paidCash,
+            priorOverpay = priorOverpay,
+            paid = paidCash + priorOverpay,
             kharchaRemaining = kharchaRemaining,
             createdAt = order.createdAt
         )
@@ -241,42 +309,171 @@ internal fun buildKaarigerHisaabSummary(
 
     val weekKharcha = orderLines.sumOf { it.kharchaRemaining }
     val weekKharchaBudget = orderLines.sumOf { it.weekKharcha }
-    val weekKharchaPaid = orderLines.sumOf { it.paid }
+    val weekKharchaPaidCash = orderLines.sumOf { it.paidCash }
+    val priorOverpayApplied = orderLines.sumOf { it.priorOverpay }
+    val weekKharchaPaid = weekKharchaPaidCash + priorOverpayApplied
     val standaloneRepair = repairs
         .filter { it.isStandalone && it.isApproved }
         .sumOf { it.totalRepairCost }
-    // Remaining = opening − repairs − credit. Pay does not change Remaining.
     val afterRepairs = (running - standaloneRepair).coerceAtLeast(0.0)
     val creditApplied = minOf(credit, afterRepairs)
     val totalRemaining = (afterRepairs - creditApplied).coerceAtLeast(0.0)
     val surplusCredit = (credit - afterRepairs).coerceAtLeast(0.0)
 
+    val remainingLedger = buildRemainingLedgerLines(
+        openingBalance = openingBalance.coerceAtLeast(0.0),
+        oldKharcha = oldKharcha.coerceAtLeast(0.0),
+        orders = usable.sortedBy { it.createdAt },
+        payments = payments,
+        standaloneRepair = standaloneRepair,
+        creditApplied = creditApplied,
+        liveRemaining = totalRemaining
+    )
+
     return KaarigerHisaabSummary(
         runningBalance = running,
         weekKharcha = weekKharcha,
         weekKharchaBudget = weekKharchaBudget,
+        weekKharchaPaidCash = weekKharchaPaidCash,
+        priorOverpayApplied = priorOverpayApplied,
         weekKharchaPaid = weekKharchaPaid,
         standaloneRepair = standaloneRepair,
         creditApplied = creditApplied,
         totalRemaining = totalRemaining,
         surplusCredit = surplusCredit,
         orderLines = orderLines,
-        activeOrderIds = active.map { it.id }.toSet()
+        activeOrderIds = active.map { it.id }.toSet(),
+        remainingLedger = remainingLedger
     )
+}
+
+private fun buildRemainingLedgerLines(
+    openingBalance: Double,
+    oldKharcha: Double,
+    orders: List<KaarigerOrder>,
+    payments: List<KaarigerOrderPayment>,
+    standaloneRepair: Double,
+    creditApplied: Double,
+    liveRemaining: Double
+): List<RemainingLedgerLine> {
+    val openingPays = payments.filter { isOpeningPayment(it) }
+    val openingPaidTotal = openingPays.sumOf { it.amount.coerceAtLeast(0.0) }
+    val billNet = orders.sumOf { orderAddBalance(it) - it.kharchaGiven.coerceAtLeast(0.0) }
+    val foldTotal = orders.sumOf { it.kharchaCarriedForward.coerceAtLeast(0.0) }
+    val startOpening = (
+        openingBalance + openingPaidTotal - billNet - foldTotal
+        ).coerceAtLeast(0.0)
+
+    val lines = mutableListOf<RemainingLedgerLine>()
+    var remaining = 0.0
+
+    remaining = startOpening
+    lines += RemainingLedgerLine(
+        title = "Opening balance",
+        delta = startOpening,
+        remainingAfter = remaining
+    )
+    if (oldKharcha > 0.0) {
+        remaining += oldKharcha
+        lines += RemainingLedgerLine(
+            title = "Old kharcha",
+            delta = oldKharcha,
+            remainingAfter = remaining
+        )
+    }
+
+    data class Ev(val at: Long, val id: String, val build: (Double) -> Pair<RemainingLedgerLine, Double>)
+    val events = mutableListOf<Ev>()
+
+    orders.forEachIndexed { i, order ->
+        val t = if (order.createdAt > 0L) order.createdAt else i.toLong()
+        val add = orderAddBalance(order)
+        val week = order.displayWeekLabel()
+        if (add != 0.0) {
+            events += Ev(t, "add-${order.id}") { rem ->
+                val next = (rem + add).coerceAtLeast(0.0)
+                RemainingLedgerLine(
+                    title = "Bill · $week",
+                    subtitle = order.productName.takeIf { it.isNotBlank() },
+                    delta = add,
+                    remainingAfter = next
+                ) to next
+            }
+        }
+        val kh = order.kharchaGiven.coerceAtLeast(0.0)
+        if (kh > 0.0) {
+            events += Ev(t + 1, "kh-${order.id}") { rem ->
+                val next = (rem - kh).coerceAtLeast(0.0)
+                RemainingLedgerLine(
+                    title = "$week kharcha",
+                    delta = -kh,
+                    remainingAfter = next
+                ) to next
+            }
+        }
+    }
+
+    openingPays.forEach { p ->
+        val amt = p.amount.coerceAtLeast(0.0)
+        if (amt <= 0.0) return@forEach
+        events += Ev(paymentSortKey(p), "pay-${p.id}") { rem ->
+            val next = (rem - amt).coerceAtLeast(0.0)
+            val whenLabel = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · ")
+            RemainingLedgerLine(
+                title = "Paid (Remaining)",
+                subtitle = whenLabel.ifBlank { null },
+                delta = -amt,
+                remainingAfter = next
+            ) to next
+        }
+    }
+
+    events.sortedWith(compareBy({ it.at }, { it.id })).forEach { ev ->
+        val (line, next) = ev.build(remaining)
+        remaining = next
+        lines += line
+    }
+
+    if (standaloneRepair > 0.0) {
+        remaining = (remaining - standaloneRepair).coerceAtLeast(0.0)
+        lines += RemainingLedgerLine(
+            title = "Repairing",
+            delta = -standaloneRepair,
+            remainingAfter = remaining
+        )
+    }
+    if (creditApplied > 0.0) {
+        remaining = (remaining - creditApplied).coerceAtLeast(0.0)
+        lines += RemainingLedgerLine(
+            title = "Credit",
+            delta = -creditApplied,
+            remainingAfter = remaining
+        )
+    }
+
+    // Align last line to live Remaining if float drift
+    if (lines.isNotEmpty() && kotlin.math.abs(lines.last().remainingAfter - liveRemaining) > 0.5) {
+        lines[lines.lastIndex] = lines.last().copy(remainingAfter = liveRemaining)
+    }
+    return lines
 }
 
 @Composable
 private fun HisaabEquationCard(
     summary: KaarigerHisaabSummary,
-    payments: List<KaarigerOrderPayment>
+    payments: List<KaarigerOrderPayment>,
+    orders: List<KaarigerOrder>
 ) {
-    val amber = Color(0xFFB45309)
-    var showBreakdown by remember { mutableStateOf(false) }
-    var showKharchaBreakup by remember { mutableStateOf(false) }
+    var showRemaining by remember { mutableStateOf(false) }
+    var showKharcha by remember { mutableStateOf(false) }
 
     val weekPayments = remember(payments, summary.activeOrderIds) {
         payments
-            .filter { it.orderId in summary.activeOrderIds }
+            .filter {
+                it.orderId in summary.activeOrderIds &&
+                    !isOpeningPayment(it) &&
+                    !isCreditPayment(it)
+            }
             .sortedWith(compareBy({ it.date }, { it.time }))
     }
 
@@ -287,11 +484,11 @@ private fun HisaabEquationCard(
         ) {
             Surface(
                 onClick = {
-                    showBreakdown = !showBreakdown
-                    if (showBreakdown) showKharchaBreakup = false
+                    showRemaining = !showRemaining
+                    if (showRemaining) showKharcha = false
                 },
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFFEF3C7),
+                color = AmberSoft,
                 modifier = Modifier.weight(1f)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -299,28 +496,23 @@ private fun HisaabEquationCard(
                         stringResource(R.string.kaariger_hisaab_total_remaining),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelMedium,
-                        color = amber
+                        color = Amber
                     )
                     Text(
                         formatIndianRupee(summary.totalRemaining),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 22.sp,
-                        color = amber
-                    )
-                    Text(
-                        stringResource(R.string.kaariger_hisaab_tap_ledger),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF92400E)
+                        color = Amber
                     )
                 }
             }
             Surface(
                 onClick = {
-                    showKharchaBreakup = !showKharchaBreakup
-                    if (showKharchaBreakup) showBreakdown = false
+                    showKharcha = !showKharcha
+                    if (showKharcha) showRemaining = false
                 },
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFD1FAE5),
+                color = JadeSoft,
                 modifier = Modifier.weight(1f)
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
@@ -328,160 +520,24 @@ private fun HisaabEquationCard(
                         stringResource(R.string.kaariger_hisaab_kharcha_label),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.labelMedium,
-                        color = Color(0xFF047857)
+                        color = Jade
                     )
                     Text(
                         formatIndianRupee(summary.weekKharcha),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 22.sp,
-                        color = Color(0xFF047857)
-                    )
-                    Text(
-                        stringResource(R.string.kaariger_hisaab_tap_payments),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color(0xFF065F46)
+                        color = Jade
                     )
                 }
             }
         }
 
-        if (showBreakdown) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFFEF3C7),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.kaariger_hisaab_calc_title),
-                        fontWeight = FontWeight.Bold,
-                        color = amber
-                    )
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_running_balance),
-                        value = formatIndianRupee(summary.runningBalance),
-                        valueColor = amber
-                    )
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_kharcha_label),
-                        value = formatIndianRupee(summary.weekKharcha),
-                        valueColor = Color(0xFF047857)
-                    )
-                    summary.orderLines.filter { it.weekKharcha > 0.0 }.forEach { line ->
-                        HisaabRow(
-                            label = "${line.weekLabel} kharcha · ${formatIndianRupee(line.weekKharcha)} − ${formatIndianRupee(line.paid)}",
-                            value = formatIndianRupee(line.kharchaRemaining),
-                            valueColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    if (summary.standaloneRepair > 0.0) {
-                        HisaabRow(
-                            label = stringResource(R.string.kaariger_hisaab_repair_label),
-                            value = "−${formatIndianRupee(summary.standaloneRepair)}",
-                            valueColor = Color(0xFFB91C1C)
-                        )
-                    }
-                    if (summary.creditApplied > 0.0) {
-                        HisaabRow(
-                            label = stringResource(R.string.kaariger_hisaab_credit_label),
-                            value = "−${formatIndianRupee(summary.creditApplied)}",
-                            valueColor = Color(0xFF047857)
-                        )
-                    }
-                    HorizontalDivider(color = Color(0xFFFCD34D))
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_total_remaining),
-                        value = formatIndianRupee(summary.totalRemaining),
-                        valueColor = amber
-                    )
-                    Text(
-                        stringResource(R.string.kaariger_hisaab_fold_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF92400E)
-                    )
-                    if (weekPayments.isNotEmpty()) {
-                        HorizontalDivider(color = Color(0xFFFCD34D))
-                        Text(
-                            stringResource(R.string.kaariger_hisaab_kharcha_payments_title),
-                            fontWeight = FontWeight.SemiBold,
-                            color = amber
-                        )
-                        var boxRunning =
-                            summary.weekKharcha + weekPayments.sumOf { it.amount }
-                        weekPayments.forEach { p ->
-                            val before = boxRunning
-                            boxRunning -= p.amount
-                            val whenLabel = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · ")
-                            HisaabRow(
-                                label = "Paid ${formatIndianRupee(p.amount)}" +
-                                    if (whenLabel.isNotBlank()) " · $whenLabel" else "",
-                                value = "${formatIndianRupee(before)} → ${formatIndianRupee(boxRunning)}",
-                                valueColor = Color(0xFF047857)
-                            )
-                        }
-                    }
-                }
-            }
+        if (showRemaining) {
+            RemainingBreakdownPanel(summary)
         }
 
-        if (showKharchaBreakup) {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFD1FAE5),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.kaariger_hisaab_kharcha_breakup_title),
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF047857)
-                    )
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_kharcha_budget),
-                        value = formatIndianRupee(summary.weekKharchaBudget),
-                        valueColor = Color(0xFF047857)
-                    )
-                    HorizontalDivider(color = Color(0xFFA7F3D0))
-                    Text(
-                        stringResource(R.string.kaariger_hisaab_kharcha_payments_title),
-                        fontWeight = FontWeight.SemiBold,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color(0xFF065F46)
-                    )
-                    if (weekPayments.isEmpty()) {
-                        Text(
-                            stringResource(R.string.kaariger_hisaab_kharcha_no_payments),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF065F46)
-                        )
-                    } else {
-                        weekPayments.forEach { p ->
-                            HisaabRow(
-                                label = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · "),
-                                value = "−${formatIndianRupee(p.amount)}",
-                                valueColor = Color(0xFF047857)
-                            )
-                        }
-                        HorizontalDivider(color = Color(0xFFA7F3D0))
-                        HisaabRow(
-                            label = stringResource(R.string.kaariger_hisaab_kharcha_paid_total),
-                            value = formatIndianRupee(summary.weekKharchaPaid),
-                            valueColor = Color(0xFF047857)
-                        )
-                    }
-                    HisaabRow(
-                        label = stringResource(R.string.kaariger_hisaab_kharcha_label) + " remaining",
-                        value = formatIndianRupee(summary.weekKharcha),
-                        valueColor = amber
-                    )
-                }
-            }
+        if (showKharcha) {
+            KharchaBreakdownPanel(summary, weekPayments)
         }
 
         if (summary.totalRemaining <= 0.0 && summary.surplusCredit > 0.0) {
@@ -491,9 +547,253 @@ private fun HisaabEquationCard(
                     formatIndianRupee(summary.surplusCredit)
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color(0xFF047857),
+                color = Jade,
                 fontWeight = FontWeight.Medium
             )
+        }
+    }
+}
+
+@Composable
+private fun RemainingBreakdownPanel(summary: KaarigerHisaabSummary) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = AmberSoft,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                stringResource(R.string.kaariger_hisaab_remaining_breakdown_title),
+                fontWeight = FontWeight.Bold,
+                color = Amber
+            )
+            if (summary.remainingLedger.isEmpty()) {
+                HisaabRow(
+                    label = stringResource(R.string.kaariger_hisaab_running_balance),
+                    value = formatIndianRupee(summary.runningBalance),
+                    valueColor = Amber
+                )
+                if (summary.standaloneRepair > 0.0) {
+                    HisaabRow(
+                        label = stringResource(R.string.kaariger_hisaab_repair_label),
+                        value = "−${formatIndianRupee(summary.standaloneRepair)}",
+                        valueColor = Color(0xFFB91C1C)
+                    )
+                }
+                if (summary.creditApplied > 0.0) {
+                    HisaabRow(
+                        label = stringResource(R.string.kaariger_hisaab_credit_label),
+                        value = "−${formatIndianRupee(summary.creditApplied)}",
+                        valueColor = Jade
+                    )
+                }
+            } else {
+                summary.remainingLedger.forEach { line ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        HisaabRow(
+                            label = line.title,
+                            value = when {
+                                line.delta > 0 -> "+${formatIndianRupee(line.delta)}"
+                                line.delta < 0 -> "−${formatIndianRupee(kotlin.math.abs(line.delta))}"
+                                else -> "—"
+                            },
+                            valueColor = when {
+                                line.delta > 0 -> Jade
+                                line.delta < 0 -> Color(0xFFB91C1C)
+                                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                        if (!line.subtitle.isNullOrBlank()) {
+                            Text(
+                                line.subtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(
+                            stringResource(
+                                R.string.kaariger_hisaab_remaining_after,
+                                formatIndianRupee(line.remainingAfter)
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Amber
+                        )
+                    }
+                    HorizontalDivider(color = Color(0xFFFCD34D).copy(alpha = 0.5f))
+                }
+            }
+            HorizontalDivider(color = Color(0xFFFCD34D))
+            HisaabRow(
+                label = stringResource(R.string.kaariger_hisaab_total_remaining),
+                value = formatIndianRupee(summary.totalRemaining),
+                valueColor = Amber,
+                bold = true
+            )
+        }
+    }
+}
+
+@Composable
+private fun KharchaBreakdownPanel(
+    summary: KaarigerHisaabSummary,
+    weekPayments: List<KaarigerOrderPayment>
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = JadeSoft,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                stringResource(R.string.kaariger_hisaab_kharcha_breakup_title),
+                fontWeight = FontWeight.Bold,
+                color = Jade
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MiniStat(
+                    label = stringResource(R.string.kaariger_hisaab_kharcha_budget),
+                    value = formatIndianRupee(summary.weekKharchaBudget),
+                    modifier = Modifier.weight(1f)
+                )
+                MiniStat(
+                    label = stringResource(R.string.kaariger_hisaab_kharcha_paid_total),
+                    value = formatIndianRupee(summary.weekKharchaPaid),
+                    modifier = Modifier.weight(1f)
+                )
+                MiniStat(
+                    label = if (summary.weekKharcha < 0) {
+                        stringResource(R.string.kaariger_hisaab_kharcha_extra)
+                    } else {
+                        stringResource(R.string.kaariger_hisaab_kharcha_left)
+                    },
+                    value = formatIndianRupee(summary.weekKharcha),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            if (summary.priorOverpayApplied > 0.0) {
+                HisaabRow(
+                    label = stringResource(R.string.kaariger_hisaab_prior_overpay),
+                    value = formatIndianRupee(summary.priorOverpayApplied),
+                    valueColor = Jade
+                )
+            }
+            HorizontalDivider(color = Color(0xFFA7F3D0))
+            Text(
+                stringResource(R.string.kaariger_hisaab_kharcha_payments_title),
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFF065F46)
+            )
+            if (weekPayments.isEmpty() && summary.priorOverpayApplied <= 0.0) {
+                Text(
+                    stringResource(R.string.kaariger_hisaab_kharcha_no_payments),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color(0xFF065F46)
+                )
+            } else {
+                weekPayments.forEach { p ->
+                    HisaabRow(
+                        label = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · "),
+                        value = "−${formatIndianRupee(p.amount)}",
+                        valueColor = Jade
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MiniStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.85f),
+        modifier = modifier
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(value, fontWeight = FontWeight.Bold, color = Jade, fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun PreviousBillCard(
+    order: KaarigerOrder,
+    payments: List<KaarigerOrderPayment>
+) {
+    var expanded by remember(order.id) { mutableStateOf(false) }
+    val week = order.displayWeekLabel()
+    val add = orderAddBalance(order)
+    val budget = order.kharchaGiven.coerceAtLeast(0.0)
+    val opening = order.openingAtCreation?.coerceAtLeast(0.0)
+        ?: ((order.closingAtCreation ?: 0.0) - add + budget).coerceAtLeast(0.0)
+    val closing = order.closingAtCreation
+        ?: (opening + add - budget).coerceAtLeast(0.0)
+
+    Surface(
+        onClick = { expanded = !expanded },
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                    Text(week, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        listOfNotNull(
+                            formatOrderDate(order.createdAt).takeIf { it != "—" },
+                            order.productName.takeIf { it.isNotBlank() },
+                            stringResource(R.string.kaariger_previous_hisaab_badge)
+                        ).joinToString(" · "),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        stringResource(R.string.kaariger_hisaab_outstanding_after),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        formatIndianRupee(closing),
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Amber
+                    )
+                }
+            }
+
+            if (expanded) {
+                HorizontalDivider()
+                KaarigerPreviousHisaabPanel(
+                    order = order,
+                    payments = payments,
+                    showHeader = false
+                )
+            }
         }
     }
 }
@@ -525,6 +825,15 @@ private fun OrderHisaabLineCard(line: KaarigerOrderHisaabLine) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                Text(
+                    stringResource(
+                        R.string.kaariger_hisaab_week_paid_left,
+                        formatIndianRupee(line.paid),
+                        formatIndianRupee(line.kharchaRemaining)
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
             Column(horizontalAlignment = Alignment.End) {
                 Text(
@@ -536,7 +845,7 @@ private fun OrderHisaabLineCard(line: KaarigerOrderHisaabLine) {
                     formatIndianRupee(line.kharchaRemaining),
                     fontWeight = FontWeight.ExtraBold,
                     style = MaterialTheme.typography.titleMedium,
-                    color = Color(0xFFB45309)
+                    color = Amber
                 )
             }
         }
@@ -558,7 +867,8 @@ private fun HisaabRow(
         Text(
             label,
             style = if (bold) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium
+            fontWeight = if (bold) FontWeight.Bold else FontWeight.Medium,
+            modifier = Modifier.weight(1f).padding(end = 8.dp)
         )
         Text(
             value,

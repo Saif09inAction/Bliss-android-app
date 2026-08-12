@@ -33,6 +33,7 @@ import com.laiza.worker.domain.models.ReturnType
 import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.PremiumCard
+import com.laiza.worker.presentation.components.SearchablePickerField
 import com.laiza.worker.presentation.viewmodels.StoreOperationsViewModel
 
 @Composable
@@ -60,8 +61,8 @@ fun StaffDispatchScreen(
 
         if (activeTab == 0) {
             DispatchHistoryTab(
-                title = "Handoff to delivery partner",
-                subtitle = "Claris / Bliss qty → company (Amazon, Flipkart…) → delivery partner",
+                title = "Pickup",
+                subtitle = null,
                 buttonText = "New Pickup",
                 historyTitle = "Pickup history",
                 emptyHistory = "No pickups recorded yet",
@@ -74,8 +75,8 @@ fun StaffDispatchScreen(
             }
         } else {
             DispatchHistoryTab(
-                title = "Product returns",
-                subtitle = "Log items returned via RTO or DTO",
+                title = "Return",
+                subtitle = null,
                 buttonText = "New Return",
                 historyTitle = "Return history",
                 emptyHistory = "No returns recorded yet",
@@ -175,7 +176,7 @@ fun StaffDispatchScreen(
 @Composable
 private fun <T> DispatchHistoryTab(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     buttonText: String,
     historyTitle: String,
     emptyHistory: String,
@@ -193,7 +194,9 @@ private fun <T> DispatchHistoryTab(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-        Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        if (!subtitle.isNullOrBlank()) {
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         PrimaryButton(text = buttonText, onClick = onAction)
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -407,10 +410,8 @@ private fun DispatchDetailsDialog(
     var clarisQty by remember { mutableStateOf("") }
     var blissQty by remember { mutableStateOf("") }
     var platform by remember { mutableStateOf(defaultPlatform) }
-    var platformExpanded by remember { mutableStateOf(false) }
     var courier by remember { mutableStateOf("") }
-    var courierExpanded by remember { mutableStateOf(false) }
-    var courierQuery by remember { mutableStateOf("") }
+    var platformExpanded by remember { mutableStateOf(false) }
     var showAddCourier by remember { mutableStateOf(false) }
     var newCourierName by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
@@ -419,16 +420,12 @@ private fun DispatchDetailsDialog(
     val relevantCouriers = remember(partners, platform) {
         partners.filter { PlatformDeliveryPartners.isRelevant(it.name, platform) }
     }
-    val filteredCouriers = remember(relevantCouriers, courierQuery) {
-        if (courierQuery.isBlank()) relevantCouriers
-        else relevantCouriers.filter { it.name.contains(courierQuery, ignoreCase = true) }
-    }
+    val courierNames = remember(relevantCouriers) { relevantCouriers.map { it.name } }
 
     // Drop a previously picked courier if it isn't relevant to the newly selected platform.
     LaunchedEffect(platform) {
-        if (courier.isNotBlank() && relevantCouriers.none { it.name.equals(courier, ignoreCase = true) }) {
+        if (courier.isNotBlank() && courierNames.none { it.equals(courier, ignoreCase = true) }) {
             courier = ""
-            courierQuery = ""
         }
     }
 
@@ -441,7 +438,7 @@ private fun DispatchDetailsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(max = 460.dp)
+                    .heightIn(max = 520.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
@@ -480,7 +477,7 @@ private fun DispatchDetailsDialog(
                         value = platform,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Amazon, Flipkart…") },
+                        label = { Text("Company") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(platformExpanded) },
                         modifier = Modifier
                             .menuAnchor()
@@ -503,67 +500,19 @@ private fun DispatchDetailsDialog(
                 }
 
                 Text("Delivery partner", fontWeight = FontWeight.SemiBold)
-                ExposedDropdownMenuBox(
-                    expanded = courierExpanded,
-                    onExpandedChange = { courierExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = if (courierExpanded) courierQuery else courier.ifBlank { courierQuery },
-                        onValueChange = {
-                            courierQuery = it
-                            courierExpanded = true
-                        },
-                        label = { Text("Search courier") },
-                        placeholder = { Text("Couriers for $platform") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(courierExpanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = courierExpanded,
-                        onDismissRequest = { courierExpanded = false }
-                    ) {
-                        if (filteredCouriers.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text("No couriers for $platform yet") },
-                                onClick = {},
-                                enabled = false
-                            )
-                        }
-                        filteredCouriers.forEach { p ->
-                            DropdownMenuItem(
-                                text = { Text(p.name) },
-                                onClick = {
-                                    courier = p.name
-                                    courierQuery = p.name
-                                    courierExpanded = false
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Add new partner…")
-                                }
-                            },
-                            onClick = {
-                                courierExpanded = false
-                                newCourierName = courierQuery.trim()
-                                showAddCourier = true
-                            }
-                        )
+                SearchablePickerField(
+                    selected = courier,
+                    onSelected = { courier = it },
+                    options = courierNames,
+                    label = "Courier",
+                    placeholder = "Search or pick courier",
+                    emptyText = "No couriers for $platform",
+                    addNewLabel = "+ Add new partner",
+                    onAddNew = {
+                        newCourierName = ""
+                        showAddCourier = true
                     }
-                }
-                if (courier.isNotBlank()) {
-                    Text(
-                        "Selected: $courier",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
+                )
 
                 validationError?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
@@ -585,14 +534,13 @@ private fun DispatchDetailsDialog(
                         validationError = "Select a company"
                         return@PrimaryButton
                     }
-                    val courierName = courier.ifBlank { courierQuery }.trim()
-                    if (courierName.isBlank()) {
-                        validationError = "Select or add a delivery partner"
+                    if (courier.isBlank()) {
+                        validationError = "Select a delivery partner"
                         return@PrimaryButton
                     }
                     validationError = null
                     submitting = true
-                    onConfirm(claris, bliss, platform, courierName)
+                    onConfirm(claris, bliss, platform, courier)
                 },
                 enabled = !submitting
             )
@@ -620,7 +568,6 @@ private fun DispatchDetailsDialog(
                             name = newCourierName,
                             onSuccess = { added ->
                                 courier = added.name
-                                courierQuery = added.name
                                 showAddCourier = false
                                 Toast.makeText(context, "${added.name} added", Toast.LENGTH_SHORT).show()
                             },
@@ -653,8 +600,6 @@ private fun ReturnOperationDialog(
     var platform by remember { mutableStateOf(EcommercePlatform.FLIPKART) }
     var platformExpanded by remember { mutableStateOf(false) }
     var courier by remember { mutableStateOf("") }
-    var courierExpanded by remember { mutableStateOf(false) }
-    var courierQuery by remember { mutableStateOf("") }
     var selectedReturnType by remember { mutableStateOf(ReturnType.RTO) }
     var notes by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
@@ -664,24 +609,22 @@ private fun ReturnOperationDialog(
     val relevantCouriers = remember(partners, platform) {
         partners.filter { PlatformDeliveryPartners.isRelevant(it.name, platform) }
     }
-    val filteredCouriers = remember(relevantCouriers, courierQuery) {
-        if (courierQuery.isBlank()) relevantCouriers
-        else relevantCouriers.filter { it.name.contains(courierQuery, ignoreCase = true) }
-    }
+    val courierNames = remember(relevantCouriers) { relevantCouriers.map { it.name } }
 
     LaunchedEffect(platform) {
-        if (courier.isNotBlank() && relevantCouriers.none { it.name.equals(courier, ignoreCase = true) }) {
+        if (courier.isNotBlank() && courierNames.none { it.equals(courier, ignoreCase = true) }) {
             courier = ""
-            courierQuery = ""
         }
     }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.94f),
         title = { Text("Record Return", fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp).verticalScroll(rememberScrollState()),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 Text("Quantity", fontWeight = FontWeight.SemiBold)
@@ -716,7 +659,7 @@ private fun ReturnOperationDialog(
                         value = platform,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Amazon, Flipkart…") },
+                        label = { Text("Company") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(platformExpanded) },
                         modifier = Modifier.menuAnchor().fillMaxWidth()
                     )
@@ -731,45 +674,21 @@ private fun ReturnOperationDialog(
                 }
 
                 Text("Delivery partner", fontWeight = FontWeight.SemiBold)
-                ExposedDropdownMenuBox(expanded = courierExpanded, onExpandedChange = { courierExpanded = it }) {
-                    OutlinedTextField(
-                        value = if (courierExpanded) courierQuery else courier.ifBlank { courierQuery },
-                        onValueChange = { courierQuery = it; courierExpanded = true },
-                        label = { Text("Search courier") },
-                        placeholder = { Text("Couriers for $platform") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(courierExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(expanded = courierExpanded, onDismissRequest = { courierExpanded = false }) {
-                        if (filteredCouriers.isEmpty()) {
-                            DropdownMenuItem(
-                                text = { Text("No couriers for $platform yet") },
-                                onClick = {},
-                                enabled = false
-                            )
-                        }
-                        filteredCouriers.forEach { partner ->
-                            DropdownMenuItem(
-                                text = { Text(partner.name) },
-                                onClick = {
-                                    courier = partner.name
-                                    courierQuery = partner.name
-                                    courierExpanded = false
-                                }
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("+ Add new partner…") },
-                            onClick = {
-                                courierExpanded = false
-                                newCourierName = courierQuery.trim()
-                                showAddCourier = true
-                            }
-                        )
+                SearchablePickerField(
+                    selected = courier,
+                    onSelected = { courier = it },
+                    options = courierNames,
+                    label = "Courier",
+                    placeholder = "Search or pick courier",
+                    emptyText = "No couriers for $platform",
+                    addNewLabel = "+ Add new partner",
+                    onAddNew = {
+                        newCourierName = ""
+                        showAddCourier = true
                     }
-                }
+                )
 
-                Text("Return Type", fontWeight = FontWeight.SemiBold)
+                Text("Return type", fontWeight = FontWeight.SemiBold)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = selectedReturnType == ReturnType.RTO,
@@ -803,13 +722,12 @@ private fun ReturnOperationDialog(
                         validationError = "Select a company"
                         return@PrimaryButton
                     }
-                    val courierName = courier.ifBlank { courierQuery }.trim()
-                    if (courierName.isBlank()) {
-                        validationError = "Select or add a delivery partner"
+                    if (courier.isBlank()) {
+                        validationError = "Select a delivery partner"
                         return@PrimaryButton
                     }
                     validationError = null
-                    onConfirm(claris, bliss, platform, courierName, selectedReturnType, notes.ifBlank { null })
+                    onConfirm(claris, bliss, platform, courier, selectedReturnType, notes.ifBlank { null })
                 }
             )
         },
@@ -836,7 +754,6 @@ private fun ReturnOperationDialog(
                             name = newCourierName,
                             onSuccess = { added ->
                                 courier = added.name
-                                courierQuery = added.name
                                 showAddCourier = false
                                 Toast.makeText(context, "${added.name} added", Toast.LENGTH_SHORT).show()
                             },
