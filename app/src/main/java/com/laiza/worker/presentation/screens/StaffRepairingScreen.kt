@@ -38,9 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.domain.models.Employee
-import com.laiza.worker.domain.models.OrderProductLine
 import com.laiza.worker.domain.models.OrderRepair
-import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.domain.models.RepairStatus
 import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.PremiumCard
@@ -54,9 +52,7 @@ import java.util.UUID
 private data class RepairProductOption(
     val orderId: String,
     val productName: String,
-    val pricePerPiece: Double,
-    val fromCatalog: Boolean,
-    val billLabel: String? = null
+    val pricePerPiece: Double
 )
 
 private data class RepairLineDraft(
@@ -70,7 +66,6 @@ fun StaffRepairingScreen(
     orderViewModel: OrderViewModel = hiltViewModel()
 ) {
     val kaarigers by orderViewModel.kaarigers.collectAsState()
-    val kaarigerOrders by orderViewModel.kaarigerOrders.collectAsState()
     val kaarigerRepairs by orderViewModel.kaarigerRepairs.collectAsState()
     val catalogNames by orderViewModel.productCatalogNames.collectAsState()
 
@@ -89,52 +84,22 @@ fun StaffRepairingScreen(
     val kaarigerNames = remember(kaarigers) { kaarigers.map { it.name } }
     val kaarigerByName = remember(kaarigers) { kaarigers.associateBy { it.name } }
 
-    val activeOrders = remember(kaarigerOrders) {
-        kaarigerOrders.filter { it.status != OrderStatus.REJECTED }
-    }
-
-    val productOptions = remember(activeOrders, catalogNames) {
-        val fromBills = activeOrders.flatMap { order ->
-            val lines = if (order.products.isNotEmpty()) {
-                order.products
-            } else {
-                val fallbackPrice = order.pricePerPiece
-                    ?: (if (order.targetQuantity > 0) order.totalDealAmount / order.targetQuantity else 0.0)
-                listOf(OrderProductLine(order.productName, order.targetQuantity, fallbackPrice, 0.0))
-            }
-            lines.filter { it.productName.isNotBlank() }.map { line ->
-                RepairProductOption(
-                    orderId = order.id,
-                    productName = line.productName,
-                    pricePerPiece = line.pricePerPiece,
-                    fromCatalog = false,
-                    billLabel = "Bill · ${formatOrderDate(order.createdAt)}"
-                )
-            }
-        }
-        val billNames = fromBills.map { it.productName.lowercase() }.toSet()
-        val fromCatalog = catalogNames
-            .filter { it.lowercase() !in billNames }
+    val productOptions = remember(catalogNames) {
+        catalogNames
+            .filter { it.isNotBlank() }
+            .distinctBy { it.lowercase() }
+            .sortedBy { it.lowercase() }
             .map { name ->
                 RepairProductOption(
                     orderId = RepairStatus.STANDALONE_ORDER_ID,
                     productName = name,
-                    pricePerPiece = 0.0,
-                    fromCatalog = true,
-                    billLabel = "Catalog"
+                    pricePerPiece = 0.0
                 )
             }
-        fromBills + fromCatalog
     }
 
-    val productLabels = remember(productOptions) {
-        productOptions.map { opt ->
-            if (opt.billLabel != null) "${opt.productName} · ${opt.billLabel}" else opt.productName
-        }
-    }
-    val productByLabel = remember(productOptions, productLabels) {
-        productLabels.zip(productOptions).toMap()
-    }
+    val productLabels = remember(productOptions) { productOptions.map { it.productName } }
+    val productByLabel = remember(productOptions) { productOptions.associateBy { it.productName } }
 
     val validLines = repairLines.filter { it.selectedProduct != null && (it.qtyText.toIntOrNull() ?: 0) > 0 }
 
@@ -172,7 +137,7 @@ fun StaffRepairingScreen(
             if (productOptions.isEmpty()) {
                 PremiumCard(modifier = Modifier.fillMaxWidth()) {
                     Text(
-                        text = "No products available",
+                        text = "No catalog products yet",
                         modifier = Modifier.padding(16.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -181,10 +146,7 @@ fun StaffRepairingScreen(
             } else {
                 repairLines.forEachIndexed { index, line ->
                     key(line.id) {
-                        val selectedLabel = line.selectedProduct?.let { opt ->
-                            productLabels.getOrNull(productOptions.indexOf(opt))
-                                ?: opt.productName
-                        }.orEmpty()
+                        val selectedLabel = line.selectedProduct?.productName.orEmpty()
 
                         RepairLineRow(
                             index = index,

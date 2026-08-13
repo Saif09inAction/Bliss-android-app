@@ -95,6 +95,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /marketplace_companies/{companyId} {
+      allow read, write: if true;
+    }
+
     // -------------------------------------------------------------------------
     // App settings (attendance times, etc.)
     // -------------------------------------------------------------------------

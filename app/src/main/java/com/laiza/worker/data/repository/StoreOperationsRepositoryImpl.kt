@@ -6,6 +6,7 @@ import com.laiza.worker.core.utils.Resource
 import com.laiza.worker.domain.models.DeliveryPartner
 import com.laiza.worker.domain.models.DeliveryPartnerDefaults
 import com.laiza.worker.domain.models.EcommercePlatform
+import com.laiza.worker.domain.models.MarketplaceCompany
 import com.laiza.worker.domain.models.PickupLineItem
 import com.laiza.worker.domain.models.PickupRecord
 import com.laiza.worker.domain.models.ReturnRecord
@@ -17,7 +18,6 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
-import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,6 +50,7 @@ class StoreOperationsRepositoryImpl @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    /** Admin-managed list only — live sync from Firestore `delivery_partners`. */
     override fun getDeliveryPartners(): Flow<List<DeliveryPartner>> = callbackFlow {
         val col = firestore.collection("delivery_partners")
         val listener = col
@@ -65,59 +66,30 @@ class StoreOperationsRepositoryImpl @Inject constructor(
                         createdAt = (d["createdAt"] as? Number)?.toLong() ?: 0L
                     )
                 } ?: emptyList()
-
-                // Merge defaults so staff always see common couriers even before seed
-                val names = linkedSetOf<String>()
-                val merged = mutableListOf<DeliveryPartner>()
-                DeliveryPartnerDefaults.ALL.forEach { def ->
-                    if (names.add(def.lowercase())) {
-                        val existing = fromDb.find { it.name.equals(def, ignoreCase = true) }
-                        merged.add(existing ?: DeliveryPartner(id = "default_${def.lowercase()}", name = def, createdAt = 0L))
-                    }
-                }
-                fromDb.forEach { p ->
-                    if (names.add(p.name.lowercase())) merged.add(p)
-                }
-                trySend(merged.sortedBy { it.name.lowercase() })
+                trySend(fromDb.sortedBy { it.name.lowercase() })
             }
         awaitClose { listener.remove() }
     }
 
-    override fun addDeliveryPartner(name: String): Flow<Resource<DeliveryPartner>> = flow {
-        emit(Resource.Loading())
-        try {
-            val trimmed = name.trim()
-            if (trimmed.isBlank()) {
-                emit(Resource.Error("Enter a partner name"))
-                return@flow
-            }
-            val existing = firestore.collection("delivery_partners")
-                .get()
-                .await()
-                .documents
-                .any {
-                    (it.getString("name") ?: "").equals(trimmed, ignoreCase = true)
-                }
-            if (existing || DeliveryPartnerDefaults.ALL.any { it.equals(trimmed, ignoreCase = true) }) {
-                emit(Resource.Success(DeliveryPartner(name = trimmed)))
-                return@flow
-            }
-            val partner = DeliveryPartner(id = UUID.randomUUID().toString(), name = trimmed)
-            firestore.collection("delivery_partners").document(partner.id)
-                .set(
-                    mapOf(
-                        "id" to partner.id,
-                        "name" to partner.name,
-                        "createdAt" to partner.createdAt
+    /** Admin-managed list only — live sync from Firestore `marketplace_companies`. */
+    override fun getMarketplaceCompanies(): Flow<List<MarketplaceCompany>> = callbackFlow {
+        val col = firestore.collection("marketplace_companies")
+        val listener = col
+            .orderBy("name", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, _ ->
+                val fromDb = snapshot?.documents?.mapNotNull { doc ->
+                    val d = doc.data ?: return@mapNotNull null
+                    val name = (d["name"] as? String)?.trim().orEmpty()
+                    if (name.isBlank()) return@mapNotNull null
+                    MarketplaceCompany(
+                        id = d["id"] as? String ?: doc.id,
+                        name = name,
+                        createdAt = (d["createdAt"] as? Number)?.toLong() ?: 0L
                     )
-                )
-                .await()
-            emit(Resource.Success(partner))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to add partner"))
-        }
+                } ?: emptyList()
+                trySend(fromDb.sortedBy { it.name.lowercase() })
+            }
+        awaitClose { listener.remove() }
     }
 
     override fun recordPickup(record: PickupRecord): Flow<Resource<Unit>> = flow {

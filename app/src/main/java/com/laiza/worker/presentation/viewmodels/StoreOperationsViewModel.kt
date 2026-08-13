@@ -31,21 +31,9 @@ class StoreOperationsViewModel @Inject constructor(
         storeOperationsRepository.getDeliveryPartners()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    fun addDeliveryPartner(
-        name: String,
-        onSuccess: (DeliveryPartner) -> Unit,
-        onError: (String) -> Unit
-    ) {
-        viewModelScope.launch {
-            storeOperationsRepository.addDeliveryPartner(name).collect { res ->
-                when (res) {
-                    is Resource.Success -> onSuccess(res.data!!)
-                    is Resource.Error -> onError(res.message ?: "Failed to add partner")
-                    else -> {}
-                }
-            }
-        }
-    }
+    val marketplaceCompanies: StateFlow<List<MarketplaceCompany>> =
+        storeOperationsRepository.getMarketplaceCompanies()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     fun recordPickup(
         clarisQuantity: Int,
@@ -63,11 +51,11 @@ class StoreOperationsViewModel @Inject constructor(
                 return@launch
             }
             if (platform.isBlank()) {
-                onError("Select a company (Amazon, Flipkart…)")
+                onError("Select a company")
                 return@launch
             }
             if (deliveryPartner.isBlank()) {
-                onError("Select or add a delivery partner")
+                onError("Select a delivery partner")
                 return@launch
             }
             val session = sessionManager.userSession.firstOrNull()
@@ -111,11 +99,11 @@ class StoreOperationsViewModel @Inject constructor(
                 return@launch
             }
             if (platform.isBlank()) {
-                onError("Select a company (Amazon, Flipkart…)")
+                onError("Select a company")
                 return@launch
             }
             if (deliveryPartner.isBlank()) {
-                onError("Select or add a delivery partner")
+                onError("Select a delivery partner")
                 return@launch
             }
             val session = sessionManager.userSession.firstOrNull()
@@ -124,7 +112,7 @@ class StoreOperationsViewModel @Inject constructor(
                 quantity = claris + bliss,
                 clarisQuantity = claris,
                 blissQuantity = bliss,
-                partner = platform.trim().ifBlank { EcommercePlatform.FLIPKART },
+                partner = platform.trim(),
                 deliveryPartner = DeliveryPartnerDefaults.normalize(deliveryPartner.trim()),
                 returnType = returnType,
                 staffId = session?.phone ?: "",

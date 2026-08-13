@@ -108,7 +108,14 @@ object OwnerQty {
     }
 }
 
-/** Marketplace / e-commerce platforms staff hand off to. */
+/** Marketplace / company — admin-managed in Firestore `marketplace_companies`. */
+data class MarketplaceCompany(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+/** Legacy name normalization for marketplace / company fields on records. */
 object EcommercePlatform {
     const val FLIPKART = "Flipkart"
     const val MYNTRA = "Myntra"
@@ -119,12 +126,8 @@ object EcommercePlatform {
     const val NYKAA = "Nykaa"
     const val OTHER = "Other"
 
-    val DEFAULTS = listOf(
-        AMAZON, FLIPKART, MYNTRA, MEESHO, SNAPDEAL, AJIO, NYKAA, OTHER
-    )
-
     fun normalize(value: String?): String {
-        if (value.isNullOrBlank()) return FLIPKART
+        if (value.isNullOrBlank()) return ""
         // Legacy enum names stored as FLIPKART / AMAZON
         return when (value.trim().uppercase()) {
             "FLIPKART" -> FLIPKART
@@ -140,7 +143,7 @@ object EcommercePlatform {
     }
 }
 
-/** Built-in courier suggestions; staff can also add custom ones to Firestore. */
+/** Legacy name normalization + platform hints. Live partner list is admin-managed in Firestore. */
 object DeliveryPartnerDefaults {
     const val AMAZON_DELIVERY = "Amazon Delivery"
     const val EKART = "eKart"

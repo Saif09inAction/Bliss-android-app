@@ -25,9 +25,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.laiza.worker.domain.models.EcommercePlatform
 import com.laiza.worker.domain.models.PickupRecord
-import com.laiza.worker.domain.models.PlatformDeliveryPartners
 import com.laiza.worker.domain.models.ReturnRecord
 import com.laiza.worker.domain.models.ReturnType
 import com.laiza.worker.presentation.components.CustomTextField
@@ -133,7 +131,6 @@ fun StaffDispatchScreen(
             viewModel = viewModel,
             title = "Record Pickup",
             confirmText = "Confirm Pickup",
-            defaultPlatform = EcommercePlatform.AMAZON,
             onDismiss = { showPickupDialog = false },
             onConfirm = { clarisQty, blissQty, platform, courier ->
                 viewModel.recordPickup(
@@ -389,10 +386,8 @@ private fun HistoryChip(text: String) {
 }
 
 /**
- * Shared Quantity → Marketplace → Delivery-partner form used for Pickup.
- * The delivery-partner dropdown only shows couriers relevant to the chosen
- * marketplace (e.g. Amazon only shows Amazon's couriers, Flipkart only shows
- * Flipkart's, and so on) — see [PlatformDeliveryPartners].
+ * Shared Quantity → Company → Delivery-partner form used for Pickup.
+ * Company and partners come from admin-managed Firestore lists (read-only here).
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -400,30 +395,28 @@ private fun DispatchDetailsDialog(
     viewModel: StoreOperationsViewModel,
     title: String,
     confirmText: String,
-    defaultPlatform: String,
     onDismiss: () -> Unit,
     onConfirm: (clarisQty: Int, blissQty: Int, platform: String, courier: String) -> Unit
 ) {
-    val context = LocalContext.current
     val partners by viewModel.deliveryPartners.collectAsState()
+    val companies by viewModel.marketplaceCompanies.collectAsState()
 
     var clarisQty by remember { mutableStateOf("") }
     var blissQty by remember { mutableStateOf("") }
-    var platform by remember { mutableStateOf(defaultPlatform) }
+    var platform by remember { mutableStateOf("") }
     var courier by remember { mutableStateOf("") }
-    var platformExpanded by remember { mutableStateOf(false) }
-    var showAddCourier by remember { mutableStateOf(false) }
-    var newCourierName by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
     var submitting by remember { mutableStateOf(false) }
 
-    val relevantCouriers = remember(partners, platform) {
-        partners.filter { PlatformDeliveryPartners.isRelevant(it.name, platform) }
-    }
-    val courierNames = remember(relevantCouriers) { relevantCouriers.map { it.name } }
+    val companyNames = remember(companies) { companies.map { it.name } }
+    val courierNames = remember(partners) { partners.map { it.name } }
 
-    // Drop a previously picked courier if it isn't relevant to the newly selected platform.
-    LaunchedEffect(platform) {
+    LaunchedEffect(companyNames) {
+        if (platform.isNotBlank() && companyNames.none { it.equals(platform, ignoreCase = true) }) {
+            platform = ""
+        }
+    }
+    LaunchedEffect(courierNames) {
         if (courier.isNotBlank() && courierNames.none { it.equals(courier, ignoreCase = true) }) {
             courier = ""
         }
@@ -469,35 +462,14 @@ private fun DispatchDetailsDialog(
                 }
 
                 Text("Company", fontWeight = FontWeight.SemiBold)
-                ExposedDropdownMenuBox(
-                    expanded = platformExpanded,
-                    onExpandedChange = { platformExpanded = it }
-                ) {
-                    OutlinedTextField(
-                        value = platform,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Company") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(platformExpanded) },
-                        modifier = Modifier
-                            .menuAnchor()
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = platformExpanded,
-                        onDismissRequest = { platformExpanded = false }
-                    ) {
-                        EcommercePlatform.DEFAULTS.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option) },
-                                onClick = {
-                                    platform = option
-                                    platformExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
+                SearchablePickerField(
+                    selected = platform,
+                    onSelected = { platform = it },
+                    options = companyNames,
+                    label = "Company",
+                    placeholder = "Search or pick company",
+                    emptyText = "No companies yet — ask admin to add"
+                )
 
                 Text("Delivery partner", fontWeight = FontWeight.SemiBold)
                 SearchablePickerField(
@@ -506,12 +478,7 @@ private fun DispatchDetailsDialog(
                     options = courierNames,
                     label = "Courier",
                     placeholder = "Search or pick courier",
-                    emptyText = "No couriers for $platform",
-                    addNewLabel = "+ Add new partner",
-                    onAddNew = {
-                        newCourierName = ""
-                        showAddCourier = true
-                    }
+                    emptyText = "No partners yet — ask admin to add"
                 )
 
                 validationError?.let {
@@ -549,40 +516,6 @@ private fun DispatchDetailsDialog(
             TextButton(onClick = onDismiss, enabled = !submitting) { Text("Cancel") }
         }
     )
-
-    if (showAddCourier) {
-        AlertDialog(
-            onDismissRequest = { showAddCourier = false },
-            title = { Text("Add delivery partner") },
-            text = {
-                CustomTextField(
-                    value = newCourierName,
-                    onValueChange = { newCourierName = it },
-                    label = "Partner name"
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.addDeliveryPartner(
-                            name = newCourierName,
-                            onSuccess = { added ->
-                                courier = added.name
-                                showAddCourier = false
-                                Toast.makeText(context, "${added.name} added", Toast.LENGTH_SHORT).show()
-                            },
-                            onError = { msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    }
-                ) { Text("Add") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddCourier = false }) { Text("Cancel") }
-            }
-        )
-    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -592,26 +525,26 @@ private fun ReturnOperationDialog(
     onDismiss: () -> Unit,
     onConfirm: (clarisQty: Int, blissQty: Int, platform: String, courier: String, returnType: ReturnType, notes: String?) -> Unit
 ) {
-    val context = LocalContext.current
     val partners by viewModel.deliveryPartners.collectAsState()
+    val companies by viewModel.marketplaceCompanies.collectAsState()
 
     var clarisQty by remember { mutableStateOf("") }
     var blissQty by remember { mutableStateOf("") }
-    var platform by remember { mutableStateOf(EcommercePlatform.FLIPKART) }
-    var platformExpanded by remember { mutableStateOf(false) }
+    var platform by remember { mutableStateOf("") }
     var courier by remember { mutableStateOf("") }
     var selectedReturnType by remember { mutableStateOf(ReturnType.RTO) }
     var notes by remember { mutableStateOf("") }
     var validationError by remember { mutableStateOf<String?>(null) }
-    var showAddCourier by remember { mutableStateOf(false) }
-    var newCourierName by remember { mutableStateOf("") }
 
-    val relevantCouriers = remember(partners, platform) {
-        partners.filter { PlatformDeliveryPartners.isRelevant(it.name, platform) }
+    val companyNames = remember(companies) { companies.map { it.name } }
+    val courierNames = remember(partners) { partners.map { it.name } }
+
+    LaunchedEffect(companyNames) {
+        if (platform.isNotBlank() && companyNames.none { it.equals(platform, ignoreCase = true) }) {
+            platform = ""
+        }
     }
-    val courierNames = remember(relevantCouriers) { relevantCouriers.map { it.name } }
-
-    LaunchedEffect(platform) {
+    LaunchedEffect(courierNames) {
         if (courier.isNotBlank() && courierNames.none { it.equals(courier, ignoreCase = true) }) {
             courier = ""
         }
@@ -654,24 +587,14 @@ private fun ReturnOperationDialog(
                 }
 
                 Text("Company", fontWeight = FontWeight.SemiBold)
-                ExposedDropdownMenuBox(expanded = platformExpanded, onExpandedChange = { platformExpanded = it }) {
-                    OutlinedTextField(
-                        value = platform,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Company") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(platformExpanded) },
-                        modifier = Modifier.menuAnchor().fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(expanded = platformExpanded, onDismissRequest = { platformExpanded = false }) {
-                        EcommercePlatform.DEFAULTS.forEach { option ->
-                            DropdownMenuItem(
-                                text = { Text(option) },
-                                onClick = { platform = option; platformExpanded = false }
-                            )
-                        }
-                    }
-                }
+                SearchablePickerField(
+                    selected = platform,
+                    onSelected = { platform = it },
+                    options = companyNames,
+                    label = "Company",
+                    placeholder = "Search or pick company",
+                    emptyText = "No companies yet — ask admin to add"
+                )
 
                 Text("Delivery partner", fontWeight = FontWeight.SemiBold)
                 SearchablePickerField(
@@ -680,12 +603,7 @@ private fun ReturnOperationDialog(
                     options = courierNames,
                     label = "Courier",
                     placeholder = "Search or pick courier",
-                    emptyText = "No couriers for $platform",
-                    addNewLabel = "+ Add new partner",
-                    onAddNew = {
-                        newCourierName = ""
-                        showAddCourier = true
-                    }
+                    emptyText = "No partners yet — ask admin to add"
                 )
 
                 Text("Return type", fontWeight = FontWeight.SemiBold)
@@ -735,38 +653,4 @@ private fun ReturnOperationDialog(
             TextButton(onClick = onDismiss) { Text("Cancel") }
         }
     )
-
-    if (showAddCourier) {
-        AlertDialog(
-            onDismissRequest = { showAddCourier = false },
-            title = { Text("Add delivery partner") },
-            text = {
-                CustomTextField(
-                    value = newCourierName,
-                    onValueChange = { newCourierName = it },
-                    label = "Partner name"
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.addDeliveryPartner(
-                            name = newCourierName,
-                            onSuccess = { added ->
-                                courier = added.name
-                                showAddCourier = false
-                                Toast.makeText(context, "${added.name} added", Toast.LENGTH_SHORT).show()
-                            },
-                            onError = { msg ->
-                                Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
-                            }
-                        )
-                    }
-                ) { Text("Add") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showAddCourier = false }) { Text("Cancel") }
-            }
-        )
-    }
 }
