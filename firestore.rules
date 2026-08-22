@@ -111,6 +111,14 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------------------
+    // Raw Material Billing
+    // Admin web: full CRUD for raw material bills and history
+    // -------------------------------------------------------------------------
+    match /raw_material_bills/{billId} {
+      allow read, write: if true;
+    }
+
+    // -------------------------------------------------------------------------
     // Bill Report — supplier ledgers under Claris / Bliss
     // -------------------------------------------------------------------------
     match /bill_companies/{companyId} {
