@@ -39,6 +39,7 @@ import com.laiza.worker.presentation.viewmodels.EmployeeViewModel
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import com.laiza.worker.core.utils.DateFormatter
+import com.laiza.worker.core.utils.formatIndianRupee
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -483,7 +484,7 @@ fun OverviewTabContent(
                         Column {
                             Text(text = "$currentMonthName Payout", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(text = "₹${currentMonthPaid.toInt()} Paid", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                            Text(text = "${formatIndianRupee(currentMonthPaid)} Paid", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
                         }
 
                         Column(horizontalAlignment = Alignment.End) {
@@ -492,7 +493,7 @@ fun OverviewTabContent(
                             if (isPaidThisMonth) {
                                 M3StatusChip(status = "FULLY PAID")
                             } else {
-                                M3StatusChip(status = "₹${currentMonthPending.toInt()} REMAINING")
+                                M3StatusChip(status = "${formatIndianRupee(currentMonthPending)} REMAINING")
                             }
                         }
                     }
@@ -530,7 +531,7 @@ fun OverviewTabContent(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(text = "Kharcha Balance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text(text = "₹${advanceRemaining.toInt()}", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = if (advanceRemaining > 0) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                        Text(text = formatIndianRupee(advanceRemaining), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold, color = if (advanceRemaining > 0) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(text = "Repaid via deductions", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f))
                     }
@@ -556,7 +557,7 @@ fun OverviewTabContent(
                     Column {
                         Text(text = "All-Time Earnings Paid", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = "₹${totalPaid.toInt()}", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
+                        Text(text = formatIndianRupee(totalPaid), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.ExtraBold)
                     }
                     Icon(imageVector = Icons.Default.Wallet, contentDescription = null, tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f), modifier = Modifier.size(36.dp))
                 }
@@ -719,7 +720,7 @@ fun SalaryTabContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "Base Monthly Payout", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "₹${emp.monthlySalary.toInt()}", fontWeight = FontWeight.Bold)
+                        Text(text = formatIndianRupee(emp.monthlySalary), fontWeight = FontWeight.Bold)
                     }
 
                     Row(
@@ -727,7 +728,7 @@ fun SalaryTabContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "Paid this Month", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "₹${currentMonthPaid.toInt()}", fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
+                        Text(text = formatIndianRupee(currentMonthPaid), fontWeight = FontWeight.Bold, color = Color(0xFF10B981))
                     }
 
                     Row(
@@ -735,7 +736,7 @@ fun SalaryTabContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "Outstanding Kharcha", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(text = "₹${advanceRemaining.toInt()}", fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
+                        Text(text = formatIndianRupee(advanceRemaining), fontWeight = FontWeight.Bold, color = Color(0xFFF59E0B))
                     }
 
                     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
@@ -745,7 +746,7 @@ fun SalaryTabContent(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(text = "Pending Payout", fontWeight = FontWeight.Bold)
-                        Text(text = "₹${currentMonthPending.toInt()}", fontWeight = FontWeight.ExtraBold, color = if (currentMonthPending > 0) MaterialTheme.colorScheme.error else Color(0xFF10B981))
+                        Text(text = formatIndianRupee(currentMonthPending), fontWeight = FontWeight.ExtraBold, color = if (currentMonthPending > 0) MaterialTheme.colorScheme.error else Color(0xFF10B981))
                     }
                 }
             }
@@ -850,7 +851,7 @@ fun PaymentItemRow(transaction: PaymentTransaction) {
 
             Column(horizontalAlignment = Alignment.End) {
                 Text(
-                    text = "${if (transaction.type == PaymentType.DEDUCTION) "-" else "+"}₹${transaction.amount.toInt()}",
+                    text = "${if (transaction.type == PaymentType.DEDUCTION) "-" else "+"}${formatIndianRupee(transaction.amount)}",
                     fontWeight = FontWeight.ExtraBold,
                     color = accentColor,
                     fontSize = 16.sp

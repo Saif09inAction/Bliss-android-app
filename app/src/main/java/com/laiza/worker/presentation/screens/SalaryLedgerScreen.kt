@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.domain.models.PaymentTransaction
 import com.laiza.worker.domain.models.PaymentType
 import com.laiza.worker.presentation.viewmodels.SalaryViewModel
+import com.laiza.worker.core.utils.formatIndianRupee
 
 @Composable
 fun SalaryLedgerScreen(
@@ -139,7 +140,7 @@ fun SalarySummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "₹${salaryRemaining.toInt()}",
+                        text = formatIndianRupee(salaryRemaining),
                         fontSize = 32.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -150,7 +151,7 @@ fun SalarySummaryCard(
                     shape = RoundedCornerShape(100.dp)
                 ) {
                     Text(
-                        text = "Contract: ₹${monthlySalary.toInt()}/mo",
+                        text = "Contract: ${formatIndianRupee(monthlySalary)}/mo",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = Color.White,
@@ -176,7 +177,7 @@ fun SalarySummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "₹${salaryReceived.toInt()}",
+                        text = formatIndianRupee(salaryReceived),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -190,7 +191,7 @@ fun SalarySummaryCard(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "₹${advanceTaken.toInt()}",
+                        text = formatIndianRupee(advanceTaken),
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.secondary
@@ -254,7 +255,7 @@ fun LedgerItemCard(transaction: PaymentTransaction) {
             }
 
             Text(
-                text = "₹${transaction.amount.toInt()}",
+                text = formatIndianRupee(transaction.amount),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (transaction.type == PaymentType.SALARY_PAYMENT) Color(0xFF2E7D32) else Color(0xFFE65100)

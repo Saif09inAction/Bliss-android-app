@@ -80,8 +80,8 @@
     <string name="kaariger_bill_add">ADD</string>
     <string name="kaariger_bill_remaining_equation">%1$s (पहले) + %2$s (ADD) − %3$s (खर्चा) = %4$s</string>
     <string name="kaariger_pcs">%1$d पीस</string>
-    <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/पीस)</string>
-    <string name="kaariger_deal_total">₹%1$d</string>
+    <string name="kaariger_deal_per_piece">%1$s (%2$s/पीस)</string>
+    <string name="kaariger_deal_total">%1$s</string>
     <string name="kaariger_submit_dialog_title">पीस भेजो</string>
     <string name="kaariger_submit_dialog_hint">ज़्यादा से ज़्यादा %1$d पीस भेज सकते हो। स्टाफ चेक करेगा।</string>
     <string name="kaariger_submit_dialog_progress">पहले से OK: %1$d / %2$d</string>
@@ -191,8 +191,8 @@
     <string name="receipt_verified_on">चेक तारीख</string>
     <string name="receipt_verified_by">चेक किया</string>
     <string name="receipt_total_deal">कुल रकम</string>
-    <string name="receipt_deal_per_piece">₹%1$d (₹%2$d/पीस)</string>
-    <string name="receipt_deal_total">₹%1$d</string>
+    <string name="receipt_deal_per_piece">%1$s (%2$s/पीस)</string>
+    <string name="receipt_deal_total">%1$s</string>
     <string name="receipt_advance_paid">पैसे मिले</string>
     <string name="receipt_balance_due">बाकी पैसे</string>
     <string name="receipt_payment_history">पैसे मिले — लिस्ट</string>

@@ -66,9 +66,13 @@ fun KaarigerOrderDetailSheet(
             DetailRow(
                 stringResource(R.string.kaariger_detail_deal),
                 if (order.pricingType.name == "PER_PIECE")
-                    stringResource(R.string.kaariger_deal_per_piece, order.totalDealAmount.toInt(), order.pricePerPiece?.toInt() ?: 0)
+                    stringResource(
+                        R.string.kaariger_deal_per_piece,
+                        rupees(order.totalDealAmount),
+                        rupees(order.pricePerPiece ?: 0.0)
+                    )
                 else
-                    stringResource(R.string.kaariger_deal_total, order.totalDealAmount.toInt())
+                    stringResource(R.string.kaariger_deal_total, rupees(order.totalDealAmount))
             )
             order.notes?.takeIf { it.isNotBlank() }?.let { DetailRow(stringResource(R.string.kaariger_detail_notes), it) }
 

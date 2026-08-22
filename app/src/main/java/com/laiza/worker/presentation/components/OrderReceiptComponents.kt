@@ -32,6 +32,7 @@ import com.laiza.worker.core.theme.BlissGreen
 import com.laiza.worker.core.theme.BlissGreenDark
 import com.laiza.worker.core.utils.OrderReceiptImageHelper
 import com.laiza.worker.core.utils.DateFormatter
+import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderPricingType
 import com.laiza.worker.domain.models.OrderReceiptData
@@ -45,7 +46,7 @@ private fun formatPaymentDateTime(date: String, time: String): String {
     }
 }
 
-private fun formatRupee(amount: Double): String = "₹${amount.toInt()}"
+private fun formatRupee(amount: Double): String = formatIndianRupee(amount)
 
 @Composable
 fun OrderReceiptCard(
@@ -117,11 +118,11 @@ fun OrderReceiptCard(
                 val dealLabel = if (data.pricingType == OrderPricingType.PER_PIECE) {
                     stringResource(
                         R.string.receipt_deal_per_piece,
-                        data.totalDealAmount.toInt(),
-                        data.pricePerPiece?.toInt() ?: 0
+                        formatRupee(data.totalDealAmount),
+                        formatRupee(data.pricePerPiece ?: 0.0)
                     )
                 } else {
-                    stringResource(R.string.receipt_deal_total, data.totalDealAmount.toInt())
+                    stringResource(R.string.receipt_deal_total, formatRupee(data.totalDealAmount))
                 }
                 ReceiptRow(stringResource(R.string.receipt_total_deal), dealLabel)
                 ReceiptRow(stringResource(R.string.receipt_advance_paid), formatRupee(data.totalPaid))

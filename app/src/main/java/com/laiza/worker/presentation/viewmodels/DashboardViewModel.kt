@@ -10,6 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import com.laiza.worker.core.utils.DateFormatter
+import com.laiza.worker.core.utils.formatIndianRupee
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -73,7 +74,7 @@ class DashboardViewModel @Inject constructor(
                         val lakhs = sum / 100000.0
                         String.format(Locale.getDefault(), "₹%.1fL", lakhs)
                     } else {
-                        "₹${sum.toInt()}"
+                        formatIndianRupee(sum)
                     }
                 }
             }

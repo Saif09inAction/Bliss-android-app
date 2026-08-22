@@ -118,8 +118,8 @@
     <string name="kaariger_bill_add">ADD</string>
     <string name="kaariger_bill_remaining_equation">%1$s (before) + %2$s (ADD) − %3$s (kharcha) = %4$s</string>
     <string name="kaariger_pcs">%1$d pcs</string>
-    <string name="kaariger_deal_per_piece">₹%1$d (₹%2$d/pc)</string>
-    <string name="kaariger_deal_total">₹%1$d</string>
+    <string name="kaariger_deal_per_piece">%1$s (%2$s/pc)</string>
+    <string name="kaariger_deal_total">%1$s</string>
     <string name="kaariger_submit_dialog_title">Piece bhejo</string>
     <string name="kaariger_submit_dialog_hint">Zyada se zyada %1$d piece bhej sakte ho. Staff check karega.</string>
     <string name="kaariger_submit_dialog_progress">Pehle se OK: %1$d / %2$d</string>
@@ -230,8 +230,8 @@
     <string name="receipt_verified_on">Verified On</string>
     <string name="receipt_verified_by">Verified By</string>
     <string name="receipt_total_deal">Total Deal</string>
-    <string name="receipt_deal_per_piece">₹%1$d (₹%2$d/pc)</string>
-    <string name="receipt_deal_total">₹%1$d</string>
+    <string name="receipt_deal_per_piece">%1$s (%2$s/pc)</string>
+    <string name="receipt_deal_total">%1$s</string>
     <string name="receipt_advance_paid">Kharcha Paid</string>
     <string name="receipt_balance_due">Balance Due</string>
     <string name="receipt_payment_history">Payment History</string>
