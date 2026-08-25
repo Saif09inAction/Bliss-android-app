@@ -157,6 +157,7 @@ class PaymentRepositoryImpl @Inject constructor(
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val attList = fetchAttendanceFromFirestore(employeeId)
+                attendanceDao.deleteAttendanceForEmployee(employeeId)
                 for (att in attList) {
                     attendanceDao.insertAttendance(AttendanceEntity.fromDomain(att))
                 }
@@ -183,14 +184,17 @@ class PaymentRepositoryImpl @Inject constructor(
             val attendanceList = attendanceEntities.map { it.toDomain() }
             val periodAttendance = attendanceList.filter { it.date >= payPeriod.start && it.date <= todayStr }
 
-            var earnedSalary = 0.0
+            var grossEarned = 0.0
             for (att in periodAttendance) {
                 val hasPunch = !att.signInTime.isNullOrBlank()
                 if (!hasPunch) continue
 
                 val dayFactor = if (att.status.name == "HALF_DAY") 0.5 else 1.0
-                earnedSalary += perDayRate * dayFactor
+                val dayGross = kotlin.math.round(perDayRate * dayFactor * 100.0) / 100.0
+                grossEarned += dayGross
             }
+
+            val earnedSalary = kotlin.math.round(grossEarned * 100.0) / 100.0
 
             var salaryReceived = 0.0
             var advanceTaken = 0.0
@@ -207,7 +211,8 @@ class PaymentRepositoryImpl @Inject constructor(
                 }
             }
 
-            val salaryRemaining = earnedSalary + extraPayments - salaryReceived - advanceTaken - deductions
+            val rawSalaryRemaining = earnedSalary + extraPayments - salaryReceived - advanceTaken - deductions
+            val salaryRemaining = kotlin.math.round(rawSalaryRemaining * 100.0) / 100.0
 
             SalaryBalanceSheet(
                 employeeId = employeeId,
