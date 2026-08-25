@@ -253,11 +253,36 @@ fun AttendancePreviewScreen(
                             }
                         }
                         is GPSState.Error -> {
-                            Text(
-                                text = state.message,
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.error
-                            )
+                            Column(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = state.message,
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.getDeviceLocation() },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Retry Location", fontSize = 12.sp)
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            try {
+                                                val intent = android.content.Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                                                context.startActivity(intent)
+                                            } catch (e: Exception) {
+                                                val intent = android.content.Intent(android.provider.Settings.ACTION_SETTINGS)
+                                                context.startActivity(intent)
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text("Turn On GPS", fontSize = 12.sp)
+                                    }
+                                }
+                            }
                         }
                         is GPSState.Success -> {
                             MetadataRow(
