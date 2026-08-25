@@ -25,6 +25,7 @@ import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
+import com.laiza.worker.domain.models.OrderRepair
 
 private val Amber = Color(0xFFB45309)
 private val Jade = Color(0xFF047857)
@@ -38,6 +39,7 @@ private val ExtraRed = Color(0xFFB91C1C)
 fun KaarigerPreviousHisaabPanel(
     order: KaarigerOrder,
     payments: List<KaarigerOrderPayment>,
+    repairs: List<OrderRepair>? = emptyList(),
     modifier: Modifier = Modifier,
     showHeader: Boolean = true
 ) {
@@ -53,9 +55,14 @@ fun KaarigerPreviousHisaabPanel(
     val box = budget - order.kharchaCarryIn - paidCash
     val productsTotal = if (order.productsTotal > 0) order.productsTotal
     else order.originalDealAmount ?: order.totalDealAmount
+
+    val orderRepairs = remember(repairs, order.id) {
+        (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+    }
+    val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
+
     val add = order.addBalance
-        ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0) -
-            order.repairDeductionTotal.coerceAtLeast(0.0))
+        ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0) - repairTotal)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
         ?: ((order.closingAtCreation ?: 0.0) - add + budget).coerceAtLeast(0.0)
     val closing = order.closingAtCreation
@@ -95,6 +102,7 @@ fun KaarigerPreviousHisaabPanel(
                     add = add,
                     budget = budget,
                     closing = closing,
+                    repairs = repairs,
                     modifier = Modifier.weight(1f)
                 )
                 KharchaThatWeekColumn(
@@ -113,7 +121,8 @@ fun KaarigerPreviousHisaabPanel(
                 productsTotal = productsTotal,
                 add = add,
                 budget = budget,
-                closing = closing
+                closing = closing,
+                repairs = repairs
             )
             KharchaThatWeekColumn(
                 budget = budget,
@@ -134,8 +143,12 @@ private fun WeekBillColumn(
     add: Double,
     budget: Double,
     closing: Double,
+    repairs: List<OrderRepair>?,
     modifier: Modifier = Modifier
 ) {
+    val orderRepairs = remember(repairs, order.id) {
+        (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+    }
     Surface(
         shape = RoundedCornerShape(14.dp),
         color = Color(0xFFFFF7ED),
@@ -175,7 +188,14 @@ private fun WeekBillColumn(
                     Color(0xFFDC2626)
                 )
             }
-            if (order.repairDeductionTotal > 0) {
+            orderRepairs.forEach { r ->
+                PrevRow(
+                    stringResource(R.string.kaariger_previous_less, "Repairing - ${r.productName}"),
+                    "−${formatIndianRupee(r.totalRepairCost)}",
+                    Color(0xFFDC2626)
+                )
+            }
+            if (orderRepairs.isEmpty() && order.repairDeductionTotal > 0) {
                 PrevRow(
                     stringResource(
                         R.string.kaariger_previous_less,

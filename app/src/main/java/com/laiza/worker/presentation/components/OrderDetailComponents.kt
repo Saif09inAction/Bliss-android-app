@@ -21,6 +21,8 @@ import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
 
+import com.laiza.worker.domain.models.OrderRepair
+
 fun formatOrderDate(millis: Long?): String {
     if (millis == null || millis <= 0) return "—"
     return DateFormatter.formatEpochToDisplayDateTime(millis)
@@ -31,6 +33,7 @@ fun formatOrderDate(millis: Long?): String {
 fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
     payments: List<KaarigerOrderPayment> = emptyList(),
+    repairs: List<OrderRepair>? = emptyList(),
     onDismiss: () -> Unit,
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
@@ -99,11 +102,12 @@ fun KaarigerOrderDetailSheet(
                     KaarigerPreviousHisaabPanel(
                         order = order,
                         payments = orderPayments,
+                        repairs = repairs,
                         showHeader = true
                     )
                 } else {
-                    OrderHisaabBreakdown(order, orderPayments)
-                    GrandTotalBox(order, orderPayments)
+                    OrderHisaabBreakdown(order, orderPayments, repairs)
+                    GrandTotalBox(order, orderPayments, repairs)
                 }
             }
 
@@ -132,7 +136,11 @@ private fun DetailRow(label: String, value: String) {
 private fun rupees(amount: Double): String = formatIndianRupee(amount)
 
 @Composable
-private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<KaarigerOrderPayment>) {
+private fun OrderHisaabBreakdown(
+    order: KaarigerOrder,
+    orderPayments: List<KaarigerOrderPayment>,
+    repairs: List<OrderRepair>?
+) {
     val sortedPayments = remember(orderPayments) {
         orderPayments
             .filter { !isOpeningOrCreditPayment(it) }
@@ -162,7 +170,11 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
             }
             DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))
 
-            if (order.materialDeductions.isNotEmpty()) {
+            val orderRepairs = remember(repairs, order.id) {
+                (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+            }
+            val hasDeductions = order.materialDeductions.isNotEmpty() || orderRepairs.isNotEmpty() || order.repairDeductionTotal > 0
+            if (hasDeductions) {
                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                 Text(
                     stringResource(R.string.kaariger_detail_deductions),
@@ -179,12 +191,29 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
                         Text("−${rupees(it2.lineTotal)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
                     }
                 }
-                DetailRow(stringResource(R.string.kaariger_detail_deductions_total), "−${rupees(order.materialDeductionsTotal)}")
-            }
-
-            if (order.repairDeductionTotal > 0) {
-                Divider(modifier = Modifier.padding(vertical = 2.dp))
-                DetailRow(stringResource(R.string.kaariger_detail_repair_deduction), "−${rupees(order.repairDeductionTotal)}")
+                orderRepairs.forEach { r ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "Repairing - ${r.productName} · ${r.faultyQuantity} × ${rupees(r.faultyPricePerPiece)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("−${rupees(r.totalRepairCost)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                    }
+                }
+                if (orderRepairs.isEmpty() && order.repairDeductionTotal > 0) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(
+                            "Repairing",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text("−${rupees(order.repairDeductionTotal)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
+                    }
+                }
+                val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
+                val totalDeductions = order.materialDeductionsTotal.coerceAtLeast(0.0) + repairTotal
+                DetailRow(stringResource(R.string.kaariger_detail_deductions_total), "−${rupees(totalDeductions)}")
             }
 
             if (sortedPayments.isNotEmpty()) {
@@ -222,14 +251,21 @@ private fun OrderHisaabBreakdown(order: KaarigerOrder, orderPayments: List<Kaari
 @Composable
 private fun GrandTotalBox(
     order: KaarigerOrder,
-    orderPayments: List<KaarigerOrderPayment>
+    orderPayments: List<KaarigerOrderPayment>,
+    repairs: List<OrderRepair>?
 ) {
     val weekPays = orderPayments.filter { !isOpeningOrCreditPayment(it) }
     val paidCash = weekPays.sumOf { it.amount.coerceAtLeast(0.0) }
     val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
     val paidDisplay = paidCash + priorOverpay
+
+    val orderRepairs = remember(repairs, order.id) {
+        (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+    }
+    val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
     val net = order.addBalance
-        ?: (order.productsTotal - order.materialDeductionsTotal - order.repairDeductionTotal)
+        ?: (order.productsTotal - order.materialDeductionsTotal - repairTotal)
+
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
     val closing = order.closingAtCreation
@@ -252,42 +288,32 @@ private fun GrandTotalBox(
                 style = MaterialTheme.typography.titleMedium,
                 color = jade
             )
-            DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))
-            if (order.materialDeductionsTotal > 0) {
-                DetailRow(stringResource(R.string.kaariger_detail_deductions), "−${rupees(order.materialDeductionsTotal)}")
-            }
-            if (order.repairDeductionTotal > 0) {
-                DetailRow(stringResource(R.string.kaariger_detail_repair_deduction), "−${rupees(order.repairDeductionTotal)}")
-            }
-            Divider(modifier = Modifier.padding(vertical = 2.dp))
-            BoldRow(stringResource(R.string.kaariger_bill_add), rupees(net))
 
-            if (opening != null || closing != null || budget > 0.0) {
-                Divider(modifier = Modifier.padding(vertical = 2.dp))
-                Text(
-                    stringResource(R.string.kaariger_hisaab_week_bill_col),
-                    fontWeight = FontWeight.Bold,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = amber
-                )
-                if (opening != null) {
-                    DetailRow(stringResource(R.string.kaariger_hisaab_outstanding_before), rupees(opening))
-                }
-                DetailRow(stringResource(R.string.kaariger_bill_add), "+${rupees(net)}")
-                if (budget > 0.0) {
-                    DetailRow(
-                        stringResource(R.string.kaariger_hisaab_kharcha_on_bill),
-                        "−${rupees(budget)}"
-                    )
-                }
-                if (closing != null) {
-                    BoldRow(
-                        stringResource(R.string.kaariger_grand_total_remaining),
-                        rupees(closing),
-                        amber
-                    )
-                }
+            if (opening != null) {
+                DetailRow("Opening / running balance", rupees(opening))
+            } else {
+                DetailRow("Opening / running balance", rupees(0.0))
             }
+            DetailRow("MAAL (product cost)", rupees(order.productsTotal))
+
+            order.materialDeductions.forEach { d ->
+                DetailRow("Less: ${d.label}", "−${rupees(d.lineTotal)}")
+            }
+
+            orderRepairs.forEach { r ->
+                DetailRow("Less: Repairing - ${r.productName}", "−${rupees(r.totalRepairCost)}")
+            }
+            if (orderRepairs.isEmpty() && order.repairDeductionTotal > 0) {
+                DetailRow("Less: Repairing", "−${rupees(order.repairDeductionTotal)}")
+            }
+
+            Divider(modifier = Modifier.padding(vertical = 2.dp))
+            BoldRow("ADD BALANCE", rupees(net))
+            DetailRow("After ADD", rupees((opening ?: 0.0) + net))
+            if (budget > 0.0) {
+                DetailRow("Kharcha on bill", "−${rupees(budget)}")
+            }
+            BoldRow("Outstanding after create", rupees(closing ?: 0.0), amber)
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))
             Text(

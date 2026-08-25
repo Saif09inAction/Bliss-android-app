@@ -160,7 +160,8 @@ fun KaarigerHisaabScreen(
             previousBills.forEach { order ->
                 PreviousBillCard(
                     order = order,
-                    payments = payments.filter { it.orderId == order.id }
+                    payments = payments.filter { it.orderId == order.id },
+                    repairs = repairs
                 )
             }
         }
@@ -750,7 +751,8 @@ private fun MiniStat(label: String, value: String, modifier: Modifier = Modifier
 @Composable
 private fun PreviousBillCard(
     order: KaarigerOrder,
-    payments: List<KaarigerOrderPayment>
+    payments: List<KaarigerOrderPayment>,
+    repairs: List<OrderRepair>?
 ) {
     var expanded by remember(order.id) { mutableStateOf(false) }
     val week = order.displayWeekLabel()
@@ -805,6 +807,7 @@ private fun PreviousBillCard(
                 KaarigerPreviousHisaabPanel(
                     order = order,
                     payments = payments,
+                    repairs = repairs,
                     showHeader = false
                 )
             }
