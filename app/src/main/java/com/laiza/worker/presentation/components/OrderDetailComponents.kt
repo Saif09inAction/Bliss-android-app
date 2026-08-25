@@ -63,11 +63,6 @@ fun KaarigerOrderDetailSheet(
                     )
                 }
             }
-            Text(
-                text = "Debug -> Total: ${repairs?.size}, Approved: ${repairs?.filter { it.isApproved }?.size}, Standalone: ${repairs?.filter { it.isStandalone }?.size}, Raw: ${repairs?.map { "id=${it.id.take(4)} oId=${it.orderId.take(4)} app=${it.isApproved}" }}",
-                color = androidx.compose.ui.graphics.Color.Red,
-                style = MaterialTheme.typography.bodySmall
-            )
             DetailRow(stringResource(R.string.kaariger_detail_received_on), formatOrderDate(order.createdAt).ifBlank { emDash })
             if (order.color.isNotBlank()) DetailRow(stringResource(R.string.kaariger_detail_color), order.color)
             DetailRow(
