@@ -267,7 +267,7 @@ internal fun buildKaarigerHisaabSummary(
     creditBalance: Double,
     orders: List<KaarigerOrder>,
     payments: List<KaarigerOrderPayment>,
-    repairs: List<OrderRepair>
+    repairs: List<OrderRepair>?
 ): KaarigerHisaabSummary {
     val running = (openingBalance.coerceAtLeast(0.0) + oldKharcha.coerceAtLeast(0.0))
     val credit = creditBalance.coerceAtLeast(0.0)
@@ -278,7 +278,7 @@ internal fun buildKaarigerHisaabSummary(
         val orderPayments = payments.filter {
             it.orderId == order.id && !isOpeningPayment(it) && !isCreditPayment(it)
         }
-        val orderRepairs = repairs.filter { it.orderId == order.id && it.isApproved }
+        val orderRepairs = (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
         val paidCash = orderPayments.sumOf { it.amount }
         val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
         val productsTotal = if (order.productsTotal > 0) {
@@ -312,7 +312,7 @@ internal fun buildKaarigerHisaabSummary(
     val weekKharchaPaidCash = orderLines.sumOf { it.paidCash }
     val priorOverpayApplied = orderLines.sumOf { it.priorOverpay }
     val weekKharchaPaid = weekKharchaPaidCash + priorOverpayApplied
-    val standaloneRepair = repairs
+    val standaloneRepair = (repairs ?: emptyList())
         .filter { it.isStandalone && it.isApproved }
         .sumOf { it.totalRepairCost }
     val afterRepairs = (running - standaloneRepair).coerceAtLeast(0.0)
@@ -353,7 +353,7 @@ private fun buildRemainingLedgerLines(
     oldKharcha: Double,
     orders: List<KaarigerOrder>,
     payments: List<KaarigerOrderPayment>,
-    repairs: List<OrderRepair>,
+    repairs: List<OrderRepair>?,
     standaloneRepair: Double,
     creditApplied: Double,
     liveRemaining: Double
@@ -436,7 +436,7 @@ private fun buildRemainingLedgerLines(
         lines += line
     }
 
-    val approvedStandaloneRepairs = repairs.filter { it.isStandalone && it.isApproved }
+    val approvedStandaloneRepairs = (repairs ?: emptyList()).filter { it.isStandalone && it.isApproved }
     if (approvedStandaloneRepairs.isNotEmpty()) {
         approvedStandaloneRepairs.forEach { r ->
             remaining = (remaining - r.totalRepairCost).coerceAtLeast(0.0)
