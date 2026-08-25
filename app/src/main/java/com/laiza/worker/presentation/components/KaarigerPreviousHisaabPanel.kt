@@ -26,6 +26,7 @@ import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
+import com.laiza.worker.domain.models.OrderStatus
 
 private val Amber = Color(0xFFB45309)
 private val Jade = Color(0xFF047857)
@@ -56,8 +57,13 @@ fun KaarigerPreviousHisaabPanel(
     val productsTotal = if (order.productsTotal > 0) order.productsTotal
     else order.originalDealAmount ?: order.totalDealAmount
 
-    val orderRepairs = remember(repairs, order.id) {
-        (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+    val orderRepairs = remember(repairs, order.id, order.status) {
+        val list = repairs ?: emptyList()
+        if (order.status == OrderStatus.COMPLETED) {
+            list.filter { it.orderId == order.id && it.isApproved }
+        } else {
+            list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
+        }
     }
     val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
 

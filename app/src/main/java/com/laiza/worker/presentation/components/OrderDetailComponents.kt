@@ -170,8 +170,13 @@ private fun OrderHisaabBreakdown(
             }
             DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))
 
-            val orderRepairs = remember(repairs, order.id) {
-                (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+            val orderRepairs = remember(repairs, order.id, order.status) {
+                val list = repairs ?: emptyList()
+                if (order.status == OrderStatus.COMPLETED) {
+                    list.filter { it.orderId == order.id && it.isApproved }
+                } else {
+                    list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
+                }
             }
             val hasDeductions = order.materialDeductions.isNotEmpty() || orderRepairs.isNotEmpty() || order.repairDeductionTotal > 0
             if (hasDeductions) {
@@ -259,8 +264,13 @@ private fun GrandTotalBox(
     val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
     val paidDisplay = paidCash + priorOverpay
 
-    val orderRepairs = remember(repairs, order.id) {
-        (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+    val orderRepairs = remember(repairs, order.id, order.status) {
+        val list = repairs ?: emptyList()
+        if (order.status == OrderStatus.COMPLETED) {
+            list.filter { it.orderId == order.id && it.isApproved }
+        } else {
+            list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
+        }
     }
     val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
     val net = order.addBalance
