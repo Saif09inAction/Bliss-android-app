@@ -176,7 +176,7 @@
     <string name="kaariger_hisaab_week_bill_col">Week bill</string>
     <string name="kaariger_hisaab_kharcha_that_week">Kharcha that week</string>
     <string name="kaariger_hisaab_outstanding_before">Outstanding before</string>
-    <string name="kaariger_hisaab_outstanding_after">Outstanding after create</string>
+    <string name="kaariger_hisaab_outstanding_after">Total remaining balance</string>
     <string name="kaariger_hisaab_after_create">After create</string>
     <string name="kaariger_hisaab_kharcha_on_bill">Kharcha on bill</string>
     <string name="kaariger_hisaab_week_paid_left">Paid %1$s · box %2$s</string>

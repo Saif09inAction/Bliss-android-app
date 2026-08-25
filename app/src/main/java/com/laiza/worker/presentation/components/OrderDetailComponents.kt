@@ -328,7 +328,7 @@ private fun GrandTotalBox(
             if (budget > 0.0) {
                 DetailRow("Kharcha on bill", "−${rupees(budget)}")
             }
-            BoldRow("Outstanding after create", rupees(closing ?: 0.0), amber)
+            BoldRow(stringResource(R.string.kaariger_hisaab_outstanding_after), rupees(closing ?: 0.0), amber)
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))
             Text(

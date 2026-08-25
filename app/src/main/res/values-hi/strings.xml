@@ -138,7 +138,7 @@
     <string name="kaariger_hisaab_week_bill_col">हफ्ते का बिल</string>
     <string name="kaariger_hisaab_kharcha_that_week">उस हफ्ते का खर्चा</string>
     <string name="kaariger_hisaab_outstanding_before">पहले बाकी</string>
-    <string name="kaariger_hisaab_outstanding_after">बनाने के बाद बाकी</string>
+    <string name="kaariger_hisaab_outstanding_after">Total remaining balance</string>
     <string name="kaariger_hisaab_after_create">बनाने के बाद</string>
     <string name="kaariger_hisaab_kharcha_on_bill">बिल पर खर्चा</string>
     <string name="kaariger_hisaab_week_paid_left">Paid %1$s · बॉक्स %2$s</string>
