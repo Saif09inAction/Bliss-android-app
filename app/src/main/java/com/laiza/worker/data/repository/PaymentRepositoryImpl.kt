@@ -185,10 +185,11 @@ class PaymentRepositoryImpl @Inject constructor(
 
             var earnedSalary = 0.0
             for (att in periodAttendance) {
-                if (!att.signInTime.isNullOrBlank() || att.status.name != "ABSENT") {
-                    val dayFactor = if (att.status.name == "HALF_DAY") 0.5 else 1.0
-                    earnedSalary += perDayRate * dayFactor
-                }
+                val hasPunch = !att.signInTime.isNullOrBlank()
+                if (!hasPunch) continue
+
+                val dayFactor = if (att.status.name == "HALF_DAY") 0.5 else 1.0
+                earnedSalary += perDayRate * dayFactor
             }
 
             var salaryReceived = 0.0
