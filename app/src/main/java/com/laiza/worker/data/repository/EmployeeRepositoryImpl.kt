@@ -80,7 +80,8 @@ class EmployeeRepositoryImpl @Inject constructor(
                                 openingBalance = doc.getDouble("openingBalance") ?: 0.0,
                                 oldKharcha = doc.getDouble("oldKharcha") ?: 0.0,
                                 dailySignInTime = doc.getString("dailySignInTime") ?: "",
-                                dailySignOutTime = doc.getString("dailySignOutTime") ?: ""
+                                dailySignOutTime = doc.getString("dailySignOutTime") ?: "",
+                                salaryRemaining = doc.getDouble("salaryRemaining")
                             )
                             try {
                                 employeeDao.insertEmployee(EmployeeEntity.fromDomain(emp))
@@ -188,7 +189,8 @@ class EmployeeRepositoryImpl @Inject constructor(
                         openingBalance = doc.getDouble("openingBalance") ?: 0.0,
                         oldKharcha = doc.getDouble("oldKharcha") ?: 0.0,
                         dailySignInTime = doc.getString("dailySignInTime") ?: "",
-                        dailySignOutTime = doc.getString("dailySignOutTime") ?: ""
+                        dailySignOutTime = doc.getString("dailySignOutTime") ?: "",
+                        salaryRemaining = doc.getDouble("salaryRemaining")
                     )
                 }
                 continuation.resume(list)

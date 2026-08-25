@@ -126,25 +126,28 @@ class PaymentRepositoryImpl @Inject constructor(
     }
 
     private suspend fun fetchAttendanceFromFirestore(employeeId: String): List<Attendance> = suspendCancellableCoroutine { continuation ->
-        firestore.collection("attendance").whereEqualTo("employeeId", employeeId).get()
+        firestore.collection("attendance").get()
             .addOnSuccessListener { querySnapshot ->
-                val list = querySnapshot.map { doc ->
-                    Attendance(
-                        id = doc.getString("id") ?: doc.id,
-                        employeeId = doc.getString("employeeId") ?: "",
-                        date = doc.getString("date") ?: "",
-                        signInTime = doc.getString("signInTime"),
-                        signOutTime = doc.getString("signOutTime"),
-                        signInGps = doc.getString("signInGps"),
-                        signOutGps = doc.getString("signOutGps"),
-                        signInAddress = doc.getString("signInAddress"),
-                        signOutAddress = doc.getString("signOutAddress"),
-                        signInImageLocalPath = doc.getString("signInImageLocalPath"),
-                        signOutImageLocalPath = doc.getString("signOutImageLocalPath"),
-                        status = com.laiza.worker.domain.models.parseAttendanceStatus(doc.getString("status") ?: "ABSENT"),
-                        lateMinutes = (doc.getLong("lateMinutes") ?: 0L).toInt(),
-                        workingHours = doc.getDouble("workingHours") ?: 0.0
-                    )
+                val list = querySnapshot.mapNotNull { doc ->
+                    val empId = doc.getString("employeeId") ?: ""
+                    if (empId == employeeId || empId.endsWith(employeeId)) {
+                        Attendance(
+                            id = doc.getString("id") ?: doc.id,
+                            employeeId = empId,
+                            date = doc.getString("date") ?: "",
+                            signInTime = doc.getString("signInTime"),
+                            signOutTime = doc.getString("signOutTime"),
+                            signInGps = doc.getString("signInGps"),
+                            signOutGps = doc.getString("signOutGps"),
+                            signInAddress = doc.getString("signInAddress"),
+                            signOutAddress = doc.getString("signOutAddress"),
+                            signInImageLocalPath = doc.getString("signInImageLocalPath"),
+                            signOutImageLocalPath = doc.getString("signOutImageLocalPath"),
+                            status = com.laiza.worker.domain.models.parseAttendanceStatus(doc.getString("status") ?: "ABSENT"),
+                            lateMinutes = (doc.getLong("lateMinutes") ?: 0L).toInt(),
+                            workingHours = doc.getDouble("workingHours") ?: 0.0
+                        )
+                    } else null
                 }
                 continuation.resume(list)
             }
@@ -174,6 +177,20 @@ class PaymentRepositoryImpl @Inject constructor(
 
         return combine(employeeFlow, paymentsFlow, attendanceFlow) { employee, payments, attendanceEntities ->
             val baseMonthlySalary = employee?.monthlySalary ?: 0.0
+            
+            // Priority 1: Use admin-calculated salaryRemaining directly from Firestore employee document if present
+            if (employee?.salaryRemaining != null && employee.salaryRemaining >= 0.0) {
+                return@combine SalaryBalanceSheet(
+                    employeeId = employeeId,
+                    monthlySalary = baseMonthlySalary,
+                    salaryReceived = 0.0,
+                    salaryRemaining = employee.salaryRemaining,
+                    advanceTaken = 0.0,
+                    extraPayments = 0.0,
+                    pendingSalary = employee.salaryRemaining
+                )
+            }
+
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val joiningDateStr = employee?.joiningDate?.trim().takeIf { !it.isNullOrBlank() } ?: todayStr
 

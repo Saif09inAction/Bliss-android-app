@@ -20,7 +20,8 @@ data class Employee(
      * Attendance settings defaults.
      */
     val dailySignInTime: String = "",
-    val dailySignOutTime: String = ""
+    val dailySignOutTime: String = "",
+    val salaryRemaining: Double? = null
 )
 
 data class EmployeeExtraProfile(
