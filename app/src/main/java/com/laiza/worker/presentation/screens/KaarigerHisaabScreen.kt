@@ -325,6 +325,7 @@ internal fun buildKaarigerHisaabSummary(
         oldKharcha = oldKharcha.coerceAtLeast(0.0),
         orders = usable.sortedBy { it.createdAt },
         payments = payments,
+        repairs = repairs,
         standaloneRepair = standaloneRepair,
         creditApplied = creditApplied,
         liveRemaining = totalRemaining
@@ -352,6 +353,7 @@ private fun buildRemainingLedgerLines(
     oldKharcha: Double,
     orders: List<KaarigerOrder>,
     payments: List<KaarigerOrderPayment>,
+    repairs: List<OrderRepair>,
     standaloneRepair: Double,
     creditApplied: Double,
     liveRemaining: Double
@@ -434,7 +436,19 @@ private fun buildRemainingLedgerLines(
         lines += line
     }
 
-    if (standaloneRepair > 0.0) {
+    val approvedStandaloneRepairs = repairs.filter { it.isStandalone && it.isApproved }
+    if (approvedStandaloneRepairs.isNotEmpty()) {
+        approvedStandaloneRepairs.forEach { r ->
+            remaining = (remaining - r.totalRepairCost).coerceAtLeast(0.0)
+            val sub = if (r.faultyQuantity > 0) "${r.faultyQuantity} × ₹${r.faultyPricePerPiece.toInt()}" else null
+            lines += RemainingLedgerLine(
+                title = "Repairing - ${r.productName}",
+                subtitle = sub,
+                delta = -r.totalRepairCost,
+                remainingAfter = remaining
+            )
+        }
+    } else if (standaloneRepair > 0.0) {
         remaining = (remaining - standaloneRepair).coerceAtLeast(0.0)
         lines += RemainingLedgerLine(
             title = "Repairing",
