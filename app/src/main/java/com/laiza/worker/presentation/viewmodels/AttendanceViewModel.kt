@@ -115,18 +115,8 @@ class AttendanceViewModel @Inject constructor(
                     )
                 )
             } else {
-                // Resilient fallback to Factory address so the worker is never blocked from checking in
-                _gpsState.value = GPSState.Success(
-                    LocationDetails(
-                        latitude = 28.6139,
-                        longitude = 77.2090,
-                        accuracy = 12.0f,
-                        address = "Laiza Purse Manufacturing Warehouse, Delhi, India (Warehouse Location)",
-                        city = "Delhi",
-                        state = "Delhi",
-                        country = "India",
-                        timestamp = System.currentTimeMillis()
-                    )
+                _gpsState.value = GPSState.Error(
+                    "GPS location could not be fetched. Please enable location services/GPS and try again."
                 )
             }
         }
@@ -181,12 +171,12 @@ class AttendanceViewModel @Inject constructor(
         viewModelScope.launch {
             _submitState.value = PunchSubmitState.Submitting
             val location = locationHelper.getCurrentLocation()
-            val gpsCoordStr = if (location != null) "${location.latitude},${location.longitude}" else "28.6139,77.2090"
-            val address = if (location != null) {
-                locationHelper.getAddressFromLocation(location.latitude, location.longitude) ?: "Address not resolved"
-            } else {
-                "Laiza Purse Manufacturing Warehouse, Delhi, India"
+            if (location == null) {
+                _submitState.value = PunchSubmitState.Error("GPS location could not be fetched. Please enable location services/GPS to sign out.")
+                return@launch
             }
+            val gpsCoordStr = "${location.latitude},${location.longitude}"
+            val address = locationHelper.getAddressFromLocation(location.latitude, location.longitude) ?: "Address not resolved"
 
             val session = userSession.first()
             if (session == null) {
