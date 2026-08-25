@@ -44,14 +44,40 @@ fun AttendanceHomeScreen(
     val submitState by viewModel.submitState.collectAsState()
     var showClockOutConfirm by remember { mutableStateOf(false) }
 
+    var showPermissionSettingsDialog by remember { mutableStateOf(false) }
+
     val context = androidx.compose.ui.platform.LocalContext.current
     var hasLocationPermission by remember {
         mutableStateOf(
             androidx.core.content.ContextCompat.checkSelfPermission(
                 context,
                 android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasLocationPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -63,6 +89,7 @@ fun AttendanceHomeScreen(
                 showClockOutConfirm = true
             } else {
                 android.widget.Toast.makeText(context, "Location permission is required to Clock Out", android.widget.Toast.LENGTH_LONG).show()
+                showPermissionSettingsDialog = true
             }
         }
     )
@@ -97,6 +124,37 @@ fun AttendanceHomeScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClockOutConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showPermissionSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionSettingsDialog = false },
+            title = { Text("Location Permission Required", fontWeight = FontWeight.Bold) },
+            text = { Text("Location permission is needed to record your Clock Out. Please grant permission or open settings to enable it.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionSettingsDialog = false
+                        try {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.fromParts("package", context.packageName, null)
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Could not open app settings", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionSettingsDialog = false }) {
                     Text("Cancel")
                 }
             }

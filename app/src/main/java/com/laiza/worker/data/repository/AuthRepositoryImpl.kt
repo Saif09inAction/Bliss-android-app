@@ -80,6 +80,8 @@ class AuthRepositoryImpl @Inject constructor(
                 } else {
                     emit(session)
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // On network error, keep the cached session so the app stays usable offline.
                 emit(session)
