@@ -273,8 +273,11 @@ private fun GrandTotalBox(
         }
     }
     val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
-    val net = order.addBalance
-        ?: (order.productsTotal - order.materialDeductionsTotal - repairTotal)
+    val net = if (order.status == OrderStatus.COMPLETED) {
+        order.addBalance ?: (order.productsTotal - order.materialDeductionsTotal - repairTotal)
+    } else {
+        (order.addBalance ?: (order.productsTotal - order.materialDeductionsTotal)) - repairTotal
+    }
 
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)

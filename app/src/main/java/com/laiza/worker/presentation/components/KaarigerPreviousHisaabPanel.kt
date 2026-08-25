@@ -67,8 +67,11 @@ fun KaarigerPreviousHisaabPanel(
     }
     val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
 
-    val add = order.addBalance
-        ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0) - repairTotal)
+    val add = if (order.status == OrderStatus.COMPLETED) {
+        order.addBalance ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0) - repairTotal)
+    } else {
+        (order.addBalance ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0))) - repairTotal
+    }
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
         ?: ((order.closingAtCreation ?: 0.0) - add + budget).coerceAtLeast(0.0)
     val closing = order.closingAtCreation

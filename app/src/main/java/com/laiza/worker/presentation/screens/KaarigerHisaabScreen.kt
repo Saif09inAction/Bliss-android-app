@@ -236,12 +236,22 @@ internal data class KaarigerHisaabSummary(
     val remainingLedger: List<RemainingLedgerLine>
 )
 
-private fun orderAddBalance(order: KaarigerOrder): Double {
-    if (order.addBalance != null) return order.addBalance
+private fun orderAddBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyList()): Double {
     val products = if (order.productsTotal > 0) order.productsTotal
     else order.originalDealAmount ?: order.totalDealAmount
-    return products - order.materialDeductionsTotal.coerceAtLeast(0.0) -
-        order.repairDeductionTotal.coerceAtLeast(0.0)
+    val orderRepairs = (repairs ?: emptyList()).filter {
+        if (order.status == OrderStatus.COMPLETED) {
+            it.orderId == order.id && it.isApproved
+        } else {
+            (it.isStandalone || it.orderId == order.id) && it.isApproved
+        }
+    }
+    val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
+    return if (order.status == OrderStatus.COMPLETED) {
+        order.addBalance ?: (products - order.materialDeductionsTotal.coerceAtLeast(0.0) - repairTotal)
+    } else {
+        (order.addBalance ?: (products - order.materialDeductionsTotal.coerceAtLeast(0.0))) - repairTotal
+    }
 }
 
 private fun isOpeningPayment(p: KaarigerOrderPayment): Boolean {
@@ -279,7 +289,13 @@ internal fun buildKaarigerHisaabSummary(
         val orderPayments = payments.filter {
             it.orderId == order.id && !isOpeningPayment(it) && !isCreditPayment(it)
         }
-        val orderRepairs = (repairs ?: emptyList()).filter { it.orderId == order.id && it.isApproved }
+        val orderRepairs = (repairs ?: emptyList()).filter {
+            if (order.status == OrderStatus.COMPLETED) {
+                it.orderId == order.id && it.isApproved
+            } else {
+                (it.isStandalone || it.orderId == order.id) && it.isApproved
+            }
+        }
         val paidCash = orderPayments.sumOf { it.amount }
         val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
         val productsTotal = if (order.productsTotal > 0) {
@@ -288,8 +304,11 @@ internal fun buildKaarigerHisaabSummary(
             order.originalDealAmount ?: order.totalDealAmount
         }
         val deductions = order.materialDeductionsTotal.coerceAtLeast(0.0)
-        val repair = order.repairDeductionTotal.takeIf { it > 0 }
-            ?: orderRepairs.sumOf { it.totalRepairCost }
+        val repair = if (order.status == OrderStatus.COMPLETED) {
+            order.repairDeductionTotal.takeIf { it > 0 } ?: orderRepairs.sumOf { it.totalRepairCost }
+        } else {
+            orderRepairs.sumOf { it.totalRepairCost }
+        }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
         val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(
@@ -361,7 +380,7 @@ private fun buildRemainingLedgerLines(
 ): List<RemainingLedgerLine> {
     val openingPays = payments.filter { isOpeningPayment(it) }
     val openingPaidTotal = openingPays.sumOf { it.amount.coerceAtLeast(0.0) }
-    val billNet = orders.sumOf { orderAddBalance(it) - it.kharchaGiven.coerceAtLeast(0.0) }
+    val billNet = orders.sumOf { orderAddBalance(it, repairs) - it.kharchaGiven.coerceAtLeast(0.0) }
     val foldTotal = orders.sumOf { it.kharchaCarriedForward.coerceAtLeast(0.0) }
     val startOpening = (
         openingBalance + openingPaidTotal - billNet - foldTotal
@@ -390,7 +409,7 @@ private fun buildRemainingLedgerLines(
 
     orders.forEachIndexed { i, order ->
         val t = if (order.createdAt > 0L) order.createdAt else i.toLong()
-        val add = orderAddBalance(order)
+        val add = orderAddBalance(order, repairs)
         val week = order.displayWeekLabel()
         if (add != 0.0) {
             events += Ev(t, "add-${order.id}") { rem ->
@@ -756,7 +775,7 @@ private fun PreviousBillCard(
 ) {
     var expanded by remember(order.id) { mutableStateOf(false) }
     val week = order.displayWeekLabel()
-    val add = orderAddBalance(order)
+    val add = orderAddBalance(order, repairs)
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
         ?: ((order.closingAtCreation ?: 0.0) - add + budget).coerceAtLeast(0.0)
