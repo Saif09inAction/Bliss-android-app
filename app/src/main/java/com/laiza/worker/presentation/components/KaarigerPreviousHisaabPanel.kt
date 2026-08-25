@@ -73,9 +73,14 @@ fun KaarigerPreviousHisaabPanel(
         (order.addBalance ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0))) - repairTotal
     }
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
-        ?: ((order.closingAtCreation ?: 0.0) - add + budget).coerceAtLeast(0.0)
-    val closing = order.closingAtCreation
-        ?: (opening + add - budget).coerceAtLeast(0.0)
+        ?: if (order.status == OrderStatus.COMPLETED && order.closingAtCreation != null) {
+            (order.closingAtCreation - add + budget).coerceAtLeast(0.0)
+        } else 0.0
+    val closing = if (order.status == OrderStatus.COMPLETED) {
+        order.closingAtCreation ?: (opening + add - budget).coerceAtLeast(0.0)
+    } else {
+        (opening + add - budget).coerceAtLeast(0.0)
+    }
 
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     val dateLabel = formatOrderDate(order.createdAt)

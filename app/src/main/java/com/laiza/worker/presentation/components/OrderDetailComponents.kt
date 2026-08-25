@@ -280,8 +280,11 @@ private fun GrandTotalBox(
 
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
-    val closing = order.closingAtCreation
-        ?: opening?.let { (it + net - budget).coerceAtLeast(0.0) }
+    val closing = if (order.status == OrderStatus.COMPLETED) {
+        order.closingAtCreation ?: ((opening ?: 0.0) + net - budget).coerceAtLeast(0.0)
+    } else {
+        ((opening ?: 0.0) + net - budget).coerceAtLeast(0.0)
+    }
     val kharchaBox = budget - order.kharchaCarryIn - paidCash
     val jade = Color(0xFF0D8F63)
     val jadeSoft = Color(0xFFD8F8EB)
