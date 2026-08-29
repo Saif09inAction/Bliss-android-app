@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
+import com.laiza.worker.domain.hisaab.orderAddBalance
+import com.laiza.worker.domain.hisaab.repairTotalForOrder
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
@@ -65,13 +67,8 @@ fun KaarigerPreviousHisaabPanel(
             list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
         }
     }
-    val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
-
-    val add = if (order.status == OrderStatus.COMPLETED) {
-        order.addBalance ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0) - repairTotal)
-    } else {
-        (order.addBalance ?: (productsTotal - order.materialDeductionsTotal.coerceAtLeast(0.0))) - repairTotal
-    }
+    val repairTotal = repairTotalForOrder(order, repairs)
+    val add = orderAddBalance(order, repairs)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
         ?: if (order.status == OrderStatus.COMPLETED && order.closingAtCreation != null) {
             (order.closingAtCreation - add + budget).coerceAtLeast(0.0)

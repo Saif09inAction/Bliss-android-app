@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
+import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
@@ -235,24 +236,6 @@ internal data class KaarigerHisaabSummary(
     val activeOrderIds: Set<String>,
     val remainingLedger: List<RemainingLedgerLine>
 )
-
-private fun orderAddBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyList()): Double {
-    val products = if (order.productsTotal > 0) order.productsTotal
-    else order.originalDealAmount ?: order.totalDealAmount
-    val orderRepairs = (repairs ?: emptyList()).filter {
-        if (order.status == OrderStatus.COMPLETED) {
-            it.orderId == order.id && it.isApproved
-        } else {
-            (it.isStandalone || it.orderId == order.id) && it.isApproved
-        }
-    }
-    val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
-    return if (order.status == OrderStatus.COMPLETED) {
-        order.addBalance ?: (products - order.materialDeductionsTotal.coerceAtLeast(0.0) - repairTotal)
-    } else {
-        (order.addBalance ?: (products - order.materialDeductionsTotal.coerceAtLeast(0.0))) - repairTotal
-    }
-}
 
 private fun isOpeningPayment(p: KaarigerOrderPayment): Boolean {
     val remarks = (p.remarks ?: "").lowercase()

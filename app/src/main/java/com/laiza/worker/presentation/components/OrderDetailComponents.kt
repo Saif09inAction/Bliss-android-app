@@ -17,6 +17,8 @@ import androidx.compose.ui.unit.dp
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
+import com.laiza.worker.domain.hisaab.orderAddBalance
+import com.laiza.worker.domain.hisaab.repairTotalForOrder
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
@@ -271,12 +273,8 @@ private fun GrandTotalBox(
             list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
         }
     }
-    val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
-    val net = if (order.status == OrderStatus.COMPLETED) {
-        order.addBalance ?: (order.productsTotal - order.materialDeductionsTotal - repairTotal)
-    } else {
-        (order.addBalance ?: (order.productsTotal - order.materialDeductionsTotal)) - repairTotal
-    }
+    val repairTotal = repairTotalForOrder(order, repairs)
+    val net = orderAddBalance(order, repairs)
 
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
