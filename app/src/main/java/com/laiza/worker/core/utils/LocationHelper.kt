@@ -33,6 +33,12 @@ class LocationHelper @Inject constructor(
         }
 
         val lm = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+        val isGpsEnabled = lm?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true
+        val isNetworkEnabled = lm?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
+        if (!isGpsEnabled && !isNetworkEnabled) {
+            return null
+        }
+
         fun fallbackSystemLocation(): Location? {
             return try {
                 val gps = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
