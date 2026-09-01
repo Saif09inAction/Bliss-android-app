@@ -70,6 +70,11 @@ class PaymentRepositoryImpl @Inject constructor(
         }
     }
 
+    private companion object {
+        /** Join day = day 1; each salary cycle is exactly 30 days (not calendar month 31). */
+        private const val PAY_PERIOD_DAYS = 30
+    }
+
     private data class PayPeriodData(
         val start: String,
         val end: String,
@@ -78,51 +83,32 @@ class PaymentRepositoryImpl @Inject constructor(
 
     private fun resolvePayPeriod(joiningDateStr: String, todayStr: String): PayPeriodData {
         val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        val joinDate = try { sdf.parse(joiningDateStr) } catch (_: Exception) { null }
-        val todayDate = try { sdf.parse(todayStr) } catch (_: Exception) { Date() }
+        val joinStr = joiningDateStr.trim().ifBlank { todayStr }
+        val joinDate = try { sdf.parse(joinStr) } catch (_: Exception) { null }
+            ?: return PayPeriodData(todayStr, todayStr, 1)
 
-        if (joinDate == null) {
-            val cal = Calendar.getInstance().apply { time = todayDate; set(Calendar.DAY_OF_MONTH, 1) }
-            val start = sdf.format(cal.time)
-            val maxDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
-            cal.set(Calendar.DAY_OF_MONTH, maxDay)
-            val end = sdf.format(cal.time)
-            return PayPeriodData(start, end, maxDay)
+        fun addDaysIso(dateStr: String, days: Int): String {
+            val parsed = sdf.parse(dateStr) ?: return dateStr
+            val cal = Calendar.getInstance().apply {
+                time = parsed
+                add(Calendar.DAY_OF_MONTH, days)
+            }
+            return sdf.format(cal.time)
         }
 
-        val calJoin = Calendar.getInstance().apply { time = joinDate }
-        val joinDay = calJoin.get(Calendar.DAY_OF_MONTH)
-
-        val calToday = Calendar.getInstance().apply { time = todayDate }
-        val todayYear = calToday.get(Calendar.YEAR)
-        val todayMonth = calToday.get(Calendar.MONTH)
-        val todayDay = calToday.get(Calendar.DAY_OF_MONTH)
-
-        val calStart = Calendar.getInstance().apply {
-            set(Calendar.YEAR, todayYear)
-            set(Calendar.MONTH, todayMonth)
-            val maxDaysThisMonth = getActualMaximum(Calendar.DAY_OF_MONTH)
-            set(Calendar.DAY_OF_MONTH, minOf(joinDay, maxDaysThisMonth))
+        val payPeriodDays = PAY_PERIOD_DAYS
+        var idx = 0
+        while (idx < 600) {
+            val start = addDaysIso(joinStr, idx * payPeriodDays)
+            val end = addDaysIso(start, payPeriodDays - 1)
+            if (todayStr <= end) {
+                return PayPeriodData(start, end, payPeriodDays)
+            }
+            idx++
         }
-
-        if (todayDay < joinDay && calToday.before(calStart)) {
-            calStart.add(Calendar.MONTH, -1)
-            val maxDaysPrevMonth = calStart.getActualMaximum(Calendar.DAY_OF_MONTH)
-            calStart.set(Calendar.DAY_OF_MONTH, minOf(joinDay, maxDaysPrevMonth))
-        }
-
-        val calEnd = (calStart.clone() as Calendar).apply {
-            add(Calendar.MONTH, 1)
-            add(Calendar.DAY_OF_MONTH, -1)
-        }
-
-        val startStr = sdf.format(calStart.time)
-        val endStr = sdf.format(calEnd.time)
-
-        val diffMs = calEnd.timeInMillis - calStart.timeInMillis
-        val daysInPeriod = (diffMs / (1000 * 60 * 60 * 24)).toInt() + 1
-
-        return PayPeriodData(startStr, endStr, maxOf(1, daysInPeriod))
+        val start = addDaysIso(joinStr, 600 * payPeriodDays)
+        val end = addDaysIso(start, payPeriodDays - 1)
+        return PayPeriodData(start, end, payPeriodDays)
     }
 
     private suspend fun fetchAttendanceFromFirestore(employeeId: String): List<Attendance> = suspendCancellableCoroutine { continuation ->
