@@ -18,7 +18,7 @@ import com.laiza.worker.R
 import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.hisaab.orderAddBalance
-import com.laiza.worker.domain.hisaab.repairTotalForOrder
+import com.laiza.worker.domain.hisaab.orderClosingBalance
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
@@ -273,16 +273,11 @@ private fun GrandTotalBox(
             list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
         }
     }
-    val repairTotal = repairTotalForOrder(order, repairs)
     val net = orderAddBalance(order, repairs)
 
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
-    val closing = if (order.status == OrderStatus.COMPLETED) {
-        order.closingAtCreation ?: ((opening ?: 0.0) + net - budget).coerceAtLeast(0.0)
-    } else {
-        ((opening ?: 0.0) + net - budget).coerceAtLeast(0.0)
-    }
+    val closing = orderClosingBalance(order, repairs)
     val kharchaBox = budget - order.kharchaCarryIn - paidCash
     val jade = Color(0xFF0D8F63)
     val jadeSoft = Color(0xFFD8F8EB)

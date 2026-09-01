@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.hisaab.orderAddBalance
-import com.laiza.worker.domain.hisaab.repairTotalForOrder
+import com.laiza.worker.domain.hisaab.orderClosingBalance
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
@@ -67,17 +67,12 @@ fun KaarigerPreviousHisaabPanel(
             list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
         }
     }
-    val repairTotal = repairTotalForOrder(order, repairs)
     val add = orderAddBalance(order, repairs)
     val opening = order.openingAtCreation?.coerceAtLeast(0.0)
         ?: if (order.status == OrderStatus.COMPLETED && order.closingAtCreation != null) {
             (order.closingAtCreation - add + budget).coerceAtLeast(0.0)
         } else 0.0
-    val closing = if (order.status == OrderStatus.COMPLETED) {
-        order.closingAtCreation ?: (opening + add - budget).coerceAtLeast(0.0)
-    } else {
-        (opening + add - budget).coerceAtLeast(0.0)
-    }
+    val closing = orderClosingBalance(order, repairs)
 
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     val dateLabel = formatOrderDate(order.createdAt)
