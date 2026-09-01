@@ -83,7 +83,12 @@ class MarkAttendanceUseCase @Inject constructor(
                 }
 
                 val signInTimeLocal = safeParseTime(existingToday.signInTime, currentLocalTime)
-                val workingHrs = ChronoUnit.MINUTES.between(signInTimeLocal, currentLocalTime).toDouble() / 60.0
+                val workingHrs = computeShiftWorkingHours(
+                    signInTimeLocal,
+                    currentLocalTime,
+                    expectedSignIn,
+                    expectedSignOut
+                )
 
                 val leftEarly = currentLocalTime.isBefore(expectedSignOut)
                 val status = when {
@@ -128,6 +133,23 @@ class MarkAttendanceUseCase @Inject constructor(
             dailySignInTime = inTime.ifEmpty { global.dailySignInTime },
             dailySignOutTime = outTime.ifEmpty { global.dailySignOutTime }
         )
+    }
+
+    /** Paid hours: only within scheduled shift; late clock-out does not add extra. */
+    private fun computeShiftWorkingHours(
+        signIn: LocalTime,
+        signOut: LocalTime,
+        shiftIn: LocalTime,
+        shiftOut: LocalTime
+    ): Double {
+        val effectiveStart = if (signIn.isBefore(shiftIn)) shiftIn else signIn
+        val effectiveEnd = if (signOut.isAfter(shiftOut)) shiftOut else signOut
+        if (!effectiveEnd.isAfter(effectiveStart)) return 0.0
+        val workedMins = ChronoUnit.MINUTES.between(effectiveStart, effectiveEnd)
+        var shiftMins = ChronoUnit.MINUTES.between(shiftIn, shiftOut)
+        if (shiftMins <= 0) shiftMins += 24 * 60
+        val creditedMins = minOf(workedMins, shiftMins)
+        return String.format(Locale.US, "%.2f", creditedMins / 60.0).toDouble()
     }
 
     private fun safeParseTime(timeStr: String?, defaultTime: LocalTime): LocalTime {
