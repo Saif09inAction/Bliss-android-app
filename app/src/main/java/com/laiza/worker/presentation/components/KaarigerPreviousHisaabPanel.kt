@@ -197,16 +197,6 @@ private fun WeekBillColumn(
                     Color(0xFFDC2626)
                 )
             }
-            if (orderRepairs.isEmpty() && order.repairDeductionTotal > 0) {
-                PrevRow(
-                    stringResource(
-                        R.string.kaariger_previous_less,
-                        stringResource(R.string.kaariger_hisaab_repair_label)
-                    ),
-                    "−${formatIndianRupee(order.repairDeductionTotal)}",
-                    Color(0xFFDC2626)
-                )
-            }
             PrevRow("ADD", formatIndianRupee(add), bold = true)
             if (budget > 0) {
                 PrevRow(

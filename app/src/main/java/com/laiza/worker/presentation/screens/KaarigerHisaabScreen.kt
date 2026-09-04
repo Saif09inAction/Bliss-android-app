@@ -288,11 +288,7 @@ internal fun buildKaarigerHisaabSummary(
             order.originalDealAmount ?: order.totalDealAmount
         }
         val deductions = order.materialDeductionsTotal.coerceAtLeast(0.0)
-        val repair = if (orderRepairs.isNotEmpty()) {
-            orderRepairs.sumOf { it.totalRepairCost }
-        } else {
-            order.repairDeductionTotal.coerceAtLeast(0.0)
-        }
+        val repair = orderRepairs.sumOf { it.totalRepairCost }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
         val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(
@@ -468,7 +464,7 @@ private fun buildRemainingLedgerLines(
         )
     }
     if (creditApplied > 0.0) {
-        remaining = (remaining - creditApplied).coerceAtLeast(0.0)
+        remaining -= creditApplied
         lines += RemainingLedgerLine(
             title = "Credit",
             delta = -creditApplied,
@@ -768,9 +764,9 @@ private fun PreviousBillCard(
     val week = order.displayWeekLabel()
     val add = orderAddBalance(order, repairs)
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
-    val opening = order.openingAtCreation?.coerceAtLeast(0.0)
-        ?: if (order.status == OrderStatus.COMPLETED && order.closingAtCreation != null) {
-            (order.closingAtCreation - add + budget).coerceAtLeast(0.0)
+    val opening = order.openingAtCreation
+        ?: if (order.closingAtCreation != null) {
+            order.closingAtCreation - add + budget
         } else 0.0
     val closing = orderClosingBalance(order, repairs)
 

@@ -51,7 +51,10 @@ data class OrderRepair(
     val isStandalone: Boolean
         get() = orderId.isBlank() || orderId == RepairStatus.STANDALONE_ORDER_ID
 
-    /** Approved standalone that should reduce Total Remaining (not deferred). */
+    /**
+     * Standalone repairing never cuts Remaining — only after admin links it to a bill
+     * (matches admin: pending until “Add repairing to this bill”).
+     */
     val countsAgainstRemaining: Boolean
-        get() = isStandalone && isApproved && !deferToNextBill
+        get() = false
 }

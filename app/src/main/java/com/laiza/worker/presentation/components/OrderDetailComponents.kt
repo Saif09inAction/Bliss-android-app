@@ -179,7 +179,8 @@ private fun OrderHisaabBreakdown(
             val pendingRepairs = remember(repairs) {
                 pendingBillRepairs(repairs)
             }
-            val hasDeductions = order.materialDeductions.isNotEmpty() || orderRepairs.isNotEmpty() || order.repairDeductionTotal > 0
+            val linkedRepairTotal = orderRepairs.sumOf { it.totalRepairCost }
+            val hasDeductions = order.materialDeductions.isNotEmpty() || linkedRepairTotal > 0
             if (hasDeductions) {
                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                 Text(
@@ -207,18 +208,7 @@ private fun OrderHisaabBreakdown(
                         Text("−${rupees(r.totalRepairCost)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
                     }
                 }
-                if (orderRepairs.isEmpty() && order.repairDeductionTotal > 0) {
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(
-                            "Repairing",
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text("−${rupees(order.repairDeductionTotal)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFDC2626))
-                    }
-                }
-                val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
-                val totalDeductions = order.materialDeductionsTotal.coerceAtLeast(0.0) + repairTotal
+                val totalDeductions = order.materialDeductionsTotal.coerceAtLeast(0.0) + linkedRepairTotal
                 DetailRow(stringResource(R.string.kaariger_detail_deductions_total), "−${rupees(totalDeductions)}")
             }
 
@@ -327,9 +317,6 @@ private fun GrandTotalBox(
 
             orderRepairs.forEach { r ->
                 DetailRow("Less: Repairing - ${r.productName}", "−${rupees(r.totalRepairCost)}")
-            }
-            if (orderRepairs.isEmpty() && order.repairDeductionTotal > 0) {
-                DetailRow("Less: Repairing", "−${rupees(order.repairDeductionTotal)}")
             }
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))

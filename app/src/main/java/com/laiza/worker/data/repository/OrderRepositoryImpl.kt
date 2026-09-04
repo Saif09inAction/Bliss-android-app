@@ -603,7 +603,12 @@ class OrderRepositoryImpl @Inject constructor(
                 status = (data["status"] as? String)?.takeIf { it.isNotBlank() } ?: RepairStatus.APPROVED,
                 reviewedBy = data["reviewedBy"] as? String,
                 reviewedAt = (data["reviewedAt"] as? Number)?.toLong(),
-                deferToNextBill = data["deferToNextBill"] as? Boolean ?: false
+                deferToNextBill = when (val v = data["deferToNextBill"]) {
+                    is Boolean -> v
+                    is Number -> v.toInt() != 0
+                    is String -> v.equals("true", ignoreCase = true) || v == "1"
+                    else -> false
+                }
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse repair $id", e)
