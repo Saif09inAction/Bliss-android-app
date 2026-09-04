@@ -288,8 +288,11 @@ internal fun buildKaarigerHisaabSummary(
             order.originalDealAmount ?: order.totalDealAmount
         }
         val deductions = order.materialDeductionsTotal.coerceAtLeast(0.0)
-        val repair = order.repairDeductionTotal.takeIf { it > 0 }
-            ?: orderRepairs.sumOf { it.totalRepairCost }
+        val repair = if (orderRepairs.isNotEmpty()) {
+            orderRepairs.sumOf { it.totalRepairCost }
+        } else {
+            order.repairDeductionTotal.coerceAtLeast(0.0)
+        }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
         val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(

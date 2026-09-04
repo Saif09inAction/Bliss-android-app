@@ -17,8 +17,10 @@ import androidx.compose.ui.unit.dp
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
+import com.laiza.worker.domain.hisaab.approvedRepairsOnBill
 import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.hisaab.orderClosingBalance
+import com.laiza.worker.domain.hisaab.pendingBillRepairs
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderStatus
@@ -171,13 +173,11 @@ private fun OrderHisaabBreakdown(
             }
             DetailRow(stringResource(R.string.kaariger_detail_products_total), rupees(order.productsTotal))
 
-            val orderRepairs = remember(repairs, order.id, order.status) {
-                val list = repairs ?: emptyList()
-                if (order.status == OrderStatus.COMPLETED) {
-                    list.filter { it.orderId == order.id && it.isApproved }
-                } else {
-                    list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
-                }
+            val orderRepairs = remember(repairs, order.id) {
+                approvedRepairsOnBill(order, repairs)
+            }
+            val pendingRepairs = remember(repairs) {
+                pendingBillRepairs(repairs)
             }
             val hasDeductions = order.materialDeductions.isNotEmpty() || orderRepairs.isNotEmpty() || order.repairDeductionTotal > 0
             if (hasDeductions) {
@@ -220,6 +220,32 @@ private fun OrderHisaabBreakdown(
                 val repairTotal = if (orderRepairs.isNotEmpty()) orderRepairs.sumOf { it.totalRepairCost } else order.repairDeductionTotal.coerceAtLeast(0.0)
                 val totalDeductions = order.materialDeductionsTotal.coerceAtLeast(0.0) + repairTotal
                 DetailRow(stringResource(R.string.kaariger_detail_deductions_total), "−${rupees(totalDeductions)}")
+            }
+
+            if (pendingRepairs.isNotEmpty() && order.status != OrderStatus.COMPLETED) {
+                Divider(modifier = Modifier.padding(vertical = 2.dp))
+                Text(
+                    "Pending repairing (not deducted)",
+                    fontWeight = FontWeight.Bold,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Color(0xFFB45309)
+                )
+                pendingRepairs.forEach { r ->
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "${r.productName} · ${r.faultyQuantity} × ${rupees(r.faultyPricePerPiece)}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            Text(
+                                "Approved — not on this bill yet",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Text(rupees(r.totalRepairCost), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = Color(0xFFB45309))
+                    }
+                }
             }
 
             if (sortedPayments.isNotEmpty()) {
@@ -265,18 +291,13 @@ private fun GrandTotalBox(
     val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
     val paidDisplay = paidCash + priorOverpay
 
-    val orderRepairs = remember(repairs, order.id, order.status) {
-        val list = repairs ?: emptyList()
-        if (order.status == OrderStatus.COMPLETED) {
-            list.filter { it.orderId == order.id && it.isApproved }
-        } else {
-            list.filter { (it.isStandalone || it.orderId == order.id) && it.isApproved }
-        }
+    val orderRepairs = remember(repairs, order.id) {
+        approvedRepairsOnBill(order, repairs)
     }
     val net = orderAddBalance(order, repairs)
 
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
-    val opening = order.openingAtCreation?.coerceAtLeast(0.0)
+    val opening = order.openingAtCreation ?: 0.0
     val closing = orderClosingBalance(order, repairs)
     val kharchaBox = budget - order.kharchaCarryIn - paidCash
     val jade = Color(0xFF0D8F63)
@@ -297,11 +318,7 @@ private fun GrandTotalBox(
                 color = jade
             )
 
-            if (opening != null) {
-                DetailRow("Opening / running balance", rupees(opening))
-            } else {
-                DetailRow("Opening / running balance", rupees(0.0))
-            }
+            DetailRow("Opening / running balance", rupees(opening))
             DetailRow("MAAL (product cost)", rupees(order.productsTotal))
 
             order.materialDeductions.forEach { d ->
@@ -317,7 +334,7 @@ private fun GrandTotalBox(
 
             Divider(modifier = Modifier.padding(vertical = 2.dp))
             BoldRow("ADD BALANCE", rupees(net))
-            DetailRow("After ADD", rupees((opening ?: 0.0) + net))
+            DetailRow("After ADD", rupees(opening + net))
             if (budget > 0.0) {
                 DetailRow("Kharcha on bill", "−${rupees(budget)}")
             }
