@@ -9,8 +9,10 @@ import com.laiza.worker.domain.repository.EmployeeRepository
 import com.laiza.worker.domain.repository.InventoryRepository
 import com.laiza.worker.domain.repository.OrderRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -20,6 +22,15 @@ data class OrderPaymentSummary(
     val order: KaarigerOrder,
     val totalPaid: Double,
     val remaining: Double
+)
+
+data class RepairSubmission(
+    val orderId: String,
+    val productName: String,
+    val faultyQuantity: Int,
+    val faultyPricePerPiece: Double = 0.0,
+    val kaarigerId: String = "",
+    val kaarigerName: String = ""
 )
 
 @HiltViewModel
@@ -35,6 +46,13 @@ class OrderViewModel @Inject constructor(
 
     val pendingApprovals: StateFlow<List<KaarigerOrder>> = orderRepository.getPendingApprovalOrders()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val pendingApprovalCount: StateFlow<Int> = pendingApprovals
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0)
+
+    private val _staffApprovalHistory = MutableStateFlow<List<OrderApprovalRecord>>(emptyList())
+    val staffApprovalHistory = _staffApprovalHistory.asStateFlow()
 
     val kaarigers: StateFlow<List<Employee>> = employeeRepository.getAllEmployees()
         .map { list -> list.filter { it.role == Role.KAARIGER } }
@@ -52,19 +70,45 @@ class OrderViewModel @Inject constructor(
     private val _kaarigerPayments = MutableStateFlow<List<KaarigerOrderPayment>>(emptyList())
     val kaarigerPayments = _kaarigerPayments.asStateFlow()
 
+    private val _kaarigerRepairs = MutableStateFlow<List<OrderRepair>>(emptyList())
+    val kaarigerRepairs = _kaarigerRepairs.asStateFlow()
+
+    val productCatalogNames: StateFlow<List<String>> = orderRepository.getProductCatalogNames()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     private val _paymentSummaries = MutableStateFlow<List<OrderPaymentSummary>>(emptyList())
     val paymentSummaries = _paymentSummaries.asStateFlow()
 
-    fun loadKaarigerData(kaarigerId: String) {
+    fun loadStaffApprovalHistory(staffPhone: String) {
         viewModelScope.launch {
-            orderRepository.getOrdersForKaariger(kaarigerId).collect { orders ->
-                _kaarigerOrders.value = orders
+            orderRepository.getApprovalHistoryForStaff(staffPhone).collect { records ->
+                _staffApprovalHistory.value = records
             }
         }
-        viewModelScope.launch {
-            orderRepository.getPaymentsForKaariger(kaarigerId).collect { payments ->
-                _kaarigerPayments.value = payments
-                updatePaymentSummaries()
+    }
+
+    private var kaarigerDataJob: Job? = null
+
+    fun loadKaarigerData(kaarigerId: String) {
+        // Cancel previous collectors so repeated screen opens don't stack listeners
+        // (which can race and briefly wipe the payment list).
+        kaarigerDataJob?.cancel()
+        kaarigerDataJob = viewModelScope.launch {
+            launch {
+                orderRepository.getOrdersForKaariger(kaarigerId).collect { orders ->
+                    _kaarigerOrders.value = orders
+                }
+            }
+            launch {
+                orderRepository.getPaymentsForKaariger(kaarigerId).collect { payments ->
+                    _kaarigerPayments.value = payments
+                    updatePaymentSummaries()
+                }
+            }
+            launch {
+                orderRepository.getRepairsForKaariger(kaarigerId).collect { repairs ->
+                    _kaarigerRepairs.value = repairs
+                }
             }
         }
     }
@@ -89,7 +133,8 @@ class OrderViewModel @Inject constructor(
 
     fun getOrderPaymentSummary(order: KaarigerOrder, payments: List<KaarigerOrderPayment>): OrderPaymentSummary {
         val paid = payments.filter { it.orderId == order.id }.sumOf { it.amount }
-        return OrderPaymentSummary(order, paid, (order.totalDealAmount - paid).coerceAtLeast(0.0))
+        val net = order.effectiveDealAmount()
+        return OrderPaymentSummary(order, paid, (net - paid).coerceAtLeast(0.0))
     }
 
     fun createOrder(order: KaarigerOrder, onSuccess: () -> Unit, onError: (String) -> Unit) {
@@ -124,10 +169,28 @@ class OrderViewModel @Inject constructor(
         }
     }
 
-    fun approveOrder(orderId: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+    fun approveOrder(
+        orderId: String,
+        acceptedQuantity: Int,
+        colorBreakdown: List<ColorQuantity>,
+        rejectedQuantity: Int,
+        rejectionNote: String?,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
         viewModelScope.launch {
-            val verifiedBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
-            orderRepository.approveOrder(orderId, verifiedBy).collect { res ->
+            val session = sessionManager.userSession.firstOrNull()
+            val verifiedBy = session?.name ?: "Staff"
+            val verifiedByPhone = session?.phone ?: ""
+            orderRepository.approveOrder(
+                orderId = orderId,
+                acceptedQuantity = acceptedQuantity,
+                colorBreakdown = colorBreakdown,
+                rejectedQuantity = rejectedQuantity,
+                rejectionNote = rejectionNote,
+                verifiedBy = verifiedBy,
+                verifiedByPhone = verifiedByPhone
+            ).collect { res ->
                 when (res) {
                     is Resource.Success -> onSuccess()
                     is Resource.Error -> onError(res.message ?: "Failed")
@@ -141,6 +204,23 @@ class OrderViewModel @Inject constructor(
         viewModelScope.launch {
             val verifiedBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
             orderRepository.rejectOrder(orderId, verifiedBy, reason).collect { res ->
+                when (res) {
+                    is Resource.Success -> onSuccess()
+                    is Resource.Error -> onError(res.message ?: "Failed")
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    fun submitMaterialUsage(
+        orderId: String,
+        materials: List<OrderMaterial>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            orderRepository.submitMaterialUsage(orderId, materials).collect { res ->
                 when (res) {
                     is Resource.Success -> onSuccess()
                     is Resource.Error -> onError(res.message ?: "Failed")
@@ -166,7 +246,7 @@ class OrderViewModel @Inject constructor(
                 kaarigerId = kaarigerId,
                 amount = amount,
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(now),
-                time = SimpleDateFormat("HH:mm", Locale.getDefault()).format(now),
+                time = DateFormatter.nowTime12Hour(),
                 remarks = remarks,
                 createdBy = createdBy
             )
@@ -182,5 +262,88 @@ class OrderViewModel @Inject constructor(
 
     fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>> {
         return orderRepository.getPaymentsForOrder(orderId)
+    }
+
+    fun createRepair(
+        orderId: String,
+        productName: String,
+        faultyQuantity: Int,
+        faultyPricePerPiece: Double,
+        notes: String? = null,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
+            orderRepository.createRepair(
+                orderId = orderId,
+                productName = productName,
+                faultyQuantity = faultyQuantity,
+                faultyPricePerPiece = faultyPricePerPiece,
+                createdBy = createdBy,
+                notes = notes,
+                kaarigerId = "",
+                kaarigerName = ""
+            ).collect { res ->
+                when (res) {
+                    is Resource.Success -> onSuccess()
+                    is Resource.Error -> onError(res.message ?: "Failed")
+                    else -> {}
+                }
+            }
+        }
+    }
+
+    /**
+     * Records faulty/rejected quantities for one or more products in a single staff action.
+     * Each submission becomes its own repair record, processed sequentially so the
+     * running deduction total on each order stays consistent.
+     */
+    fun createRepairs(
+        submissions: List<RepairSubmission>,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        if (submissions.isEmpty()) {
+            onError("Add at least one product to update.")
+            return
+        }
+        // Snapshot so each product is saved even if the UI list changes mid-submit.
+        val toSave = submissions.toList()
+        viewModelScope.launch {
+            try {
+                val createdBy = sessionManager.userSession.firstOrNull()?.name ?: "Staff"
+                val failed = mutableListOf<String>()
+                var saved = 0
+                for (submission in toSave) {
+                    val result = orderRepository.createRepair(
+                        orderId = submission.orderId,
+                        productName = submission.productName,
+                        faultyQuantity = submission.faultyQuantity,
+                        faultyPricePerPiece = submission.faultyPricePerPiece,
+                        createdBy = createdBy,
+                        notes = null,
+                        kaarigerId = submission.kaarigerId,
+                        kaarigerName = submission.kaarigerName
+                    ).first { it !is Resource.Loading }
+                    when (result) {
+                        is Resource.Error -> {
+                            failed += "${submission.productName}: ${result.message ?: "failed"}"
+                        }
+                        is Resource.Success -> saved += 1
+                        else -> {}
+                    }
+                }
+                when {
+                    saved == 0 -> onError(failed.firstOrNull() ?: "Failed to save repairing")
+                    failed.isNotEmpty() -> onError(
+                        "Saved $saved of ${toSave.size}. ${failed.joinToString("; ")}"
+                    )
+                    else -> onSuccess()
+                }
+            } catch (e: Exception) {
+                onError(e.message ?: "Failed to save repairing")
+            }
+        }
     }
 }

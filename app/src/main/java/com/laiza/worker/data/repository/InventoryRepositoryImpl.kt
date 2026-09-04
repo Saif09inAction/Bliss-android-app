@@ -13,13 +13,17 @@ import com.laiza.worker.domain.models.RawMaterial
 import com.laiza.worker.domain.models.RawMaterialConsumption
 import com.laiza.worker.domain.repository.InventoryRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -76,6 +80,8 @@ class InventoryRepositoryImpl @Inject constructor(
                     e.printStackTrace()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to add raw material"))
         }
@@ -109,6 +115,8 @@ class InventoryRepositoryImpl @Inject constructor(
                     e.printStackTrace()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to update raw material"))
         }
@@ -124,6 +132,8 @@ class InventoryRepositoryImpl @Inject constructor(
             }
             inventoryDao.deleteRawMaterialById(id)
             emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to delete raw material"))
         }
@@ -192,8 +202,66 @@ class InventoryRepositoryImpl @Inject constructor(
                     e.printStackTrace()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to assemble finished product"))
+        }
+    }
+
+    override fun addManualFinishedProduct(
+        name: String,
+        color: String,
+        quantity: Int,
+        unitPrice: Double,
+        updatedBy: String
+    ): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val trimmedName = name.trim()
+            val trimmedColor = color.trim()
+            if (trimmedName.isEmpty()) {
+                emit(Resource.Error("Product name is required"))
+                return@flow
+            }
+            if (quantity <= 0) {
+                emit(Resource.Error("Quantity must be greater than 0"))
+                return@flow
+            }
+
+            val existingList = inventoryDao.getAllFinishedProducts().first()
+            val existing = existingList.firstOrNull {
+                it.name.equals(trimmedName, ignoreCase = true) &&
+                    it.color.equals(trimmedColor, ignoreCase = true)
+            }
+
+            val now = System.currentTimeMillis()
+            val product = if (existing != null) {
+                existing.copy(
+                    quantity = existing.quantity + quantity,
+                    lastUpdatedBy = updatedBy,
+                    lastUpdatedTime = now,
+                    unitPrice = if (unitPrice > 0) unitPrice else existing.unitPrice
+                ).toDomain()
+            } else {
+                FinishedProduct(
+                    id = UUID.randomUUID().toString(),
+                    name = trimmedName,
+                    quantity = quantity,
+                    lastUpdatedBy = updatedBy,
+                    lastUpdatedTime = now,
+                    unitPrice = unitPrice.coerceAtLeast(0.0),
+                    color = trimmedColor
+                )
+            }
+
+            inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(product))
+            saveFinishedProductToFirestore(product)
+            emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to add inventory"))
         }
     }
 
@@ -228,6 +296,8 @@ class InventoryRepositoryImpl @Inject constructor(
             }
             inventoryDao.deleteFinishedProductById(id)
             emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to delete finished product"))
         }
@@ -236,11 +306,18 @@ class InventoryRepositoryImpl @Inject constructor(
     override fun adjustFinishedProductQuantity(productId: String, delta: Int): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            val existing = inventoryDao.getFinishedProductById(productId)
-                ?: run {
-                    emit(Resource.Error("Product not found in inventory"))
-                    return@flow
+            var existing = inventoryDao.getFinishedProductById(productId)
+            if (existing == null) {
+                val synced = syncFinishedProductFromFirestore(productId)
+                if (synced != null) {
+                    inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(synced))
+                    existing = inventoryDao.getFinishedProductById(productId)
                 }
+            }
+            if (existing == null) {
+                emit(Resource.Error("Product not found in inventory. Open Inventory tab to refresh."))
+                return@flow
+            }
             val newQty = existing.quantity + delta
             if (newQty < 0) {
                 emit(Resource.Error("Insufficient stock. Available: ${existing.quantity}"))
@@ -249,19 +326,62 @@ class InventoryRepositoryImpl @Inject constructor(
             inventoryDao.adjustFinishedProductQuantity(productId, delta)
             val updated = existing.copy(quantity = newQty, lastUpdatedTime = System.currentTimeMillis())
             inventoryDao.insertFinishedProduct(updated)
-            emit(Resource.Success(Unit))
-            repositoryScope.launch {
-                try {
-                    firestore.collection("finished_products").document(productId)
-                        .update("quantity", newQty, "lastUpdatedTime", System.currentTimeMillis())
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+            // Sync cloud before Success so collectors using .first{} don't cancel mid-sync.
+            try {
+                firestore.collection("finished_products").document(productId)
+                    .update("quantity", newQty, "lastUpdatedTime", System.currentTimeMillis())
+                    .await()
+            } catch (e: Exception) {
+                // Local stock already updated — keep going so pickup/return can finish.
+                e.printStackTrace()
             }
+            emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to update inventory"))
         }
     }
+
+    override fun refreshFinishedProducts(): Flow<Resource<Unit>> = flow {
+        emit(Resource.Loading())
+        try {
+            val list = fetchFinishedProductsFromFirestore()
+            for (item in list) {
+                inventoryDao.insertFinishedProduct(FinishedProductEntity.fromDomain(item))
+            }
+            emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            emit(Resource.Error(e.message ?: "Failed to refresh inventory"))
+        }
+    }
+
+    private suspend fun syncFinishedProductFromFirestore(productId: String): FinishedProduct? =
+        suspendCancellableCoroutine { continuation ->
+            firestore.collection("finished_products").document(productId).get()
+                .addOnSuccessListener { doc ->
+                    if (!doc.exists()) {
+                        continuation.resume(null)
+                        return@addOnSuccessListener
+                    }
+                    continuation.resume(
+                        FinishedProduct(
+                            id = doc.getString("id") ?: doc.id,
+                            name = doc.getString("name") ?: "",
+                            quantity = doc.getLong("quantity")?.toInt() ?: 0,
+                            lastUpdatedBy = doc.getString("lastUpdatedBy") ?: "",
+                            lastUpdatedTime = doc.getLong("lastUpdatedTime") ?: 0L,
+                            imagePath = doc.getString("imagePath"),
+                            unitPrice = doc.getDouble("unitPrice") ?: 0.0,
+                            color = doc.getString("color") ?: "",
+                            orderId = doc.getString("orderId")
+                        )
+                    )
+                }
+                .addOnFailureListener { err -> continuation.resumeWithException(err) }
+        }
 
     private suspend fun fetchRawMaterialsFromFirestore(): List<RawMaterial> = suspendCancellableCoroutine { continuation ->
         firestore.collection("raw_materials").get()

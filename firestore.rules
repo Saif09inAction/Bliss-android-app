@@ -13,12 +13,11 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // -------------------------------------------------------------------------
-    // Admins (web panel login only)
-    // Login uses get on admins/{phone}. Manage accounts via Firebase Console.
+    // Admins (web panel login)
+    // Login uses get on admins/{phone}. Panel can list/create/update/delete.
     // -------------------------------------------------------------------------
     match /admins/{adminPhone} {
-      allow get: if true;
-      allow list, create, update, delete: if false;
+      allow read, write: if true;
     }
 
     // -------------------------------------------------------------------------
@@ -47,6 +46,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /product_catalog/{productId} {
+      allow read, write: if true;
+    }
+
     // -------------------------------------------------------------------------
     // Kaariger workflow
     // Admin web: create orders, record advances
@@ -58,6 +61,14 @@ service cloud.firestore {
     }
 
     match /kaariger_payments/{paymentId} {
+      allow read, write: if true;
+    }
+
+    match /order_approval_records/{recordId} {
+      allow read, write: if true;
+    }
+
+    match /order_repairs/{repairId} {
       allow read, write: if true;
     }
 
@@ -80,10 +91,45 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /delivery_partners/{partnerId} {
+      allow read, write: if true;
+    }
+
+    match /marketplace_companies/{companyId} {
+      allow read, write: if true;
+    }
+
     // -------------------------------------------------------------------------
     // App settings (attendance times, etc.)
     // -------------------------------------------------------------------------
     match /settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    match /calendar_days/{dayId} {
+      allow read, write: if true;
+    }
+
+    // -------------------------------------------------------------------------
+    // Raw Material Billing
+    // Admin web: full CRUD for raw material bills and history
+    // -------------------------------------------------------------------------
+    match /raw_material_bills/{billId} {
+      allow read, write: if true;
+    }
+
+    match /raw_material_companies/{companyId} {
+      allow read, write: if true;
+    }
+
+    // -------------------------------------------------------------------------
+    // Bill Report — supplier ledgers under Claris / Bliss
+    // -------------------------------------------------------------------------
+    match /bill_companies/{companyId} {
+      allow read, write: if true;
+    }
+
+    match /bill_entries/{entryId} {
       allow read, write: if true;
     }
 

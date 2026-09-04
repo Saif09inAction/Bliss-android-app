@@ -40,6 +40,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.laiza.worker.core.navigation.Screen
+import com.laiza.worker.presentation.components.BlissSplashBrand
+import com.laiza.worker.core.theme.BlissGold
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
@@ -97,8 +99,8 @@ fun WelcomeScreen(navController: NavController) {
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF021024), // Dark Navy
-                        Color(0xFF052659)  // Deep Blue
+                        Color(0xFF0A0A0A),
+                        Color(0xFF151A10)
                     )
                 )
             )
@@ -111,65 +113,18 @@ fun WelcomeScreen(navController: NavController) {
                 .padding(24.dp)
                 .align(Alignment.Center)
         ) {
-            // Stylized "L" logo with breathing scale animation
-            Box(
-                modifier = Modifier
-                    .size(110.dp)
-                    .graphicsLayer(scaleX = logoScale, scaleY = logoScale)
-                    .background(Color.White.copy(alpha = 0.08f), shape = CircleShape)
-                    .background(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFC1E8FF).copy(alpha = 0.25f),
-                                Color.Transparent
-                            )
-                        ),
-                        shape = CircleShape
-                    )
-                    .border(
-                        width = 1.5.dp,
-                        color = Color(0xFFC1E8FF).copy(alpha = glowAlpha),
-                        shape = CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "L",
-                    fontSize = 64.sp,
-                    fontWeight = FontWeight.Black,
-                    color = Color(0xFFC1E8FF),
-                    letterSpacing = 1.sp
-                )
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            Text(
-                text = "Welcome to",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFC1E8FF).copy(alpha = 0.7f),
-                letterSpacing = 2.sp
+            BlissSplashBrand(
+                modifier = Modifier.graphicsLayer(scaleX = logoScale, scaleY = logoScale),
+                monogramSize = 100.dp
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "LAIZA BAGS",
-                fontSize = 44.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = Color.White,
-                letterSpacing = 5.sp,
-                textAlign = TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
             Text(
                 text = "Premium Quality & Timeless Handbags",
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Normal,
-                color = Color(0xFFC1E8FF).copy(alpha = 0.8f),
+                color = BlissGold.copy(alpha = 0.8f),
                 letterSpacing = 1.sp,
                 textAlign = TextAlign.Center
             )
@@ -191,7 +146,7 @@ fun WelcomeScreen(navController: NavController) {
                     .background(Color.White.copy(alpha = 0.05f), shape = RoundedCornerShape(100.dp))
                     .border(
                         width = 1.dp,
-                        color = Color(0xFFC1E8FF).copy(alpha = 0.12f),
+                        color = Color(0xFF22C55E).copy(alpha = 0.12f),
                         shape = RoundedCornerShape(100.dp)
                     )
                     .clip(RoundedCornerShape(100.dp)),
@@ -200,7 +155,7 @@ fun WelcomeScreen(navController: NavController) {
                 // Background Track text
                 Text(
                     text = "Swipe to Continue",
-                    color = Color(0xFFC1E8FF).copy(alpha = 0.45f),
+                    color = Color(0xFF22C55E).copy(alpha = 0.45f),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.fillMaxWidth(),
@@ -216,7 +171,7 @@ fun WelcomeScreen(navController: NavController) {
                         }
                         .size(handleSizeDp)
                         .padding(4.dp)
-                        .background(Color(0xFFC1E8FF), shape = CircleShape)
+                        .background(Color(0xFF22C55E), shape = CircleShape)
                         .pointerInput(Unit) {
                             detectHorizontalDragGestures(
                                 onDragEnd = {
@@ -251,7 +206,7 @@ fun WelcomeScreen(navController: NavController) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = "Swipe Arrow",
-                        tint = Color(0xFF021024),
+                        tint = Color(0xFF0A0A0A),
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -263,7 +218,7 @@ fun WelcomeScreen(navController: NavController) {
                 text = "built by Saif Salmani",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Light,
-                color = Color(0xFFC1E8FF).copy(alpha = 0.35f),
+                color = Color(0xFF22C55E).copy(alpha = 0.35f),
                 letterSpacing = 1.sp
             )
 

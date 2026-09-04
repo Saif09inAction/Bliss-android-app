@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import com.laiza.worker.core.utils.DateFormatter
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -42,7 +43,7 @@ class LogRepositoryImpl @Inject constructor(
 
     override suspend fun addLog(userName: String, action: String, module: String) {
         val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-        val timeStr = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
+        val timeStr = DateFormatter.nowTime12HourWithSeconds()
         val id = UUID.randomUUID().toString()
         val log = ActivityLog(
             id = id,

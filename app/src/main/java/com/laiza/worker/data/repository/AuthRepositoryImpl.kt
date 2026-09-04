@@ -8,6 +8,7 @@ import com.laiza.worker.domain.models.UserSession
 import com.laiza.worker.domain.repository.AuthRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -65,7 +66,27 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override fun getCurrentSession(): Flow<UserSession?> {
-        return sessionManager.userSession
+        return sessionManager.userSession.transform { session ->
+            if (session == null) {
+                emit(null)
+                return@transform
+            }
+            // Re-validate: if the employee doc no longer exists in Firestore, kill the session.
+            try {
+                val data = getEmployeeFromFirestore(session.phone)
+                if (data == null) {
+                    sessionManager.endSession()
+                    emit(null)
+                } else {
+                    emit(session)
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // On network error, keep the cached session so the app stays usable offline.
+                emit(session)
+            }
+        }
     }
 
     private suspend fun getEmployeeFromFirestore(phone: String): Map<String, Any>? = suspendCancellableCoroutine { continuation ->

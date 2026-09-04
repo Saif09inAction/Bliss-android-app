@@ -19,7 +19,7 @@ import com.laiza.worker.core.local.entity.*
         NotificationEntity::class,
         SaleRecordEntity::class
     ],
-    version = 8,
+    version = 12,
     exportSchema = false
 )
 abstract class LaizaDatabase : RoomDatabase() {

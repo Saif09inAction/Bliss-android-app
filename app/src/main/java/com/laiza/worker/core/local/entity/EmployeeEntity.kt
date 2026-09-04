@@ -15,7 +15,12 @@ data class EmployeeEntity(
     val monthlySalary: Double,
     val profilePhotoUrl: String?,
     val attendancePercentage: Double = 0.0,
-    val role: String = Role.STAFF.name
+    val role: String = Role.STAFF.name,
+    val creditBalance: Double = 0.0,
+    val openingBalance: Double = 0.0,
+    val dailySignInTime: String = "",
+    val dailySignOutTime: String = "",
+    val salaryRemaining: Double? = null
 ) {
     fun toDomain(): Employee {
         return Employee(
@@ -26,7 +31,12 @@ data class EmployeeEntity(
             monthlySalary = monthlySalary,
             profilePhotoUrl = profilePhotoUrl,
             attendancePercentage = attendancePercentage,
-            role = Role.fromFirestore(role)
+            role = Role.fromFirestore(role),
+            creditBalance = creditBalance,
+            openingBalance = openingBalance,
+            dailySignInTime = dailySignInTime,
+            dailySignOutTime = dailySignOutTime,
+            salaryRemaining = salaryRemaining
         )
     }
 
@@ -40,7 +50,12 @@ data class EmployeeEntity(
                 monthlySalary = domain.monthlySalary,
                 profilePhotoUrl = domain.profilePhotoUrl,
                 attendancePercentage = domain.attendancePercentage,
-                role = domain.role.name
+                role = domain.role.name,
+                creditBalance = domain.creditBalance,
+                openingBalance = domain.openingBalance,
+                dailySignInTime = domain.dailySignInTime,
+                dailySignOutTime = domain.dailySignOutTime,
+                salaryRemaining = domain.salaryRemaining
             )
         }
     }

@@ -17,6 +17,15 @@ interface InventoryRepository {
         product: FinishedProduct,
         rawMaterialsUsed: List<RawMaterialConsumption>
     ): Flow<Resource<Unit>>
+    /** Manual stock entry — merges into existing name+color or creates new. */
+    fun addManualFinishedProduct(
+        name: String,
+        color: String,
+        quantity: Int,
+        unitPrice: Double,
+        updatedBy: String
+    ): Flow<Resource<Unit>>
     fun deleteFinishedProduct(id: String): Flow<Resource<Unit>>
     fun adjustFinishedProductQuantity(productId: String, delta: Int): Flow<Resource<Unit>>
+    fun refreshFinishedProducts(): Flow<Resource<Unit>>
 }

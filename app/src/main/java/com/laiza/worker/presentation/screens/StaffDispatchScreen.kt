@@ -1,45 +1,56 @@
 package com.laiza.worker.presentation.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Undo
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.laiza.worker.domain.models.EcommercePartner
-import com.laiza.worker.domain.models.FinishedProduct
+import com.laiza.worker.domain.models.PickupRecord
+import com.laiza.worker.domain.models.ReturnRecord
 import com.laiza.worker.domain.models.ReturnType
-import com.laiza.worker.presentation.components.AppSearchBar
 import com.laiza.worker.presentation.components.CustomTextField
 import com.laiza.worker.presentation.components.PrimaryButton
 import com.laiza.worker.presentation.components.PremiumCard
+import com.laiza.worker.presentation.components.SearchablePickerField
 import com.laiza.worker.presentation.viewmodels.StoreOperationsViewModel
 
 @Composable
 fun StaffDispatchScreen(
     viewModel: StoreOperationsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     var activeTab by remember { mutableIntStateOf(0) }
     var showPickupDialog by remember { mutableStateOf(false) }
     var showReturnDialog by remember { mutableStateOf(false) }
+    var showAllPickups by remember { mutableStateOf(false) }
+    var showAllReturns by remember { mutableStateOf(false) }
+    val allPickups by viewModel.allPickups.collectAsState()
+    val allReturns by viewModel.allReturns.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAF9F6))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         TabRow(selectedTabIndex = activeTab) {
             Tab(selected = activeTab == 0, onClick = { activeTab = 0 }, text = { Text("Pickup") })
@@ -47,163 +58,599 @@ fun StaffDispatchScreen(
         }
 
         if (activeTab == 0) {
-            DispatchTabContent(
-                title = "Handoff to delivery partner",
-                subtitle = "Select products given to Flipkart, Myntra, Amazon, Meesho, etc.",
+            DispatchHistoryTab(
+                title = "Pickup",
+                subtitle = null,
                 buttonText = "New Pickup",
-                onAction = { showPickupDialog = true }
-            )
+                historyTitle = "Pickup history",
+                emptyHistory = "No pickups recorded yet",
+                onAction = { showPickupDialog = true },
+                recentItems = allPickups.take(3),
+                totalCount = allPickups.size,
+                onViewAll = { showAllPickups = true }
+            ) { record ->
+                PickupHistoryCard(record)
+            }
         } else {
-            DispatchTabContent(
-                title = "Product returns",
-                subtitle = "Restock items returned via RTO or DTO",
+            DispatchHistoryTab(
+                title = "Return",
+                subtitle = null,
                 buttonText = "New Return",
-                onAction = { showReturnDialog = true }
-            )
+                historyTitle = "Return history",
+                emptyHistory = "No returns recorded yet",
+                onAction = { showReturnDialog = true },
+                recentItems = allReturns.take(3),
+                totalCount = allReturns.size,
+                onViewAll = { showAllReturns = true }
+            ) { record ->
+                ReturnHistoryCard(record)
+            }
+        }
+    }
+
+    if (showAllPickups) {
+        FullHistorySheet(
+            title = "All pickup history",
+            onDismiss = { showAllPickups = false }
+        ) {
+            if (allPickups.isEmpty()) {
+                item {
+                    Text(
+                        "No pickups recorded yet",
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(allPickups, key = { it.id }) { PickupHistoryCard(it) }
+            }
+        }
+    }
+
+    if (showAllReturns) {
+        FullHistorySheet(
+            title = "All return history",
+            onDismiss = { showAllReturns = false }
+        ) {
+            if (allReturns.isEmpty()) {
+                item {
+                    Text(
+                        "No returns recorded yet",
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else {
+                items(allReturns, key = { it.id }) { ReturnHistoryCard(it) }
+            }
         }
     }
 
     if (showPickupDialog) {
-        InventoryOperationDialog(
+        DispatchDetailsDialog(
+            viewModel = viewModel,
             title = "Record Pickup",
             confirmText = "Confirm Pickup",
-            viewModel = viewModel,
             onDismiss = { showPickupDialog = false },
-            onConfirm = { product, qty, partner, _, notes ->
-                viewModel.recordPickup(product, qty, partner,
-                    onSuccess = { showPickupDialog = false },
-                    onError = {}
+            onConfirm = { clarisQty, blissQty, platform, courier ->
+                viewModel.recordPickup(
+                    clarisQuantity = clarisQty,
+                    blissQuantity = blissQty,
+                    platform = platform,
+                    deliveryPartner = courier,
+                    onSuccess = {
+                        showPickupDialog = false
+                        Toast.makeText(context, "Pickup recorded successfully", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                    }
                 )
-            },
-            validateQuantity = { product, qty -> qty > 0 && qty <= product.quantity }
+            }
         )
     }
 
     if (showReturnDialog) {
-        InventoryOperationDialog(
-            title = "Record Return",
-            confirmText = "Restock Item",
+        ReturnOperationDialog(
             viewModel = viewModel,
-            showReturnType = true,
             onDismiss = { showReturnDialog = false },
-            onConfirm = { product, qty, partner, returnType, notes ->
-                viewModel.recordReturn(product, qty, partner, returnType ?: ReturnType.RTO, notes,
-                    onSuccess = { showReturnDialog = false },
-                    onError = {}
+            onConfirm = { clarisQty, blissQty, platform, courier, returnType, notes ->
+                viewModel.recordReturn(
+                    clarisQty, blissQty, platform, courier, returnType, notes,
+                    onSuccess = {
+                        showReturnDialog = false
+                        Toast.makeText(context, "Return recorded successfully", Toast.LENGTH_SHORT).show()
+                    },
+                    onError = { msg ->
+                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
+                    }
                 )
-            },
-            validateQuantity = { product, qty -> qty > 0 }
+            }
         )
     }
 }
 
 @Composable
-private fun DispatchTabContent(
+private fun <T> DispatchHistoryTab(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     buttonText: String,
-    onAction: () -> Unit
+    historyTitle: String,
+    emptyHistory: String,
+    onAction: () -> Unit,
+    recentItems: List<T>,
+    totalCount: Int,
+    onViewAll: () -> Unit,
+    itemContent: @Composable (T) -> Unit
 ) {
     Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        Icon(Icons.Default.Inventory, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Spacer(modifier = Modifier.height(24.dp))
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        if (!subtitle.isNullOrBlank()) {
+            Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         PrimaryButton(text = buttonText, onClick = onAction)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(historyTitle, fontWeight = FontWeight.SemiBold)
+            if (totalCount > 3) {
+                TextButton(onClick = onViewAll) {
+                    Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("View all ($totalCount)")
+                }
+            }
+        }
+        if (recentItems.isEmpty()) {
+            Text(emptyHistory, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        } else {
+            recentItems.forEach { itemContent(it) }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FullHistorySheet(
+    title: String,
+    onDismiss: () -> Unit,
+    content: LazyListScope.() -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Text(
+            title,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold
+        )
+        LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp)
+        ) {
+            content()
+        }
     }
 }
 
 @Composable
-private fun InventoryOperationDialog(
+private fun PickupHistoryCard(record: PickupRecord) {
+    val lines = record.lineItems
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        Icons.Default.LocalShipping,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(record.productsLabel, fontWeight = FontWeight.Bold)
+                        if (lines.size == 1 && lines.first().color.isNotBlank()) {
+                            Text(
+                                "Color: ${lines.first().color}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        } else if (lines.size > 1) {
+                            Text(
+                                lines.joinToString(" · ") { "${it.productName} ×${it.quantity}" },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "${record.totalQuantity} pcs",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Text(
+                record.qtyBreakdownLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HistoryChip(record.partner)
+                if (record.deliveryPartner.isNotBlank()) {
+                    HistoryChip(record.deliveryPartner)
+                }
+                HistoryChip(com.laiza.worker.core.utils.DateFormatter.formatStoredDateTime(record.date, record.time))
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "By ${record.staffName.ifBlank { "Staff" }}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReturnHistoryCard(record: ReturnRecord) {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                    Icon(
+                        Icons.Default.Undo,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.tertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(record.productName.ifBlank { "Return" }, fontWeight = FontWeight.Bold)
+                        if (record.color.isNotBlank()) {
+                            Text(
+                                "Color: ${record.color}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+                Text(
+                    "+${record.totalQuantity} pcs",
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+            Text(
+                record.qtyBreakdownLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp)
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HistoryChip(record.returnType.displayName)
+                HistoryChip(record.partner)
+                if (record.deliveryPartner.isNotBlank()) {
+                    HistoryChip(record.deliveryPartner)
+                }
+                HistoryChip(com.laiza.worker.core.utils.DateFormatter.formatStoredDateTime(record.date, record.time))
+            }
+            record.notes?.takeIf { it.isNotBlank() }?.let { note ->
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(note, style = MaterialTheme.typography.bodySmall)
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                "By ${record.staffName.ifBlank { "Staff" }}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun HistoryChip(text: String) {
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+/**
+ * Shared Quantity → Company → Delivery-partner form used for Pickup.
+ * Company and partners come from admin-managed Firestore lists (read-only here).
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DispatchDetailsDialog(
+    viewModel: StoreOperationsViewModel,
     title: String,
     confirmText: String,
-    viewModel: StoreOperationsViewModel,
-    showReturnType: Boolean = false,
     onDismiss: () -> Unit,
-    onConfirm: (FinishedProduct, Int, EcommercePartner, ReturnType?, String?) -> Unit,
-    validateQuantity: (FinishedProduct, Int) -> Boolean = { _, qty -> qty > 0 }
+    onConfirm: (clarisQty: Int, blissQty: Int, platform: String, courier: String) -> Unit
 ) {
-    val search by viewModel.inventorySearch.collectAsState()
-    val products by viewModel.filteredInventory.collectAsState()
-    var selectedProduct by remember { mutableStateOf<FinishedProduct?>(null) }
-    var quantity by remember { mutableStateOf("") }
-    var selectedPartner by remember { mutableStateOf(EcommercePartner.FLIPKART) }
-    var selectedReturnType by remember { mutableStateOf(ReturnType.RTO) }
-    var notes by remember { mutableStateOf("") }
+    val partners by viewModel.deliveryPartners.collectAsState()
+    val companies by viewModel.marketplaceCompanies.collectAsState()
+
+    var clarisQty by remember { mutableStateOf("") }
+    var blissQty by remember { mutableStateOf("") }
+    var platform by remember { mutableStateOf("") }
+    var courier by remember { mutableStateOf("") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+    var submitting by remember { mutableStateOf(false) }
+
+    val companyNames = remember(companies) { companies.map { it.name } }
+    val courierNames = remember(partners) { partners.map { it.name } }
+
+    LaunchedEffect(companyNames) {
+        if (platform.isNotBlank() && companyNames.none { it.equals(platform, ignoreCase = true) }) {
+            platform = ""
+        }
+    }
+    LaunchedEffect(courierNames) {
+        if (courier.isNotBlank() && courierNames.none { it.equals(courier, ignoreCase = true) }) {
+            courier = ""
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.94f),
         title = { Text(title, fontWeight = FontWeight.Bold) },
         text = {
             Column(
-                modifier = Modifier.fillMaxWidth().height(420.dp).verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 520.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                AppSearchBar(query = search, onQueryChange = viewModel::onInventorySearchChange, placeholder = "Search product or color...")
-                if (selectedProduct == null) {
-                    products.filter { it.quantity > 0 }.forEach { product ->
-                        PremiumCard(
-                            modifier = Modifier.fillMaxWidth().clickable { selectedProduct = product }
-                        ) {
-                            Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(product.name, fontWeight = FontWeight.Bold)
-                                    if (product.color.isNotBlank()) Text("Color: ${product.color}", style = MaterialTheme.typography.bodySmall)
-                                }
-                                Text("${product.quantity} pcs", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                } else {
-                    val p = selectedProduct!!
-                    Text("Selected: ${p.name}", fontWeight = FontWeight.Bold)
-                    if (p.color.isNotBlank()) Text("Color: ${p.color}")
-                    Text("Available: ${p.quantity} pcs")
-                    TextButton(onClick = { selectedProduct = null }) { Text("Change product") }
-                    CustomTextField(quantity, { quantity = it }, "Quantity", keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number))
-                    Text("E-commerce Partner", fontWeight = FontWeight.SemiBold)
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        EcommercePartner.entries.chunked(3).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                row.forEach { partner ->
-                                    FilterChip(
-                                        selected = selectedPartner == partner,
-                                        onClick = { selectedPartner = partner },
-                                        label = { Text(partner.displayName, style = MaterialTheme.typography.labelSmall) }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    if (showReturnType) {
-                        Text("Return Type", fontWeight = FontWeight.SemiBold)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(selected = selectedReturnType == ReturnType.RTO, onClick = { selectedReturnType = ReturnType.RTO }, label = { Text("RTO") })
-                            FilterChip(selected = selectedReturnType == ReturnType.DTO, onClick = { selectedReturnType = ReturnType.DTO }, label = { Text("DTO") })
-                        }
-                        CustomTextField(notes, { notes = it }, "Notes (optional)")
-                    }
+                Text("Quantity", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    CustomTextField(
+                        value = clarisQty,
+                        onValueChange = { v -> clarisQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Claris qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    CustomTextField(
+                        value = blissQty,
+                        onValueChange = { v -> blissQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Bliss qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                val totalPreview = (clarisQty.toIntOrNull() ?: 0) + (blissQty.toIntOrNull() ?: 0)
+                if (totalPreview > 0) {
+                    Text(
+                        "Total: $totalPreview pcs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Text("Company", fontWeight = FontWeight.SemiBold)
+                SearchablePickerField(
+                    selected = platform,
+                    onSelected = { platform = it },
+                    options = companyNames,
+                    label = "Company",
+                    placeholder = "Search or pick company",
+                    emptyText = "No companies yet — ask admin to add"
+                )
+
+                Text("Delivery partner", fontWeight = FontWeight.SemiBold)
+                SearchablePickerField(
+                    selected = courier,
+                    onSelected = { courier = it },
+                    options = courierNames,
+                    label = "Courier",
+                    placeholder = "Search or pick courier",
+                    emptyText = "No partners yet — ask admin to add"
+                )
+
+                validationError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
         },
         confirmButton = {
             PrimaryButton(
-                text = confirmText,
+                text = if (submitting) "Saving…" else confirmText,
                 onClick = {
-                    val p = selectedProduct ?: return@PrimaryButton
-                    val q = quantity.toIntOrNull() ?: return@PrimaryButton
-                    if (validateQuantity(p, q)) {
-                        onConfirm(p, q, selectedPartner, if (showReturnType) selectedReturnType else null, notes.ifBlank { null })
+                    if (submitting) return@PrimaryButton
+                    val claris = clarisQty.toIntOrNull() ?: 0
+                    val bliss = blissQty.toIntOrNull() ?: 0
+                    if (claris + bliss <= 0) {
+                        validationError = "Enter Claris and/or Bliss quantity"
+                        return@PrimaryButton
                     }
+                    if (platform.isBlank()) {
+                        validationError = "Select a company"
+                        return@PrimaryButton
+                    }
+                    if (courier.isBlank()) {
+                        validationError = "Select a delivery partner"
+                        return@PrimaryButton
+                    }
+                    validationError = null
+                    submitting = true
+                    onConfirm(claris, bliss, platform, courier)
+                },
+                enabled = !submitting
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !submitting) { Text("Cancel") }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ReturnOperationDialog(
+    viewModel: StoreOperationsViewModel,
+    onDismiss: () -> Unit,
+    onConfirm: (clarisQty: Int, blissQty: Int, platform: String, courier: String, returnType: ReturnType, notes: String?) -> Unit
+) {
+    val partners by viewModel.deliveryPartners.collectAsState()
+    val companies by viewModel.marketplaceCompanies.collectAsState()
+
+    var clarisQty by remember { mutableStateOf("") }
+    var blissQty by remember { mutableStateOf("") }
+    var platform by remember { mutableStateOf("") }
+    var courier by remember { mutableStateOf("") }
+    var selectedReturnType by remember { mutableStateOf(ReturnType.RTO) }
+    var notes by remember { mutableStateOf("") }
+    var validationError by remember { mutableStateOf<String?>(null) }
+
+    val companyNames = remember(companies) { companies.map { it.name } }
+    val courierNames = remember(partners) { partners.map { it.name } }
+
+    LaunchedEffect(companyNames) {
+        if (platform.isNotBlank() && companyNames.none { it.equals(platform, ignoreCase = true) }) {
+            platform = ""
+        }
+    }
+    LaunchedEffect(courierNames) {
+        if (courier.isNotBlank() && courierNames.none { it.equals(courier, ignoreCase = true) }) {
+            courier = ""
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+        modifier = Modifier.fillMaxWidth(0.94f),
+        title = { Text("Record Return", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth().heightIn(max = 520.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text("Quantity", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    CustomTextField(
+                        value = clarisQty,
+                        onValueChange = { v -> clarisQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Claris qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                    CustomTextField(
+                        value = blissQty,
+                        onValueChange = { v -> blissQty = v.filter { ch -> ch.isDigit() } },
+                        label = "Bliss qty",
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                val returnTotal = (clarisQty.toIntOrNull() ?: 0) + (blissQty.toIntOrNull() ?: 0)
+                if (returnTotal > 0) {
+                    Text(
+                        "Total: $returnTotal pcs",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                Text("Company", fontWeight = FontWeight.SemiBold)
+                SearchablePickerField(
+                    selected = platform,
+                    onSelected = { platform = it },
+                    options = companyNames,
+                    label = "Company",
+                    placeholder = "Search or pick company",
+                    emptyText = "No companies yet — ask admin to add"
+                )
+
+                Text("Delivery partner", fontWeight = FontWeight.SemiBold)
+                SearchablePickerField(
+                    selected = courier,
+                    onSelected = { courier = it },
+                    options = courierNames,
+                    label = "Courier",
+                    placeholder = "Search or pick courier",
+                    emptyText = "No partners yet — ask admin to add"
+                )
+
+                Text("Return type", fontWeight = FontWeight.SemiBold)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(
+                        selected = selectedReturnType == ReturnType.RTO,
+                        onClick = { selectedReturnType = ReturnType.RTO },
+                        label = { Text("RTO") }
+                    )
+                    FilterChip(
+                        selected = selectedReturnType == ReturnType.DTO,
+                        onClick = { selectedReturnType = ReturnType.DTO },
+                        label = { Text("DTO") }
+                    )
+                }
+                CustomTextField(notes, { notes = it }, "Notes (optional)")
+
+                validationError?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+            }
+        },
+        confirmButton = {
+            PrimaryButton(
+                text = "Save Return",
+                onClick = {
+                    val claris = clarisQty.toIntOrNull() ?: 0
+                    val bliss = blissQty.toIntOrNull() ?: 0
+                    if (claris + bliss <= 0) {
+                        validationError = "Enter Claris and/or Bliss quantity"
+                        return@PrimaryButton
+                    }
+                    if (platform.isBlank()) {
+                        validationError = "Select a company"
+                        return@PrimaryButton
+                    }
+                    if (courier.isBlank()) {
+                        validationError = "Select a delivery partner"
+                        return@PrimaryButton
+                    }
+                    validationError = null
+                    onConfirm(claris, bliss, platform, courier, selectedReturnType, notes.ifBlank { null })
                 }
             )
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
     )
 }

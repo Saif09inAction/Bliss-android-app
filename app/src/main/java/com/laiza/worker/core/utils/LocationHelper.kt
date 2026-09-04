@@ -32,27 +32,60 @@ class LocationHelper @Inject constructor(
             return null
         }
 
+        val lm = context.getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+        val isGpsEnabled = lm?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true
+        val isNetworkEnabled = lm?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true
+        if (!isGpsEnabled && !isNetworkEnabled) {
+            return null
+        }
+
+        fun fallbackSystemLocation(): Location? {
+            return try {
+                val gps = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                val net = lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                val pas = lm?.getLastKnownLocation(android.location.LocationManager.PASSIVE_PROVIDER)
+                gps ?: net ?: pas
+            } catch (_: SecurityException) {
+                null
+            }
+        }
+
         return suspendCancellableCoroutine { continuation ->
             val cancellationTokenSource = CancellationTokenSource()
 
             fusedLocationClient.getCurrentLocation(
-                Priority.PRIORITY_HIGH_ACCURACY,
+                Priority.PRIORITY_BALANCED_POWER_ACCURACY,
                 cancellationTokenSource.token
             ).addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     if (continuation.isActive) continuation.resume(location)
                 } else {
-                    fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
-                        if (continuation.isActive) continuation.resume(lastLoc)
+                    fusedLocationClient.getCurrentLocation(
+                        Priority.PRIORITY_HIGH_ACCURACY,
+                        cancellationTokenSource.token
+                    ).addOnSuccessListener { loc2: Location? ->
+                        if (loc2 != null) {
+                            if (continuation.isActive) continuation.resume(loc2)
+                        } else {
+                            fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                                if (continuation.isActive) continuation.resume(lastLoc ?: fallbackSystemLocation())
+                            }.addOnFailureListener {
+                                if (continuation.isActive) continuation.resume(fallbackSystemLocation())
+                            }
+                        }
                     }.addOnFailureListener {
-                        if (continuation.isActive) continuation.resume(null)
+                        fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
+                            if (continuation.isActive) continuation.resume(lastLoc ?: fallbackSystemLocation())
+                        }.addOnFailureListener {
+                            if (continuation.isActive) continuation.resume(fallbackSystemLocation())
+                        }
                     }
                 }
             }.addOnFailureListener {
                 fusedLocationClient.lastLocation.addOnSuccessListener { lastLoc ->
-                    if (continuation.isActive) continuation.resume(lastLoc)
+                    if (continuation.isActive) continuation.resume(lastLoc ?: fallbackSystemLocation())
                 }.addOnFailureListener {
-                    if (continuation.isActive) continuation.resume(null)
+                    if (continuation.isActive) continuation.resume(fallbackSystemLocation())
                 }
             }
 

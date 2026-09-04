@@ -1,7 +1,6 @@
 package com.laiza.worker.presentation.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -31,6 +30,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.laiza.worker.core.theme.BlissGold
+import com.laiza.worker.core.theme.BlissGreen
+import com.laiza.worker.core.theme.BlissGreenLight
 import com.laiza.worker.domain.models.UserSession
 
 @Composable
@@ -45,26 +47,37 @@ fun DrawerHeader(
             .background(
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary,
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                        Color(0xFF0A0A0A),
+                        Color(0xFF151A10)
                     )
                 )
             )
             .padding(top = 48.dp, bottom = 24.dp, start = 24.dp, end = 24.dp)
     ) {
         Column {
-            // App Branding
-            Text(
-                text = "LAIZA",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                letterSpacing = 1.sp
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                BlissLogoImage(size = 52.dp, small = true)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column {
+                    Text(
+                        text = "BLISS",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        color = BlissGreenLight,
+                        letterSpacing = 3.sp
+                    )
+                    Text(
+                        text = "BOMBAY",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BlissGold,
+                        letterSpacing = 4.sp
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // User Avatar
                 if (!profilePhotoUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = profilePhotoUrl,
@@ -73,18 +86,23 @@ fun DrawerHeader(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f))
+                            .background(BlissGold.copy(alpha = 0.2f))
                     )
                 } else {
-                    AsyncImage(
-                        model = null as String?,
-                        contentDescription = "Profile Photo",
-                        contentScale = ContentScale.Crop,
+                    Box(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.2f))
-                    )
+                            .background(BlissGreen.copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = session?.name?.firstOrNull()?.uppercase() ?: "?",
+                            fontWeight = FontWeight.Bold,
+                            color = BlissGreenLight,
+                            fontSize = 22.sp
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Column {
@@ -98,12 +116,12 @@ fun DrawerHeader(
                         text = session?.role?.name ?: "EMPLOYEE",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color.White.copy(alpha = 0.8f)
+                        color = BlissGold.copy(alpha = 0.85f)
                     )
                     Text(
                         text = "Phone: ${session?.phone ?: "-"}",
                         fontSize = 12.sp,
-                        color = Color.White.copy(alpha = 0.6f)
+                        color = Color.White.copy(alpha = 0.5f)
                     )
                 }
             }
@@ -122,16 +140,18 @@ fun DrawerItem(
     badgeCount: Int? = null
 ) {
     val containerColor = if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        BlissGreen.copy(alpha = 0.12f)
     } else {
         Color.Transparent
     }
 
     val contentColor = if (selected) {
-        MaterialTheme.colorScheme.primary
+        MaterialTheme.colorScheme.onBackground
     } else {
         MaterialTheme.colorScheme.onSurfaceVariant
     }
+
+    val iconTint = if (selected) BlissGreen else contentColor
 
     Row(
         modifier = modifier
@@ -146,7 +166,7 @@ fun DrawerItem(
         if (badgeCount != null && badgeCount > 0) {
             BadgedBox(
                 badge = {
-                    Badge {
+                    Badge(containerColor = BlissGreen, contentColor = Color.White) {
                         Text(text = badgeCount.toString())
                     }
                 }
@@ -154,7 +174,7 @@ fun DrawerItem(
                 Icon(
                     imageVector = icon,
                     contentDescription = title,
-                    tint = contentColor,
+                    tint = iconTint,
                     modifier = Modifier.size(22.dp)
                 )
             }
@@ -162,7 +182,7 @@ fun DrawerItem(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = contentColor,
+                tint = iconTint,
                 modifier = Modifier.size(22.dp)
             )
         }
@@ -173,7 +193,7 @@ fun DrawerItem(
             text = title,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = contentColor,
+            color = if (selected) MaterialTheme.colorScheme.onBackground else contentColor,
             modifier = Modifier.weight(1f)
         )
     }

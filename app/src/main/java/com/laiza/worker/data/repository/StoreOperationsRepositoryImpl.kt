@@ -3,16 +3,19 @@ package com.laiza.worker.data.repository
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.laiza.worker.core.utils.Resource
-import com.laiza.worker.domain.models.EcommercePartner
+import com.laiza.worker.domain.models.DeliveryPartner
+import com.laiza.worker.domain.models.DeliveryPartnerDefaults
+import com.laiza.worker.domain.models.EcommercePlatform
+import com.laiza.worker.domain.models.MarketplaceCompany
+import com.laiza.worker.domain.models.PickupLineItem
 import com.laiza.worker.domain.models.PickupRecord
 import com.laiza.worker.domain.models.ReturnRecord
 import com.laiza.worker.domain.models.ReturnType
-import com.laiza.worker.domain.repository.InventoryRepository
 import com.laiza.worker.domain.repository.StoreOperationsRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -20,8 +23,7 @@ import javax.inject.Singleton
 
 @Singleton
 class StoreOperationsRepositoryImpl @Inject constructor(
-    private val firestore: FirebaseFirestore,
-    private val inventoryRepository: InventoryRepository
+    private val firestore: FirebaseFirestore
 ) : StoreOperationsRepository {
 
     override fun getAllPickups(): Flow<List<PickupRecord>> = callbackFlow {
@@ -29,20 +31,7 @@ class StoreOperationsRepositoryImpl @Inject constructor(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, _ ->
                 val records = snapshot?.documents?.mapNotNull { doc ->
-                    val d = doc.data ?: return@mapNotNull null
-                    PickupRecord(
-                        id = d["id"] as? String ?: doc.id,
-                        productId = d["productId"] as? String ?: "",
-                        productName = d["productName"] as? String ?: "",
-                        color = d["color"] as? String ?: "",
-                        quantity = (d["quantity"] as? Number)?.toInt() ?: 0,
-                        partner = EcommercePartner.fromString(d["partner"] as? String ?: ""),
-                        staffId = d["staffId"] as? String ?: "",
-                        staffName = d["staffName"] as? String ?: "",
-                        date = d["date"] as? String ?: "",
-                        time = d["time"] as? String ?: "",
-                        timestamp = (d["timestamp"] as? Number)?.toLong() ?: 0L
-                    )
+                    parsePickup(doc.id, doc.data ?: return@mapNotNull null)
                 } ?: emptyList()
                 trySend(records)
             }
@@ -54,24 +43,51 @@ class StoreOperationsRepositoryImpl @Inject constructor(
             .orderBy("timestamp", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, _ ->
                 val records = snapshot?.documents?.mapNotNull { doc ->
-                    val d = doc.data ?: return@mapNotNull null
-                    ReturnRecord(
-                        id = d["id"] as? String ?: doc.id,
-                        productId = d["productId"] as? String ?: "",
-                        productName = d["productName"] as? String ?: "",
-                        color = d["color"] as? String ?: "",
-                        quantity = (d["quantity"] as? Number)?.toInt() ?: 0,
-                        partner = EcommercePartner.fromString(d["partner"] as? String ?: ""),
-                        returnType = ReturnType.fromString(d["returnType"] as? String ?: "RTO"),
-                        staffId = d["staffId"] as? String ?: "",
-                        staffName = d["staffName"] as? String ?: "",
-                        date = d["date"] as? String ?: "",
-                        time = d["time"] as? String ?: "",
-                        notes = d["notes"] as? String,
-                        timestamp = (d["timestamp"] as? Number)?.toLong() ?: 0L
-                    )
+                    parseReturn(doc.id, doc.data ?: return@mapNotNull null)
                 } ?: emptyList()
                 trySend(records)
+            }
+        awaitClose { listener.remove() }
+    }
+
+    /** Admin-managed list only — live sync from Firestore `delivery_partners`. */
+    override fun getDeliveryPartners(): Flow<List<DeliveryPartner>> = callbackFlow {
+        val col = firestore.collection("delivery_partners")
+        val listener = col
+            .orderBy("name", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, _ ->
+                val fromDb = snapshot?.documents?.mapNotNull { doc ->
+                    val d = doc.data ?: return@mapNotNull null
+                    val name = (d["name"] as? String)?.trim().orEmpty()
+                    if (name.isBlank()) return@mapNotNull null
+                    DeliveryPartner(
+                        id = d["id"] as? String ?: doc.id,
+                        name = name,
+                        createdAt = (d["createdAt"] as? Number)?.toLong() ?: 0L
+                    )
+                } ?: emptyList()
+                trySend(fromDb.sortedBy { it.name.lowercase() })
+            }
+        awaitClose { listener.remove() }
+    }
+
+    /** Admin-managed list only — live sync from Firestore `marketplace_companies`. */
+    override fun getMarketplaceCompanies(): Flow<List<MarketplaceCompany>> = callbackFlow {
+        val col = firestore.collection("marketplace_companies")
+        val listener = col
+            .orderBy("name", Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, _ ->
+                val fromDb = snapshot?.documents?.mapNotNull { doc ->
+                    val d = doc.data ?: return@mapNotNull null
+                    val name = (d["name"] as? String)?.trim().orEmpty()
+                    if (name.isBlank()) return@mapNotNull null
+                    MarketplaceCompany(
+                        id = d["id"] as? String ?: doc.id,
+                        name = name,
+                        createdAt = (d["createdAt"] as? Number)?.toLong() ?: 0L
+                    )
+                } ?: emptyList()
+                trySend(fromDb.sortedBy { it.name.lowercase() })
             }
         awaitClose { listener.remove() }
     }
@@ -79,14 +95,16 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordPickup(record: PickupRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            when (val adjust = inventoryRepository.adjustFinishedProductQuantity(record.productId, -record.quantity).first { it !is Resource.Loading }) {
-                is Resource.Success -> {
-                    firestore.collection("pickup_records").document(record.id).set(pickupToMap(record)).await()
-                    emit(Resource.Success(Unit))
-                }
-                is Resource.Error -> emit(Resource.Error(adjust.message ?: "Failed to deduct inventory"))
-                else -> emit(Resource.Error("Failed to deduct inventory"))
+            if (record.totalQuantity <= 0) {
+                emit(Resource.Error("Enter Claris and/or Bliss quantity"))
+                return@flow
             }
+            firestore.collection("pickup_records").document(record.id)
+                .set(pickupToMap(record))
+                .await()
+            emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to record pickup"))
         }
@@ -95,30 +113,141 @@ class StoreOperationsRepositoryImpl @Inject constructor(
     override fun recordReturn(record: ReturnRecord): Flow<Resource<Unit>> = flow {
         emit(Resource.Loading())
         try {
-            when (val adjust = inventoryRepository.adjustFinishedProductQuantity(record.productId, record.quantity).first { it !is Resource.Loading }) {
-                is Resource.Success -> {
-                    firestore.collection("return_records").document(record.id).set(returnToMap(record)).await()
-                    emit(Resource.Success(Unit))
-                }
-                is Resource.Error -> emit(Resource.Error(adjust.message ?: "Failed to restock inventory"))
-                else -> emit(Resource.Error("Failed to restock inventory"))
+            if (record.totalQuantity <= 0) {
+                emit(Resource.Error("Enter Claris and/or Bliss quantity"))
+                return@flow
             }
+            firestore.collection("return_records").document(record.id)
+                .set(returnToMap(record))
+                .await()
+            emit(Resource.Success(Unit))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emit(Resource.Error(e.message ?: "Failed to record return"))
         }
     }
 
-    private fun pickupToMap(r: PickupRecord) = mapOf(
-        "id" to r.id, "productId" to r.productId, "productName" to r.productName,
-        "color" to r.color, "quantity" to r.quantity, "partner" to r.partner.name,
-        "staffId" to r.staffId, "staffName" to r.staffName,
-        "date" to r.date, "time" to r.time, "timestamp" to r.timestamp
-    )
+    private fun parsePickup(docId: String, d: Map<String, Any>): PickupRecord {
+        @Suppress("UNCHECKED_CAST")
+        val rawItems = d["items"] as? List<Map<String, Any>>
+        val items = rawItems?.mapNotNull { m ->
+            val name = m["productName"] as? String ?: return@mapNotNull null
+            PickupLineItem(
+                productId = m["productId"] as? String ?: "",
+                productName = name,
+                color = m["color"] as? String ?: "",
+                quantity = (m["quantity"] as? Number)?.toInt() ?: 0
+            )
+        } ?: emptyList()
 
-    private fun returnToMap(r: ReturnRecord) = mapOf(
-        "id" to r.id, "productId" to r.productId, "productName" to r.productName,
-        "color" to r.color, "quantity" to r.quantity, "partner" to r.partner.name,
-        "returnType" to r.returnType.name, "staffId" to r.staffId, "staffName" to r.staffName,
-        "date" to r.date, "time" to r.time, "notes" to (r.notes ?: ""), "timestamp" to r.timestamp
-    )
+        val productId = d["productId"] as? String ?: items.firstOrNull()?.productId.orEmpty()
+        val productName = d["productName"] as? String ?: items.firstOrNull()?.productName.orEmpty()
+        val color = d["color"] as? String ?: items.firstOrNull()?.color.orEmpty()
+        val claris = (d["clarisQuantity"] as? Number)?.toInt() ?: 0
+        val bliss = (d["blissQuantity"] as? Number)?.toInt() ?: 0
+        val quantity = (d["quantity"] as? Number)?.toInt()
+            ?: items.sumOf { it.quantity }.takeIf { it > 0 }
+            ?: (claris + bliss)
+
+        return PickupRecord(
+            id = d["id"] as? String ?: docId,
+            items = items,
+            productId = productId,
+            productName = productName,
+            color = color,
+            quantity = quantity,
+            clarisQuantity = if (claris > 0 || bliss > 0) claris else quantity,
+            blissQuantity = bliss,
+            partner = EcommercePlatform.normalize(d["partner"] as? String),
+            deliveryPartner = DeliveryPartnerDefaults.normalize(d["deliveryPartner"] as? String),
+            staffId = d["staffId"] as? String ?: "",
+            staffName = d["staffName"] as? String ?: "",
+            date = d["date"] as? String ?: "",
+            time = d["time"] as? String ?: "",
+            timestamp = (d["timestamp"] as? Number)?.toLong() ?: 0L
+        )
+    }
+
+    private fun parseReturn(docId: String, d: Map<String, Any>): ReturnRecord {
+        val claris = (d["clarisQuantity"] as? Number)?.toInt() ?: 0
+        val bliss = (d["blissQuantity"] as? Number)?.toInt() ?: 0
+        val quantity = (d["quantity"] as? Number)?.toInt() ?: (claris + bliss)
+        return ReturnRecord(
+            id = d["id"] as? String ?: docId,
+            productId = d["productId"] as? String ?: "",
+            productName = d["productName"] as? String ?: "",
+            color = d["color"] as? String ?: "",
+            quantity = quantity,
+            clarisQuantity = if (claris > 0 || bliss > 0) claris else quantity,
+            blissQuantity = bliss,
+            partner = EcommercePlatform.normalize(d["partner"] as? String),
+            deliveryPartner = DeliveryPartnerDefaults.normalize(d["deliveryPartner"] as? String),
+            returnType = ReturnType.fromString(d["returnType"] as? String ?: "RTO"),
+            staffId = d["staffId"] as? String ?: "",
+            staffName = d["staffName"] as? String ?: "",
+            date = d["date"] as? String ?: "",
+            time = d["time"] as? String ?: "",
+            notes = d["notes"] as? String,
+            timestamp = (d["timestamp"] as? Number)?.toLong() ?: 0L
+        )
+    }
+
+    private fun pickupToMap(r: PickupRecord): Map<String, Any> {
+        val lines = r.lineItems
+        val first = lines.firstOrNull()
+        val claris = r.clarisQuantity.coerceAtLeast(0)
+        val bliss = r.blissQuantity.coerceAtLeast(0)
+        val total = (claris + bliss).takeIf { it > 0 }
+            ?: lines.sumOf { it.quantity }.takeIf { it > 0 }
+            ?: r.quantity
+        return mapOf(
+            "id" to r.id,
+            "items" to lines.map {
+                mapOf(
+                    "productId" to it.productId,
+                    "productName" to it.productName,
+                    "color" to it.color,
+                    "quantity" to it.quantity
+                )
+            },
+            "productId" to (first?.productId ?: r.productId),
+            "productName" to (first?.productName ?: r.productName),
+            "color" to (first?.color ?: r.color),
+            "quantity" to total,
+            "clarisQuantity" to claris,
+            "blissQuantity" to bliss,
+            "partner" to r.partner,
+            "deliveryPartner" to DeliveryPartnerDefaults.normalize(r.deliveryPartner),
+            "staffId" to r.staffId,
+            "staffName" to r.staffName,
+            "date" to r.date,
+            "time" to r.time,
+            "timestamp" to r.timestamp
+        )
+    }
+
+    private fun returnToMap(r: ReturnRecord): Map<String, Any> {
+        val claris = r.clarisQuantity.coerceAtLeast(0)
+        val bliss = r.blissQuantity.coerceAtLeast(0)
+        val total = (claris + bliss).takeIf { it > 0 } ?: r.quantity
+        return mapOf(
+            "id" to r.id,
+            "productId" to r.productId,
+            "productName" to r.productName,
+            "color" to r.color,
+            "quantity" to total,
+            "clarisQuantity" to claris,
+            "blissQuantity" to bliss,
+            "partner" to r.partner,
+            "deliveryPartner" to DeliveryPartnerDefaults.normalize(r.deliveryPartner),
+            "returnType" to r.returnType.name,
+            "staffId" to r.staffId,
+            "staffName" to r.staffName,
+            "date" to r.date,
+            "time" to r.time,
+            "notes" to (r.notes ?: ""),
+            "timestamp" to r.timestamp
+        )
+    }
 }

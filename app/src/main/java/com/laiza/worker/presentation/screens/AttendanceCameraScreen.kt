@@ -42,6 +42,7 @@ import android.content.ContentValues
 import android.provider.MediaStore
 import android.os.Environment
 import android.content.Context
+import android.content.Intent
 import java.io.File
 import java.util.concurrent.Executors
 
@@ -54,41 +55,41 @@ fun AttendanceCameraScreen(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    val requiredPermissions = remember {
-        val list = mutableListOf(Manifest.permission.CAMERA)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            list.add(Manifest.permission.READ_MEDIA_IMAGES)
-        } else {
-            list.add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-            list.add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        list.toTypedArray()
+    fun checkCameraPermission(): Boolean {
+        return ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.CAMERA
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     }
 
-    var permissionsState by remember {
-        mutableStateOf(
-            requiredPermissions.associateWith { permission ->
-                ContextCompat.checkSelfPermission(context, permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    var hasCameraPermission by remember { mutableStateOf(checkCameraPermission()) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasCameraPermission = checkCameraPermission()
             }
-        )
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
-
-    val hasAllPermissions = remember(permissionsState) { permissionsState.values.all { it } }
 
     val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-        onResult = { result ->
-            permissionsState = result
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            hasCameraPermission = isGranted
         }
     )
 
     LaunchedEffect(Unit) {
-        if (!hasAllPermissions) {
-            launcher.launch(requiredPermissions)
+        if (!hasCameraPermission) {
+            launcher.launch(Manifest.permission.CAMERA)
         }
     }
 
-    if (!hasAllPermissions) {
+    if (!hasCameraPermission) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -98,23 +99,34 @@ fun AttendanceCameraScreen(
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "Permissions Required",
+                    text = "Camera Access Required",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = "This application requires camera and storage access to capture and save verification selfies on your device.",
+                    text = "Camera access is required to capture verification selfies for attendance.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(24.dp))
                 PrimaryButton(
-                    text = "Grant Permissions",
-                    onClick = { launcher.launch(requiredPermissions) }
+                    text = "Grant Camera Permission",
+                    onClick = { launcher.launch(Manifest.permission.CAMERA) }
                 )
+                Spacer(modifier = Modifier.height(12.dp))
+                androidx.compose.material3.OutlinedButton(
+                    onClick = {
+                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                            data = android.net.Uri.fromParts("package", context.packageName, null)
+                        }
+                        context.startActivity(intent)
+                    }
+                ) {
+                    Text("Open App Settings")
+                }
             }
         }
         return

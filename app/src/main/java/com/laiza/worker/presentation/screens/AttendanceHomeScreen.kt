@@ -44,14 +44,40 @@ fun AttendanceHomeScreen(
     val submitState by viewModel.submitState.collectAsState()
     var showClockOutConfirm by remember { mutableStateOf(false) }
 
+    var showPermissionSettingsDialog by remember { mutableStateOf(false) }
+
     val context = androidx.compose.ui.platform.LocalContext.current
     var hasLocationPermission by remember {
         mutableStateOf(
             androidx.core.content.ContextCompat.checkSelfPermission(
                 context,
                 android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
             ) == android.content.pm.PackageManager.PERMISSION_GRANTED
         )
+    }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                hasLocationPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_FINE_LOCATION
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     val permissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -63,6 +89,7 @@ fun AttendanceHomeScreen(
                 showClockOutConfirm = true
             } else {
                 android.widget.Toast.makeText(context, "Location permission is required to Clock Out", android.widget.Toast.LENGTH_LONG).show()
+                showPermissionSettingsDialog = true
             }
         }
     )
@@ -97,6 +124,37 @@ fun AttendanceHomeScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClockOutConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showPermissionSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionSettingsDialog = false },
+            title = { Text("Location Permission Required", fontWeight = FontWeight.Bold) },
+            text = { Text("Location permission is needed to record your Clock Out. Please grant permission or open settings to enable it.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showPermissionSettingsDialog = false
+                        try {
+                            val intent = android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.fromParts("package", context.packageName, null)
+                            )
+                            context.startActivity(intent)
+                        } catch (e: Exception) {
+                            android.widget.Toast.makeText(context, "Could not open app settings", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                ) {
+                    Text("Open Settings")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPermissionSettingsDialog = false }) {
                     Text("Cancel")
                 }
             }
@@ -217,8 +275,8 @@ fun TodayStatusCard(
                 .background(
                     brush = Brush.verticalGradient(
                         colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f)
+                            Color(0xFF14532D),
+                            Color(0xFF15803D)
                         )
                     )
                 )
@@ -244,7 +302,12 @@ fun TodayStatusCard(
             ) {
                 TimeSlot(
                     label = "Punch In",
-                    time = if (state.clockInTime.isNullOrBlank()) "-- : --" else state.clockInTime,
+                    time = if (state.clockInTime.isNullOrBlank()) {
+                        "-- : --"
+                    } else {
+                        com.laiza.worker.core.utils.DateFormatter.formatStoredTime(state.clockInTime)
+                            .ifBlank { state.clockInTime!! }
+                    },
                     iconColor = MaterialTheme.colorScheme.secondary
                 )
                 Divider(
@@ -255,7 +318,12 @@ fun TodayStatusCard(
                 )
                 TimeSlot(
                     label = "Punch Out",
-                    time = if (state.clockOutTime.isNullOrBlank()) "-- : --" else state.clockOutTime,
+                    time = if (state.clockOutTime.isNullOrBlank()) {
+                        "-- : --"
+                    } else {
+                        com.laiza.worker.core.utils.DateFormatter.formatStoredTime(state.clockOutTime)
+                            .ifBlank { state.clockOutTime!! }
+                    },
                     iconColor = Color.White.copy(alpha = 0.8f)
                 )
             }
@@ -302,8 +370,8 @@ fun TodayStatusCard(
                         .height(54.dp),
                     shape = RoundedCornerShape(100.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = Color.White
+                        containerColor = Color(0xFFD4AF37),
+                        contentColor = Color(0xFF0A0A0A)
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {

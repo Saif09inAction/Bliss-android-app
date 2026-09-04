@@ -107,8 +107,8 @@ fun DashboardScreen(
                         .background(
                             brush = Brush.horizontalGradient(
                                 colors = listOf(
-                                    Color(0xFF0C1B40), // Dark Navy
-                                    Color(0xFF1E3A8A)  // Slate Navy Blue
+                                    Color(0xFF0A0A0A),
+                                    Color(0xFF1A1F14)
                                 )
                             )
                         )
@@ -420,7 +420,7 @@ fun NotificationItemRow(
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "${alert.date}  •  ${alert.time}",
+                    text = "${alert.date}  •  ${com.laiza.worker.core.utils.DateFormatter.formatStoredTime(alert.time).ifBlank { alert.time }}",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Medium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)

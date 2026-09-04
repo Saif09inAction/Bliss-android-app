@@ -1,32 +1,53 @@
 package com.laiza.worker.presentation.screens
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.Brush
+import com.laiza.worker.core.theme.BlissBlack
+import com.laiza.worker.core.theme.BlissGold
+import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.presentation.components.KaarigerLocalizedContent
+import com.laiza.worker.presentation.components.LaizaTopAppBar
+import com.laiza.worker.presentation.components.PremiumCard
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Task
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.annotation.StringRes
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.laiza.worker.R
+import com.laiza.worker.domain.models.KaarigerOrder
+import com.laiza.worker.domain.models.KaarigerOrderPayment
+import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.components.DrawerHeader
 import com.laiza.worker.presentation.components.DrawerItem
-import com.laiza.worker.presentation.components.LaizaTopAppBar
+import com.laiza.worker.presentation.components.KaarigerLanguageSwitch
+import com.laiza.worker.presentation.components.BlissFloatingBottomNav
+import com.laiza.worker.presentation.components.BlissNavTab
 import com.laiza.worker.presentation.components.SessionGuard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
+import com.laiza.worker.presentation.viewmodels.KaarigerLanguageViewModel
 import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
 
@@ -35,7 +56,30 @@ import kotlinx.coroutines.launch
 fun KaarigerContainerScreen(
     rootNavController: NavController,
     authViewModel: AuthViewModel = hiltViewModel(),
-    orderViewModel: OrderViewModel = hiltViewModel()
+    orderViewModel: OrderViewModel = hiltViewModel(),
+    languageViewModel: KaarigerLanguageViewModel = hiltViewModel()
+) {
+    val language by languageViewModel.language.collectAsState()
+
+    KaarigerLocalizedContent(languageCode = language) {
+        KaarigerContainerContent(
+            rootNavController = rootNavController,
+            authViewModel = authViewModel,
+            orderViewModel = orderViewModel,
+            language = language,
+            onLanguageSelected = languageViewModel::setLanguage
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun KaarigerContainerContent(
+    rootNavController: NavController,
+    authViewModel: AuthViewModel,
+    orderViewModel: OrderViewModel,
+    language: String,
+    onLanguageSelected: (String) -> Unit
 ) {
     val childNavController = rememberNavController()
     val session by authViewModel.userSession.collectAsState()
@@ -49,6 +93,7 @@ fun KaarigerContainerScreen(
     val currentRoute = navBackStackEntry?.destination?.route ?: KaarigerNav.Home.route
 
     val orders by orderViewModel.kaarigerOrders.collectAsState()
+    val payments by orderViewModel.kaarigerPayments.collectAsState()
     LaunchedEffect(session?.phone) {
         session?.phone?.let { orderViewModel.loadKaarigerData(it) }
     }
@@ -60,7 +105,7 @@ fun KaarigerContainerScreen(
                 DrawerHeader(session = session, profilePhotoUrl = null)
                 Spacer(modifier = Modifier.height(12.dp))
                 DrawerItem(
-                    title = "Dashboard",
+                    title = stringResource(R.string.kaariger_nav_home),
                     icon = Icons.Default.Home,
                     selected = currentRoute == KaarigerNav.Home.route,
                     onClick = {
@@ -69,7 +114,7 @@ fun KaarigerContainerScreen(
                     }
                 )
                 DrawerItem(
-                    title = "My Orders",
+                    title = stringResource(R.string.kaariger_nav_orders),
                     icon = Icons.Default.Task,
                     selected = currentRoute == KaarigerNav.Orders.route,
                     onClick = {
@@ -78,7 +123,16 @@ fun KaarigerContainerScreen(
                     }
                 )
                 DrawerItem(
-                    title = "Payments",
+                    title = stringResource(R.string.kaariger_home_hisaab_button),
+                    icon = Icons.Default.Calculate,
+                    selected = currentRoute == KaarigerNav.Hisaab.route,
+                    onClick = {
+                        scope.launch { drawerState.close() }
+                        childNavController.navigate(KaarigerNav.Hisaab.route)
+                    }
+                )
+                DrawerItem(
+                    title = stringResource(R.string.kaariger_nav_payments),
                     icon = Icons.Default.Payments,
                     selected = currentRoute == KaarigerNav.Payments.route,
                     onClick = {
@@ -86,9 +140,14 @@ fun KaarigerContainerScreen(
                         childNavController.navigate(KaarigerNav.Payments.route)
                     }
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
+                KaarigerLanguageSwitch(
+                    selectedLanguage = language,
+                    onLanguageSelected = onLanguageSelected
+                )
+                Spacer(modifier = Modifier.height(8.dp))
                 DrawerItem(
-                    title = "Logout",
+                    title = stringResource(R.string.kaariger_nav_logout),
                     icon = Icons.Default.ExitToApp,
                     selected = false,
                     onClick = {
@@ -101,52 +160,85 @@ fun KaarigerContainerScreen(
     ) {
         Scaffold(
             topBar = {
+                val onHome = currentRoute == KaarigerNav.Home.route
                 LaizaTopAppBar(
                     title = when (currentRoute) {
-                        KaarigerNav.Home.route -> "Kaariger Dashboard"
-                        KaarigerNav.Orders.route -> "My Orders"
-                        KaarigerNav.Payments.route -> "Payments"
-                        else -> "Laiza Bags"
+                        KaarigerNav.Home.route -> stringResource(R.string.kaariger_title_dashboard)
+                        KaarigerNav.Orders.route -> stringResource(R.string.kaariger_title_orders)
+                        KaarigerNav.Hisaab.route -> stringResource(R.string.kaariger_title_hisaab)
+                        KaarigerNav.Payments.route -> stringResource(R.string.kaariger_title_payments)
+                        else -> stringResource(R.string.kaariger_title_app)
                     },
                     subtitle = session?.name,
+                    showBackButton = !onHome,
                     showMenuButton = true,
+                    onBackClick = {
+                        childNavController.navigate(KaarigerNav.Home.route) {
+                            popUpTo(KaarigerNav.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    },
                     onMenuClick = { scope.launch { drawerState.open() } }
                 )
             },
             bottomBar = {
-                NavigationBar {
-                    listOf(KaarigerNav.Home, KaarigerNav.Orders, KaarigerNav.Payments).forEach { item ->
-                        NavigationBarItem(
-                            selected = currentRoute == item.route,
-                            onClick = {
-                                if (currentRoute != item.route) {
-                                    childNavController.navigate(item.route) {
-                                        popUpTo(KaarigerNav.Home.route) { saveState = true }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = { Icon(item.icon, contentDescription = item.title) },
-                            label = { Text(item.title, fontSize = 11.sp) }
-                        )
+                BlissFloatingBottomNav(
+                    tabs = listOf(
+                        BlissNavTab(KaarigerNav.Home.route, stringResource(R.string.kaariger_nav_home), Icons.Default.Home),
+                        BlissNavTab(KaarigerNav.Orders.route, stringResource(R.string.kaariger_nav_orders), Icons.Default.Task),
+                        BlissNavTab(KaarigerNav.Payments.route, stringResource(R.string.kaariger_nav_payments), Icons.Default.Payments)
+                    ),
+                    currentRoute = currentRoute,
+                    onTabSelected = { route ->
+                        if (currentRoute != route) {
+                            childNavController.navigate(route) {
+                                popUpTo(KaarigerNav.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     }
-                }
+                )
             }
         ) { padding ->
             NavHost(
                 navController = childNavController,
                 startDestination = KaarigerNav.Home.route,
-                modifier = Modifier.padding(top = padding.calculateTopPadding())
+                modifier = Modifier.padding(
+                    top = padding.calculateTopPadding(),
+                    bottom = padding.calculateBottomPadding()
+                )
             ) {
                 composable(KaarigerNav.Home.route) {
-                    KaarigerDashboardContent(session?.name ?: "Kaariger", orders.size)
+                    KaarigerDashboardContent(
+                        name = session?.name ?: stringResource(R.string.kaariger_default_name),
+                        orders = orders,
+                        payments = payments,
+                        onOpenHisaab = {
+                            childNavController.navigate(KaarigerNav.Hisaab.route) {
+                                popUpTo(KaarigerNav.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        },
+                        onViewAllOrders = {
+                            childNavController.navigate(KaarigerNav.Orders.route) {
+                                popUpTo(KaarigerNav.Home.route) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
                 }
                 composable(KaarigerNav.Orders.route) {
-                    KaarigerOrdersScreen()
+                    KaarigerOrdersScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
+                }
+                composable(KaarigerNav.Hisaab.route) {
+                    KaarigerHisaabScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
                 }
                 composable(KaarigerNav.Payments.route) {
-                    KaarigerPaymentsScreen()
+                    KaarigerPaymentsScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
                 }
             }
         }
@@ -154,10 +246,10 @@ fun KaarigerContainerScreen(
 
     if (showLogoutDialog) {
         ConfirmationDialog(
-            title = "Confirm Logout",
-            message = "Are you sure you want to log out?",
-            confirmButtonText = "Logout",
-            dismissButtonText = "Cancel",
+            title = stringResource(R.string.kaariger_logout_title),
+            message = stringResource(R.string.kaariger_logout_message),
+            confirmButtonText = stringResource(R.string.kaariger_logout_confirm),
+            dismissButtonText = stringResource(R.string.kaariger_cancel),
             onConfirm = { showLogoutDialog = false; authViewModel.logout() },
             onDismiss = { showLogoutDialog = false }
         )
@@ -165,36 +257,194 @@ fun KaarigerContainerScreen(
 }
 
 @Composable
-private fun KaarigerDashboardContent(name: String, activeOrders: Int) {
+private fun KaarigerDashboardContent(
+    name: String,
+    orders: List<KaarigerOrder>,
+    payments: List<KaarigerOrderPayment>,
+    onOpenHisaab: () -> Unit,
+    onViewAllOrders: () -> Unit
+) {
+    val activeOrders = orders.count { it.status != OrderStatus.COMPLETED }
+    val pendingBatches = orders.count { it.status == OrderStatus.PENDING_APPROVAL }
+    val recentOrders = orders.take(3)
+
+    // Runner/Fitting/Astar/Material quantities given by admin, only for bills not yet fully
+    // paid off — resets to zero automatically once an order's whole payment is received.
+    val pendingDeductions = remember(orders, payments) {
+        val unsettled = orders.filter { order ->
+            if (order.status == OrderStatus.REJECTED) return@filter false
+            val netDeal = (order.originalDealAmount ?: order.totalDealAmount) - order.repairDeductionTotal
+            val totalPaid = payments.filter { it.orderId == order.id }.sumOf { it.amount }
+            (netDeal - totalPaid) > 0.0
+        }
+        val allDeductions = unsettled.flatMap { it.materialDeductions }
+        val materialsByName = allDeductions
+            .filter { it.type == "MATERIAL" }
+            .groupBy { it.label.ifBlank { "Material" } }
+            .mapValues { (_, lines) -> lines.sumOf { it.quantity } }
+            .filter { it.value > 0 }
+            .toList()
+            .sortedByDescending { it.second }
+        DeductionsSummary(
+            runner = allDeductions.filter { it.type == "RUNNER" }.sumOf { it.quantity },
+            fitting = allDeductions.filter { it.type == "FITTING" }.sumOf { it.quantity },
+            astar = allDeductions.filter { it.type == "ASTAR" }.sumOf { it.quantity },
+            materials = materialsByName
+        )
+    }
+    val hasPendingDeductions = pendingDeductions.runner > 0 || pendingDeductions.fitting > 0 ||
+        pendingDeductions.astar > 0 || pendingDeductions.materials.isNotEmpty()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(20.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("Welcome, $name", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleLarge)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("You have $activeOrders active order(s)", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        PremiumCard(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.horizontalGradient(listOf(BlissBlack, Color(0xFF1A1F14)))
+                    )
+                    .padding(20.dp)
+            ) {
+                Column {
+                    Text(
+                        stringResource(R.string.kaariger_welcome, name),
+                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = BlissLime
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.kaariger_active_summary, activeOrders),
+                        color = Color.White.copy(alpha = 0.75f)
+                    )
+                    if (pendingBatches > 0) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            stringResource(R.string.kaariger_pending_batches, pendingBatches),
+                            color = BlissGold,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
             }
         }
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(modifier = Modifier.padding(20.dp)) {
-                Text("How it works", fontWeight = FontWeight.Bold)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("1. Admin assigns you an order with raw materials")
-                Text("2. You manufacture and submit delivery details")
-                Text("3. Store staff verifies and adds to inventory")
-                Text("4. Track your payments and remaining balance here")
+
+        Button(
+            onClick = onOpenHisaab,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = BlissLime,
+                contentColor = BlissBlack
+            )
+        ) {
+            Icon(Icons.Default.Calculate, contentDescription = null)
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                stringResource(R.string.kaariger_home_hisaab_button),
+                fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium
+            )
+        }
+
+        if (hasPendingDeductions) {
+            PendingDeductionsCard(pendingDeductions)
+        }
+
+        if (recentOrders.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(stringResource(R.string.kaariger_recent_orders), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
+                TextButton(onClick = onViewAllOrders) { Text(stringResource(R.string.kaariger_view_all)) }
+            }
+            recentOrders.forEach { order ->
+                KaarigerOrderCard(
+                    order = order,
+                    onClick = onViewAllOrders,
+                    onReportMaterials = onViewAllOrders,
+                    compact = true
+                )
             }
         }
     }
 }
 
-private sealed class KaarigerNav(val route: String, val title: String, val icon: ImageVector) {
-    object Home : KaarigerNav("kaariger_home", "Home", Icons.Default.Home)
-    object Orders : KaarigerNav("kaariger_orders", "Orders", Icons.Default.Task)
-    object Payments : KaarigerNav("kaariger_payments", "Payments", Icons.Default.Payments)
+private data class DeductionsSummary(
+    val runner: Int,
+    val fitting: Int,
+    val astar: Int,
+    /** Material name → quantity. Only materials actually given are listed — nothing generic. */
+    val materials: List<Pair<String, Int>>
+)
+
+@Composable
+private fun PendingDeductionsCard(summary: DeductionsSummary) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF7ED))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                stringResource(R.string.kaariger_home_deductions_title),
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFC2410C),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                DeductionChip("Runner", summary.runner, Modifier.weight(1f))
+                DeductionChip("Fitting", summary.fitting, Modifier.weight(1f))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                DeductionChip("Astar", summary.astar, Modifier.weight(1f))
+            }
+            if (summary.materials.isNotEmpty()) {
+                summary.materials.chunked(2).forEach { pair ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        pair.forEach { (name, qty) ->
+                            DeductionChip(name, qty, Modifier.weight(1f))
+                        }
+                        if (pair.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeductionChip(label: String, quantity: Int, modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(10.dp),
+        color = Color.White.copy(alpha = 0.6f),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF9A3412))
+            Text("$quantity pcs", fontWeight = FontWeight.Bold, color = Color(0xFFC2410C), style = MaterialTheme.typography.titleSmall)
+        }
+    }
+}
+
+private sealed class KaarigerNav(val route: String, @StringRes val titleRes: Int, val icon: ImageVector) {
+    object Home : KaarigerNav("kaariger_home", R.string.kaariger_nav_home, Icons.Default.Home)
+    object Orders : KaarigerNav("kaariger_orders", R.string.kaariger_nav_orders, Icons.Default.Task)
+    object Hisaab : KaarigerNav("kaariger_hisaab", R.string.kaariger_home_hisaab_button, Icons.Default.Calculate)
+    object Payments : KaarigerNav("kaariger_payments", R.string.kaariger_nav_payments, Icons.Default.Payments)
 }

@@ -3,7 +3,10 @@ package com.laiza.worker.domain.repository
 import com.laiza.worker.core.utils.Resource
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
-import com.laiza.worker.domain.models.OrderStatus
+import com.laiza.worker.domain.models.ColorQuantity
+import com.laiza.worker.domain.models.OrderApprovalRecord
+import com.laiza.worker.domain.models.OrderMaterial
+import com.laiza.worker.domain.models.OrderRepair
 import kotlinx.coroutines.flow.Flow
 
 interface OrderRepository {
@@ -18,10 +21,34 @@ interface OrderRepository {
         productName: String,
         notes: String?
     ): Flow<Resource<Unit>>
-    fun approveOrder(orderId: String, verifiedBy: String): Flow<Resource<Unit>>
+    fun approveOrder(
+        orderId: String,
+        acceptedQuantity: Int,
+        colorBreakdown: List<ColorQuantity>,
+        rejectedQuantity: Int,
+        rejectionNote: String?,
+        verifiedBy: String,
+        verifiedByPhone: String
+    ): Flow<Resource<Unit>>
     fun rejectOrder(orderId: String, verifiedBy: String, reason: String): Flow<Resource<Unit>>
+    fun submitMaterialUsage(orderId: String, materials: List<OrderMaterial>): Flow<Resource<Unit>>
+    fun getApprovalHistoryForStaff(staffPhone: String): Flow<List<OrderApprovalRecord>>
 
     fun getPaymentsForOrder(orderId: String): Flow<List<KaarigerOrderPayment>>
     fun getPaymentsForKaariger(kaarigerId: String): Flow<List<KaarigerOrderPayment>>
     fun addPayment(payment: KaarigerOrderPayment): Flow<Resource<Unit>>
+    fun getRepairsForKaariger(kaarigerId: String): Flow<List<OrderRepair>>
+    fun getRepairsForOrder(orderId: String): Flow<List<OrderRepair>>
+    fun getProductCatalogNames(): Flow<List<String>>
+
+    fun createRepair(
+        orderId: String,
+        productName: String,
+        faultyQuantity: Int,
+        faultyPricePerPiece: Double,
+        createdBy: String,
+        notes: String? = null,
+        kaarigerId: String = "",
+        kaarigerName: String = ""
+    ): Flow<Resource<Unit>>
 }

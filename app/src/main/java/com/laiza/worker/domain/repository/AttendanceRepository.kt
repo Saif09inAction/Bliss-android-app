@@ -11,5 +11,7 @@ interface AttendanceRepository {
     fun getTodayAttendance(): Flow<List<Attendance>>
     fun saveAttendance(attendance: Attendance): Flow<Resource<Unit>>
     fun getSettings(): Flow<AttendanceSettings>
+    /** Prefer live Firestore settings for punch calculations. */
+    suspend fun getFreshSettings(): AttendanceSettings
     fun saveSettings(settings: AttendanceSettings): Flow<Resource<Unit>>
 }

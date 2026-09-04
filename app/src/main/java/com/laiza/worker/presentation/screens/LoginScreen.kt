@@ -71,6 +71,11 @@ import com.laiza.worker.domain.models.Role
 import com.laiza.worker.presentation.components.ErrorDialog
 import com.laiza.worker.presentation.components.LoadingDialog
 import com.laiza.worker.presentation.uiState.AuthUiState
+import com.laiza.worker.core.theme.BlissBlack
+import com.laiza.worker.core.theme.BlissCream
+import com.laiza.worker.core.theme.BlissGold
+import com.laiza.worker.core.theme.BlissLime
+import com.laiza.worker.presentation.components.BlissLogoImage
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
 
 @Composable
@@ -95,7 +100,7 @@ fun LoginScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color(0xFFF1F7FC) // Light Ice Blue header area
+        color = BlissCream
     ) {
         Column(
             modifier = Modifier
@@ -103,7 +108,7 @@ fun LoginScreen(
                 .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // White header block containing large L brand logo
+            // White header block with BB monogram
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -112,35 +117,13 @@ fun LoginScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier
-                            .size(90.dp)
-                            .background(Color(0xFF021024).copy(alpha = 0.05f), shape = CircleShape)
-                            .background(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        Color(0xFF5483B3).copy(alpha = 0.15f),
-                                        Color.Transparent
-                                    )
-                                ),
-                                shape = CircleShape
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "L",
-                            fontSize = 54.sp,
-                            fontWeight = FontWeight.Black,
-                            color = Color(0xFF052659),
-                            letterSpacing = 1.sp
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    BlissLogoImage(size = 100.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = "LAIZA BAGS",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF021024),
+                        text = "BLISS BOMBAY",
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black,
+                        color = BlissBlack,
                         letterSpacing = 3.sp
                     )
                 }
@@ -154,8 +137,8 @@ fun LoginScreen(
                     .background(
                         brush = Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFF021024), // Dark Navy
-                                Color(0xFF052659)  // Deep Blue
+                                BlissBlack,
+                                Color(0xFF151A10)
                             )
                         ),
                         shape = RoundedCornerShape(topStart = 40.dp, topEnd = 40.dp)
@@ -188,7 +171,7 @@ fun LoginScreen(
                                     .graphicsLayer(scaleX = scale, scaleY = scale)
                                     .clip(RoundedCornerShape(100.dp))
                                     .background(
-                                        color = if (screenState.selectedRole == role) Color(0xFFC1E8FF) else Color.Transparent
+                                        color = if (screenState.selectedRole == role) Color(0xFF15803D) else Color.Transparent
                                     )
                                     .clickable(interactionSource = interactionSource, indication = null) {
                                         viewModel.onRoleChange(role)
@@ -199,7 +182,7 @@ fun LoginScreen(
                                     text = label,
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (screenState.selectedRole == role) Color(0xFF021024) else Color(0xFFC1E8FF).copy(alpha = 0.8f)
+                                    color = if (screenState.selectedRole == role) Color(0xFF0A0A0A) else Color(0xFF15803D).copy(alpha = 0.8f)
                                 )
                             }
                         }
@@ -216,7 +199,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Default.Phone,
                                 contentDescription = "Mobile Number",
-                                tint = Color(0xFFC1E8FF)
+                                tint = Color(0xFF15803D)
                             )
                         },
                         isError = screenState.employeeIdError != null,
@@ -229,15 +212,22 @@ fun LoginScreen(
                             onNext = { focusManager.moveFocus(FocusDirection.Down) }
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFC1E8FF),
-                            unfocusedBorderColor = Color(0xFFC1E8FF).copy(alpha = 0.4f),
-                            focusedLabelColor = Color(0xFFC1E8FF),
-                            unfocusedLabelColor = Color(0xFFC1E8FF).copy(alpha = 0.6f),
+                            focusedBorderColor = Color(0xFF15803D),
+                            unfocusedBorderColor = Color(0xFF15803D).copy(alpha = 0.4f),
+                            focusedLabelColor = Color(0xFF15803D),
+                            unfocusedLabelColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedLeadingIconColor = Color(0xFFC1E8FF),
-                            unfocusedLeadingIconColor = Color(0xFFC1E8FF).copy(alpha = 0.6f),
-                            errorBorderColor = Color(0xFFEF4444)
+                            cursorColor = Color.White,
+                            focusedLeadingIconColor = Color(0xFF15803D),
+                            unfocusedLeadingIconColor = Color(0xFF15803D).copy(alpha = 0.6f),
+                            errorBorderColor = Color(0xFFEF4444),
+                            // Keep typed text white while length < 6 (isError) — default error text is dark and invisible on this screen
+                            errorTextColor = Color.White,
+                            errorCursorColor = Color.White,
+                            errorLabelColor = Color(0xFFEF4444),
+                            errorLeadingIconColor = Color(0xFFEF4444),
+                            errorSupportingTextColor = Color(0xFFEF4444),
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
@@ -255,7 +245,7 @@ fun LoginScreen(
                             Icon(
                                 imageVector = Icons.Default.Lock,
                                 contentDescription = "Password",
-                                tint = Color(0xFFC1E8FF)
+                                tint = Color(0xFF15803D)
                             )
                         },
                         trailingIcon = {
@@ -263,7 +253,7 @@ fun LoginScreen(
                                 Icon(
                                     imageVector = if (passwordVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
                                     contentDescription = if (passwordVisible) "Hide password" else "Show password",
-                                    tint = Color(0xFFC1E8FF)
+                                    tint = Color(0xFF15803D)
                                 )
                             }
                         },
@@ -283,15 +273,23 @@ fun LoginScreen(
                             }
                         ),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFFC1E8FF),
-                            unfocusedBorderColor = Color(0xFFC1E8FF).copy(alpha = 0.4f),
-                            focusedLabelColor = Color(0xFFC1E8FF),
-                            unfocusedLabelColor = Color(0xFFC1E8FF).copy(alpha = 0.6f),
+                            focusedBorderColor = Color(0xFF15803D),
+                            unfocusedBorderColor = Color(0xFF15803D).copy(alpha = 0.4f),
+                            focusedLabelColor = Color(0xFF15803D),
+                            unfocusedLabelColor = Color(0xFF15803D).copy(alpha = 0.6f),
                             focusedTextColor = Color.White,
                             unfocusedTextColor = Color.White,
-                            focusedLeadingIconColor = Color(0xFFC1E8FF),
-                            unfocusedLeadingIconColor = Color(0xFFC1E8FF).copy(alpha = 0.6f),
-                            errorBorderColor = Color(0xFFEF4444)
+                            cursorColor = Color.White,
+                            focusedLeadingIconColor = Color(0xFF15803D),
+                            unfocusedLeadingIconColor = Color(0xFF15803D).copy(alpha = 0.6f),
+                            errorBorderColor = Color(0xFFEF4444),
+                            // While password < 6 chars the field is in error state; without this, dots stay invisible
+                            errorTextColor = Color.White,
+                            errorCursorColor = Color.White,
+                            errorLabelColor = Color(0xFFEF4444),
+                            errorTrailingIconColor = Color(0xFFEF4444),
+                            errorLeadingIconColor = Color(0xFFEF4444),
+                            errorSupportingTextColor = Color(0xFFEF4444),
                         ),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
@@ -312,15 +310,15 @@ fun LoginScreen(
                                 checked = screenState.rememberMe,
                                 onCheckedChange = { viewModel.onRememberMeChange(it) },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = Color(0xFFC1E8FF),
-                                    checkmarkColor = Color(0xFF021024),
-                                    uncheckedColor = Color(0xFFC1E8FF).copy(alpha = 0.6f)
+                                    checkedColor = Color(0xFF15803D),
+                                    checkmarkColor = Color(0xFF0A0A0A),
+                                    uncheckedColor = Color(0xFF15803D).copy(alpha = 0.6f)
                                 )
                             )
                             Text(
                                 text = "Remember Me",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFC1E8FF).copy(alpha = 0.8f)
+                                color = Color(0xFF15803D).copy(alpha = 0.8f)
                             )
                         }
 
@@ -328,7 +326,7 @@ fun LoginScreen(
                             Text(
                                 text = "Forgot Password?",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color(0xFFC1E8FF),
+                                color = Color(0xFF15803D),
                                 fontWeight = FontWeight.SemiBold
                             )
                         }
@@ -349,9 +347,9 @@ fun LoginScreen(
                         enabled = screenState.isLoginButtonEnabled,
                         interactionSource = buttonInteractionSource,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFC1E8FF),
-                            contentColor = Color(0xFF021024),
-                            disabledContainerColor = Color(0xFFC1E8FF).copy(alpha = 0.25f),
+                            containerColor = Color(0xFF15803D),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF15803D).copy(alpha = 0.25f),
                             disabledContentColor = Color.White.copy(alpha = 0.4f)
                         ),
                         shape = RoundedCornerShape(100.dp),
@@ -373,7 +371,7 @@ fun LoginScreen(
                     Text(
                         text = "Version ${BuildConfig.VERSION_NAME}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFC1E8FF).copy(alpha = 0.4f)
+                        color = Color(0xFF15803D).copy(alpha = 0.4f)
                     )
                 }
             }

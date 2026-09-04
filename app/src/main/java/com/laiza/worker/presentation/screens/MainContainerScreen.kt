@@ -26,17 +26,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Help
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Task
 import androidx.compose.material.icons.filled.Factory
+import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -89,23 +89,22 @@ import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.screens.AttendanceHomeScreen
 import com.laiza.worker.presentation.screens.SalaryLedgerScreen
 import com.laiza.worker.presentation.screens.DashboardScreen
-import com.laiza.worker.presentation.screens.StoreInventoryScreen
-import com.laiza.worker.presentation.screens.StaffPendingApprovalsScreen
 import com.laiza.worker.presentation.screens.StaffDispatchScreen
-import androidx.compose.material.icons.filled.LocalShipping
 import com.laiza.worker.presentation.screens.EmployeeProfileScreen
 import com.laiza.worker.presentation.components.DrawerHeader
 import com.laiza.worker.presentation.components.DrawerItem
 import com.laiza.worker.presentation.components.LaizaTopAppBar
 import com.laiza.worker.presentation.components.SessionGuard
 import com.laiza.worker.presentation.viewmodels.AuthViewModel
+import com.laiza.worker.presentation.viewmodels.OrderViewModel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StaffContainerScreen(
     rootNavController: NavController,
-    authViewModel: AuthViewModel = hiltViewModel()
+    authViewModel: AuthViewModel = hiltViewModel(),
+    orderViewModel: OrderViewModel = hiltViewModel()
 ) {
     val childNavController = rememberNavController()
     val session by authViewModel.userSession.collectAsState()
@@ -172,19 +171,6 @@ fun StaffContainerScreen(
                         }
                     )
                     DrawerItem(
-                        title = "Verify Orders",
-                        icon = Icons.Default.Task,
-                        selected = currentRoute == BottomNavItem.Approvals.route,
-                        onClick = {
-                            scope.launch { drawerState.close() }
-                            childNavController.navigate(BottomNavItem.Approvals.route) {
-                                popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
-                                launchSingleTop = true
-                                restoreState = false
-                            }
-                        }
-                    )
-                    DrawerItem(
                         title = "Salary Ledger",
                         icon = Icons.Default.Payments,
                         selected = currentRoute == "salary_tab",
@@ -229,24 +215,37 @@ fun StaffContainerScreen(
         Box(modifier = Modifier.fillMaxSize()) {
             Scaffold(
                 topBar = {
+                    val onHome = currentRoute == BottomNavItem.Home.route
                     LaizaTopAppBar(
                         title = when (currentRoute) {
                             BottomNavItem.Home.route -> "Staff Dashboard"
-                            BottomNavItem.Inventory.route -> "Store Inventory"
                             BottomNavItem.Dispatch.route -> "Pickup & Return"
                             BottomNavItem.Attendance.route -> "Attendance"
+                            "repairing_tab" -> "Repairing"
                             "employee_profile" -> "My Profile"
-                            else -> "Laiza Bags"
+                            else -> "Bliss Bombay"
                         },
                         subtitle = when (currentRoute) {
                             BottomNavItem.Home.route -> "Good Morning • ${java.text.SimpleDateFormat("EEEE, d MMMM", java.util.Locale.getDefault()).format(java.util.Date())}"
-                            BottomNavItem.Inventory.route -> "Approved products at store"
                             BottomNavItem.Dispatch.route -> "E-commerce partner handoffs"
                             BottomNavItem.Attendance.route -> "Today's Shift"
+                            "repairing_tab" -> "Repairing"
                             "employee_profile" -> "Manage Bank & Account Settings"
                             else -> null
                         },
+                        showBackButton = !onHome && currentRoute != "employee_profile",
                         showMenuButton = true,
+                        onBackClick = {
+                            if (currentRoute == "employee_profile") {
+                                childNavController.popBackStack()
+                            } else {
+                                childNavController.navigate(BottomNavItem.Home.route) {
+                                    popUpTo(childNavController.graph.findStartDestination().id) { saveState = true }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            }
+                        },
                         onMenuClick = {
                             scope.launch { drawerState.open() }
                         }
@@ -298,10 +297,15 @@ fun StaffContainerScreen(
                                     translationY = navbarOffsetY.toPx()
                                 },
                             shape = RoundedCornerShape(100.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFF0A0A0A).copy(alpha = 0.88f)),
                             border = androidx.compose.foundation.BorderStroke(
                                 width = 1.dp,
-                                color = Color.White.copy(alpha = 0.25f)
+                                brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFD4AF37).copy(alpha = 0.5f),
+                                        Color(0xFF15803D).copy(alpha = 0.25f)
+                                    )
+                                )
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = navbarElevation)
                         ) {
@@ -314,7 +318,7 @@ fun StaffContainerScreen(
                                 val normalNavItems = remember {
                                     listOf(
                                         BottomNavItem.Home,
-                                        BottomNavItem.Inventory,
+                                        BottomNavItem.Repairing,
                                         BottomNavItem.Dispatch,
                                         BottomNavItem.Attendance
                                     )
@@ -357,12 +361,12 @@ fun StaffContainerScreen(
                                                     scaleY = activePillScale
                                                 }
                                                 .background(
-                                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                                                    color = Color(0xFF15803D).copy(alpha = 0.2f),
                                                     shape = RoundedCornerShape(100.dp)
                                                 )
                                                 .border(
                                                     width = 1.dp,
-                                                    color = Color.White.copy(alpha = 0.35f),
+                                                    color = Color(0xFFD4AF37).copy(alpha = 0.45f),
                                                     shape = RoundedCornerShape(100.dp)
                                                 )
                                         )
@@ -464,7 +468,7 @@ fun StaffContainerScreen(
                         .fillMaxSize()
                         .padding(
                             top = paddingValues.calculateTopPadding(),
-                            bottom = 0.dp
+                            bottom = paddingValues.calculateBottomPadding()
                         )
                 ) {
                     NavHost(
@@ -484,19 +488,18 @@ fun StaffContainerScreen(
                         }
                     ) {
                         composable(route = BottomNavItem.Home.route) {
-                            DashboardScreen(navController = rootNavController)
-                        }
-                        composable(route = BottomNavItem.Inventory.route) {
-                            StoreInventoryScreen(readOnly = true)
+                            DashboardScreen(
+                                navController = rootNavController
+                            )
                         }
                         composable(route = BottomNavItem.Dispatch.route) {
                             StaffDispatchScreen()
                         }
-                        composable(route = BottomNavItem.Approvals.route) {
-                            StaffPendingApprovalsScreen()
-                        }
                         composable(route = BottomNavItem.Attendance.route) {
                             AttendanceHomeScreen(navController = rootNavController)
+                        }
+                        composable("repairing_tab") {
+                            StaffRepairingScreen(orderViewModel = orderViewModel)
                         }
                         composable("salary_tab") {
                             SalaryLedgerScreen()
@@ -531,8 +534,7 @@ fun StaffContainerScreen(
 
 sealed class BottomNavItem(val route: String, val title: String, val icon: ImageVector) {
     object Home : BottomNavItem("home_tab", "Home", Icons.Default.Home)
-    object Inventory : BottomNavItem("inventory_tab", "Inventory", Icons.Default.Inventory)
     object Dispatch : BottomNavItem("dispatch_tab", "Dispatch", Icons.Default.LocalShipping)
-    object Approvals : BottomNavItem("approvals_tab", "Verify", Icons.Default.Task)
     object Attendance : BottomNavItem("attendance_tab", "Attendance", Icons.Default.Badge)
+    object Repairing : BottomNavItem("repairing_tab", "Repairing", Icons.Default.Build)
 }

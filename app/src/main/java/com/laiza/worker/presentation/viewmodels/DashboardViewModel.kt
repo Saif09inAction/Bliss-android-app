@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import com.laiza.worker.core.utils.DateFormatter
+import com.laiza.worker.core.utils.formatIndianRupee
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -46,7 +48,9 @@ class DashboardViewModel @Inject constructor(
                 it.status == AttendanceStatus.PRESENT || 
                 it.status == AttendanceStatus.ON_TIME || 
                 it.status == AttendanceStatus.LATE ||
-                it.status == AttendanceStatus.LEFT_EARLY
+                it.status == AttendanceStatus.LEFT_EARLY ||
+                it.status == AttendanceStatus.HALF_DAY ||
+                it.status == AttendanceStatus.FULL_DAY
             }
             val percentage = (presents.toDouble() / employees.size) * 100
             "${percentage.toInt()}%"
@@ -70,7 +74,7 @@ class DashboardViewModel @Inject constructor(
                         val lakhs = sum / 100000.0
                         String.format(Locale.getDefault(), "₹%.1fL", lakhs)
                     } else {
-                        "₹${sum.toInt()}"
+                        formatIndianRupee(sum)
                     }
                 }
             }
@@ -83,7 +87,12 @@ class DashboardViewModel @Inject constructor(
         .flatMapLatest { session ->
             if (session != null) {
                 attendanceRepository.getEmployeeAttendanceHistory(session.phone).map { list ->
-                    val presents = list.count { it.status == AttendanceStatus.PRESENT || it.status == AttendanceStatus.ON_TIME }
+                    val presents = list.count {
+                        it.status == AttendanceStatus.PRESENT ||
+                            it.status == AttendanceStatus.ON_TIME ||
+                            it.status == AttendanceStatus.HALF_DAY ||
+                            it.status == AttendanceStatus.FULL_DAY
+                    }
                     val lates = list.count { it.status == AttendanceStatus.LATE }
                     val earlyOuts = list.count { it.status == AttendanceStatus.LEFT_EARLY }
                     mapOf("presents" to presents, "lates" to lates, "earlyOuts" to earlyOuts)
@@ -139,7 +148,7 @@ class DashboardViewModel @Inject constructor(
                 title = title,
                 message = message,
                 date = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
-                time = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date()),
+                time = DateFormatter.nowTime12HourWithSeconds(),
                 isRead = false
             )
             notificationRepository.addNotification(alert)
