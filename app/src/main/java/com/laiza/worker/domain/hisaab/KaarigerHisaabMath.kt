@@ -31,12 +31,12 @@ fun orderAddBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyLis
     return products - materialOnly - repairTotal
 }
 
-/** Prefer stored closing snapshot; otherwise opening + ADD − week kharcha. */
+/** Prefer stored closing snapshot; otherwise opening + ADD − week kharcha. Can be negative. */
 fun orderClosingBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyList()): Double {
-    order.closingAtCreation?.let { return it.coerceAtLeast(0.0) }
-    val opening = order.openingAtCreation?.coerceAtLeast(0.0) ?: 0.0
+    order.closingAtCreation?.let { return it }
+    val opening = order.openingAtCreation ?: 0.0
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
-    return (opening + orderAddBalance(order, repairs) - budget).coerceAtLeast(0.0)
+    return opening + orderAddBalance(order, repairs) - budget
 }
 
 /** Repair amount on this bill — prefer stored total from bill create. */

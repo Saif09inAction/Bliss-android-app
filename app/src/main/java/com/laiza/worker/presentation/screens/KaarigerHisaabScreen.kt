@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
+import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.hisaab.orderClosingBalance
@@ -100,8 +101,10 @@ fun KaarigerHisaabScreen(
     }
 
     val previousBills = remember(orders) {
-        orders
-            .filter { it.status == OrderStatus.COMPLETED }
+        val usable = orders.filter { it.status != OrderStatus.REJECTED }
+        val liveId = usable.maxByOrNull { it.createdAt }?.id
+        usable
+            .filter { it.id != liveId }
             .sortedByDescending { it.createdAt }
     }
 
@@ -264,21 +267,18 @@ internal fun buildKaarigerHisaabSummary(
     payments: List<KaarigerOrderPayment>,
     repairs: List<OrderRepair>?
 ): KaarigerHisaabSummary {
-    val running = (openingBalance.coerceAtLeast(0.0) + oldKharcha.coerceAtLeast(0.0))
+    val running = openingBalance + oldKharcha.coerceAtLeast(0.0)
     val credit = creditBalance.coerceAtLeast(0.0)
     val usable = orders.filter { it.status != OrderStatus.REJECTED }
-    val active = usable.filter { it.status != OrderStatus.COMPLETED }
+    val liveBill = usable.maxByOrNull { it.createdAt }
+    val active = listOfNotNull(liveBill)
 
     val orderLines = active.map { order ->
         val orderPayments = payments.filter {
             it.orderId == order.id && !isOpeningPayment(it) && !isCreditPayment(it)
         }
         val orderRepairs = (repairs ?: emptyList()).filter {
-            if (order.status == OrderStatus.COMPLETED) {
-                it.orderId == order.id && it.isApproved
-            } else {
-                (it.isStandalone || it.orderId == order.id) && it.isApproved
-            }
+            it.orderId == order.id && it.isApproved
         }
         val paidCash = orderPayments.sumOf { it.amount }
         val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
@@ -288,11 +288,8 @@ internal fun buildKaarigerHisaabSummary(
             order.originalDealAmount ?: order.totalDealAmount
         }
         val deductions = order.materialDeductionsTotal.coerceAtLeast(0.0)
-        val repair = if (order.status == OrderStatus.COMPLETED) {
-            order.repairDeductionTotal.takeIf { it > 0 } ?: orderRepairs.sumOf { it.totalRepairCost }
-        } else {
-            orderRepairs.sumOf { it.totalRepairCost }
-        }
+        val repair = order.repairDeductionTotal.takeIf { it > 0 }
+            ?: orderRepairs.sumOf { it.totalRepairCost }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
         val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(
@@ -317,15 +314,15 @@ internal fun buildKaarigerHisaabSummary(
     val priorOverpayApplied = orderLines.sumOf { it.priorOverpay }
     val weekKharchaPaid = weekKharchaPaidCash + priorOverpayApplied
     val standaloneRepair = (repairs ?: emptyList())
-        .filter { it.isStandalone && it.isApproved }
+        .filter { it.countsAgainstRemaining }
         .sumOf { it.totalRepairCost }
-    val afterRepairs = (running - standaloneRepair).coerceAtLeast(0.0)
-    val creditApplied = minOf(credit, afterRepairs)
-    val totalRemaining = (afterRepairs - creditApplied).coerceAtLeast(0.0)
+    val afterRepairs = running - standaloneRepair
+    val creditApplied = minOf(credit, afterRepairs.coerceAtLeast(0.0))
+    val totalRemaining = afterRepairs - creditApplied
     val surplusCredit = (credit - afterRepairs).coerceAtLeast(0.0)
 
     val remainingLedger = buildRemainingLedgerLines(
-        openingBalance = openingBalance.coerceAtLeast(0.0),
+        openingBalance = openingBalance,
         oldKharcha = oldKharcha.coerceAtLeast(0.0),
         orders = usable.sortedBy { it.createdAt },
         payments = payments,
@@ -366,9 +363,7 @@ private fun buildRemainingLedgerLines(
     val openingPaidTotal = openingPays.sumOf { it.amount.coerceAtLeast(0.0) }
     val billNet = orders.sumOf { orderAddBalance(it, repairs) - it.kharchaGiven.coerceAtLeast(0.0) }
     val foldTotal = orders.sumOf { it.kharchaCarriedForward.coerceAtLeast(0.0) }
-    val startOpening = (
-        openingBalance + openingPaidTotal - billNet - foldTotal
-        ).coerceAtLeast(0.0)
+    val startOpening = openingBalance + openingPaidTotal - billNet - foldTotal
 
     val lines = mutableListOf<RemainingLedgerLine>()
     var remaining = 0.0
@@ -397,10 +392,19 @@ private fun buildRemainingLedgerLines(
         val week = order.displayWeekLabel()
         if (add != 0.0) {
             events += Ev(t, "add-${order.id}") { rem ->
-                val next = (rem + add).coerceAtLeast(0.0)
+                val next = rem + add
+                val createdLabel = if (order.createdAt > 0L) {
+                    DateFormatter.formatEpochToDisplayDate(order.createdAt)
+                } else {
+                    ""
+                }
+                val product = order.productName.takeIf { it.isNotBlank() }.orEmpty()
+                val subtitle = listOf(createdLabel, product).filter { it.isNotBlank() }
+                    .joinToString(" · ")
+                    .ifBlank { null }
                 RemainingLedgerLine(
                     title = "Bill · $week",
-                    subtitle = order.productName.takeIf { it.isNotBlank() },
+                    subtitle = subtitle,
                     delta = add,
                     remainingAfter = next
                 ) to next
@@ -409,7 +413,7 @@ private fun buildRemainingLedgerLines(
         val kh = order.kharchaGiven.coerceAtLeast(0.0)
         if (kh > 0.0) {
             events += Ev(t + 1, "kh-${order.id}") { rem ->
-                val next = (rem - kh).coerceAtLeast(0.0)
+                val next = rem - kh
                 RemainingLedgerLine(
                     title = "$week kharcha",
                     delta = -kh,
@@ -423,7 +427,7 @@ private fun buildRemainingLedgerLines(
         val amt = p.amount.coerceAtLeast(0.0)
         if (amt <= 0.0) return@forEach
         events += Ev(paymentSortKey(p), "pay-${p.id}") { rem ->
-            val next = (rem - amt).coerceAtLeast(0.0)
+            val next = rem - amt
             val whenLabel = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · ")
             RemainingLedgerLine(
                 title = "Paid (Remaining)",
@@ -440,10 +444,10 @@ private fun buildRemainingLedgerLines(
         lines += line
     }
 
-    val approvedStandaloneRepairs = (repairs ?: emptyList()).filter { it.isStandalone && it.isApproved }
+    val approvedStandaloneRepairs = (repairs ?: emptyList()).filter { it.countsAgainstRemaining }
     if (approvedStandaloneRepairs.isNotEmpty()) {
         approvedStandaloneRepairs.forEach { r ->
-            remaining = (remaining - r.totalRepairCost).coerceAtLeast(0.0)
+            remaining -= r.totalRepairCost
             val sub = if (r.faultyQuantity > 0) "${r.faultyQuantity} × ₹${r.faultyPricePerPiece.toInt()}" else null
             lines += RemainingLedgerLine(
                 title = "Repairing - ${r.productName}",
@@ -453,7 +457,7 @@ private fun buildRemainingLedgerLines(
             )
         }
     } else if (standaloneRepair > 0.0) {
-        remaining = (remaining - standaloneRepair).coerceAtLeast(0.0)
+        remaining -= standaloneRepair
         lines += RemainingLedgerLine(
             title = "Repairing",
             delta = -standaloneRepair,

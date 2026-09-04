@@ -68,9 +68,9 @@ fun KaarigerPreviousHisaabPanel(
         }
     }
     val add = orderAddBalance(order, repairs)
-    val opening = order.openingAtCreation?.coerceAtLeast(0.0)
-        ?: if (order.status == OrderStatus.COMPLETED && order.closingAtCreation != null) {
-            (order.closingAtCreation - add + budget).coerceAtLeast(0.0)
+    val opening = order.openingAtCreation
+        ?: if (order.closingAtCreation != null) {
+            order.closingAtCreation - add + budget
         } else 0.0
     val closing = orderClosingBalance(order, repairs)
 

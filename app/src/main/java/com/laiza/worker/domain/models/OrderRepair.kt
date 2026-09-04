@@ -38,7 +38,9 @@ data class OrderRepair(
     /** PENDING until admin approves; missing/blank on old docs = already deducted (APPROVED). */
     val status: String = RepairStatus.APPROVED,
     val reviewedBy: String? = null,
-    val reviewedAt: Long? = null
+    val reviewedAt: Long? = null,
+    /** Approved but not deducted yet — admin adds to a bill from Hisaab later. */
+    val deferToNextBill: Boolean = false
 ) {
     val isApproved: Boolean
         get() = status.isBlank() || status == RepairStatus.APPROVED
@@ -48,4 +50,8 @@ data class OrderRepair(
 
     val isStandalone: Boolean
         get() = orderId.isBlank() || orderId == RepairStatus.STANDALONE_ORDER_ID
+
+    /** Approved standalone that should reduce Total Remaining (not deferred). */
+    val countsAgainstRemaining: Boolean
+        get() = isStandalone && isApproved && !deferToNextBill
 }

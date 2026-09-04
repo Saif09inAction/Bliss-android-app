@@ -602,7 +602,8 @@ class OrderRepositoryImpl @Inject constructor(
                 // Legacy docs (no status) were already deducted → treat as APPROVED.
                 status = (data["status"] as? String)?.takeIf { it.isNotBlank() } ?: RepairStatus.APPROVED,
                 reviewedBy = data["reviewedBy"] as? String,
-                reviewedAt = (data["reviewedAt"] as? Number)?.toLong()
+                reviewedAt = (data["reviewedAt"] as? Number)?.toLong(),
+                deferToNextBill = data["deferToNextBill"] as? Boolean ?: false
             )
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse repair $id", e)
