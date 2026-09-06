@@ -38,6 +38,7 @@ import androidx.navigation.compose.rememberNavController
 import com.laiza.worker.R
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
+import java.util.Calendar
 import com.laiza.worker.domain.models.OrderStatus
 import com.laiza.worker.presentation.components.ConfirmationDialog
 import com.laiza.worker.presentation.components.DrawerHeader
@@ -161,9 +162,10 @@ private fun KaarigerContainerContent(
         Scaffold(
             topBar = {
                 val onHome = currentRoute == KaarigerNav.Home.route
+                val homeGreeting = timeOfDayGreeting()
                 LaizaTopAppBar(
                     title = when (currentRoute) {
-                        KaarigerNav.Home.route -> stringResource(R.string.kaariger_title_dashboard)
+                        KaarigerNav.Home.route -> homeGreeting
                         KaarigerNav.Orders.route -> stringResource(R.string.kaariger_title_orders)
                         KaarigerNav.Hisaab.route -> stringResource(R.string.kaariger_title_hisaab)
                         KaarigerNav.Payments.route -> stringResource(R.string.kaariger_title_payments)
@@ -310,7 +312,7 @@ private fun KaarigerDashboardContent(
             ) {
                 Column {
                     Text(
-                        stringResource(R.string.kaariger_welcome, name),
+                        stringResource(R.string.kaariger_welcome, timeOfDayGreeting(), name),
                         fontWeight = FontWeight.Bold,
                         style = MaterialTheme.typography.titleLarge,
                         color = BlissLime
@@ -437,6 +439,18 @@ private fun DeductionChip(label: String, quantity: Int, modifier: Modifier = Mod
             Text("$quantity pcs", fontWeight = FontWeight.Bold, color = Color(0xFFC2410C), style = MaterialTheme.typography.titleSmall)
         }
     }
+}
+
+@Composable
+private fun timeOfDayGreeting(): String {
+    val hour = remember { Calendar.getInstance().get(Calendar.HOUR_OF_DAY) }
+    val resId = when (hour) {
+        in 5..11 -> R.string.greeting_morning
+        in 12..16 -> R.string.greeting_afternoon
+        in 17..21 -> R.string.greeting_evening
+        else -> R.string.greeting_hello
+    }
+    return stringResource(resId)
 }
 
 private sealed class KaarigerNav(val route: String, @StringRes val titleRes: Int, val icon: ImageVector) {
