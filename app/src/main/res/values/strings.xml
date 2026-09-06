@@ -39,7 +39,7 @@
     <string name="admin_logout_message">Are you sure you want to log out from the admin panel?</string>
     <string name="admin_logout_cancel">Cancel</string>
 
-    <!-- Kaariger section — keep words simple for shop floor -->
+    <!-- Kaariger section — Hinglish in English letters (shop floor) -->
     <string name="kaariger_nav_home">Home</string>
     <string name="kaariger_nav_orders">Hisaab</string>
     <string name="kaariger_nav_payments">Paise</string>
