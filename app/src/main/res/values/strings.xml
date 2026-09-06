@@ -44,7 +44,7 @@
     <string name="kaariger_nav_orders">Hisaab</string>
     <string name="kaariger_nav_payments">Paise</string>
     <string name="kaariger_nav_logout">Logout</string>
-    <string name="kaariger_title_dashboard">Namaste</string>
+    <string name="kaariger_title_dashboard">Hello</string>
     <string name="kaariger_title_orders">Mera Hisaab</string>
     <string name="kaariger_title_payments">Paise</string>
     <string name="kaariger_title_app">Bliss Bombay</string>
@@ -52,7 +52,11 @@
     <string name="kaariger_language">Language</string>
     <string name="kaariger_english">English</string>
     <string name="kaariger_hindi">Hindi</string>
-    <string name="kaariger_welcome">Namaste, %1$s</string>
+    <string name="greeting_morning">Good Morning</string>
+    <string name="greeting_afternoon">Good Afternoon</string>
+    <string name="greeting_evening">Good Evening</string>
+    <string name="greeting_hello">Hello</string>
+    <string name="kaariger_welcome">%1$s, %2$s</string>
     <string name="kaariger_active_summary">%1$d current bill</string>
     <string name="kaariger_pending_batches">%1$d piece check ho rahe hain</string>
     <string name="kaariger_recent_orders">Aaj ka hisaab</string>

@@ -6,7 +6,7 @@
     <string name="kaariger_nav_orders">हिसाब</string>
     <string name="kaariger_nav_payments">पैसा</string>
     <string name="kaariger_nav_logout">बाहर</string>
-    <string name="kaariger_title_dashboard">नमस्ते</string>
+    <string name="kaariger_title_dashboard">नमस्कार</string>
     <string name="kaariger_title_orders">मेरा हिसाब</string>
     <string name="kaariger_title_payments">पैसा</string>
     <string name="kaariger_title_app">Bliss Bombay</string>
@@ -14,7 +14,11 @@
     <string name="kaariger_language">भाषा</string>
     <string name="kaariger_english">English</string>
     <string name="kaariger_hindi">हिंदी</string>
-    <string name="kaariger_welcome">नमस्ते, %1$s</string>
+    <string name="greeting_morning">सुप्रभात</string>
+    <string name="greeting_afternoon">नमस्कार</string>
+    <string name="greeting_evening">शुभ संध्या</string>
+    <string name="greeting_hello">नमस्कार</string>
+    <string name="kaariger_welcome">%1$s, %2$s</string>
     <string name="kaariger_active_summary">%1$d current bill</string>
     <string name="kaariger_pending_batches">%1$d पीस चेक हो रहे हैं</string>
     <string name="kaariger_recent_orders">आज का हिसाब</string>
