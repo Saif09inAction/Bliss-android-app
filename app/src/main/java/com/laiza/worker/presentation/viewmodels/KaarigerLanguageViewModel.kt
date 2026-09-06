@@ -15,7 +15,7 @@ class KaarigerLanguageViewModel @Inject constructor(
 ) : ViewModel() {
 
     val language = dataStoreManager.kaarigerLanguage
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "hi")
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "en")
 
     fun setLanguage(code: String) {
         viewModelScope.launch {

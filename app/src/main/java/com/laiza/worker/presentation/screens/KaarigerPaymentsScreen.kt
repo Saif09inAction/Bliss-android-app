@@ -43,14 +43,26 @@ fun KaarigerPaymentsScreen(
     val me = remember(kaarigers, session?.phone) {
         kaarigers.find { it.phone == session?.phone }
     }
-    val summary = remember(me, orders, payments, repairs) {
+    val ledgerLabels = HisaabLedgerLabels(
+        opening = stringResource(R.string.kaariger_ledger_opening),
+        oldKharcha = stringResource(R.string.kaariger_ledger_old_kharcha),
+        bill = stringResource(R.string.kaariger_ledger_bill),
+        weekKharcha = stringResource(R.string.kaariger_ledger_week_kharcha),
+        paidRemaining = stringResource(R.string.kaariger_ledger_paid_remaining),
+        repairingNamed = stringResource(R.string.kaariger_ledger_repairing_named),
+        repairing = stringResource(R.string.kaariger_ledger_repairing),
+        credit = stringResource(R.string.kaariger_ledger_credit),
+        orderFallback = stringResource(R.string.kaariger_order_fallback)
+    )
+    val summary = remember(me, orders, payments, repairs, ledgerLabels) {
         buildKaarigerHisaabSummary(
             openingBalance = me?.openingBalance ?: 0.0,
             oldKharcha = me?.oldKharcha ?: 0.0,
             creditBalance = me?.creditBalance ?: 0.0,
             orders = orders,
             payments = payments,
-            repairs = repairs
+            repairs = repairs,
+            labels = ledgerLabels
         )
     }
     val totalPending = summary.totalRemaining

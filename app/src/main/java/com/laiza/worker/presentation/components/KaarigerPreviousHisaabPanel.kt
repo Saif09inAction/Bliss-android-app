@@ -181,7 +181,7 @@ private fun WeekBillColumn(
                 )
             }
             if (productsTotal > 0) {
-                PrevRow("MAAL", formatIndianRupee(productsTotal))
+                PrevRow(stringResource(R.string.kaariger_bill_maal), formatIndianRupee(productsTotal))
             }
             order.materialDeductions.forEach { d ->
                 PrevRow(
@@ -192,12 +192,15 @@ private fun WeekBillColumn(
             }
             orderRepairs.forEach { r ->
                 PrevRow(
-                    stringResource(R.string.kaariger_previous_less, "Repairing - ${r.productName}"),
+                    stringResource(
+                        R.string.kaariger_previous_less,
+                        stringResource(R.string.kaariger_ledger_repairing_named, r.productName)
+                    ),
                     "−${formatIndianRupee(r.totalRepairCost)}",
                     Color(0xFFDC2626)
                 )
             }
-            PrevRow("ADD", formatIndianRupee(add), bold = true)
+            PrevRow(stringResource(R.string.kaariger_bill_add), formatIndianRupee(add), bold = true)
             if (budget > 0) {
                 PrevRow(
                     stringResource(R.string.kaariger_hisaab_kharcha_on_bill),

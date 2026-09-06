@@ -279,7 +279,7 @@ private fun KaarigerDashboardContent(
         val allDeductions = liveBill?.materialDeductions.orEmpty()
         val materialsByName = allDeductions
             .filter { it.type == "MATERIAL" }
-            .groupBy { it.label.ifBlank { "Material" } }
+            .groupBy { it.label.ifBlank { "MATERIAL" } }
             .mapValues { (_, lines) -> lines.sumOf { it.quantity } }
             .filter { it.value > 0 }
             .toList()
@@ -403,19 +403,24 @@ private fun PendingDeductionsCard(summary: DeductionsSummary) {
             )
             Spacer(modifier = Modifier.height(12.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                DeductionChip("Runner", summary.runner, Modifier.weight(1f))
-                DeductionChip("Fitting", summary.fitting, Modifier.weight(1f))
+                DeductionChip(stringResource(R.string.kaariger_label_runner), summary.runner, Modifier.weight(1f))
+                DeductionChip(stringResource(R.string.kaariger_label_fitting), summary.fitting, Modifier.weight(1f))
             }
             Spacer(modifier = Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                DeductionChip("Astar", summary.astar, Modifier.weight(1f))
+                DeductionChip(stringResource(R.string.kaariger_label_astar), summary.astar, Modifier.weight(1f))
             }
             if (summary.materials.isNotEmpty()) {
                 summary.materials.chunked(2).forEach { pair ->
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         pair.forEach { (name, qty) ->
-                            DeductionChip(name, qty, Modifier.weight(1f))
+                            val label = if (name == "MATERIAL") {
+                                stringResource(R.string.kaariger_label_material)
+                            } else {
+                                name
+                            }
+                            DeductionChip(label, qty, Modifier.weight(1f))
                         }
                         if (pair.size == 1) {
                             Spacer(modifier = Modifier.weight(1f))
@@ -436,7 +441,12 @@ private fun DeductionChip(label: String, quantity: Int, modifier: Modifier = Mod
     ) {
         Column(modifier = Modifier.padding(10.dp)) {
             Text(label, style = MaterialTheme.typography.labelSmall, color = Color(0xFF9A3412))
-            Text("$quantity pcs", fontWeight = FontWeight.Bold, color = Color(0xFFC2410C), style = MaterialTheme.typography.titleSmall)
+            Text(
+                stringResource(R.string.kaariger_pcs, quantity),
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFC2410C),
+                style = MaterialTheme.typography.titleSmall
+            )
         }
     }
 }
