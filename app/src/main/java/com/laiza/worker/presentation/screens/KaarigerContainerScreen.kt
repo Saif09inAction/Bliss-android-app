@@ -268,16 +268,13 @@ private fun KaarigerDashboardContent(
     val pendingBatches = orders.count { it.status == OrderStatus.PENDING_APPROVAL }
     val recentOrders = orders.take(3)
 
-    // Runner/Fitting/Astar/Material quantities given by admin, only for bills not yet fully
-    // paid off — resets to zero automatically once an order's whole payment is received.
-    val pendingDeductions = remember(orders, payments) {
-        val unsettled = orders.filter { order ->
-            if (order.status == OrderStatus.REJECTED) return@filter false
-            val netDeal = (order.originalDealAmount ?: order.totalDealAmount) - order.repairDeductionTotal
-            val totalPaid = payments.filter { it.orderId == order.id }.sumOf { it.amount }
-            (netDeal - totalPaid) > 0.0
-        }
-        val allDeductions = unsettled.flatMap { it.materialDeductions }
+    // Runner/Fitting/Astar/Material quantities for the live (newest) bill only —
+    // resets when a new bill is created.
+    val pendingDeductions = remember(orders) {
+        val liveBill = orders
+            .filter { it.status != OrderStatus.REJECTED }
+            .maxByOrNull { it.createdAt }
+        val allDeductions = liveBill?.materialDeductions.orEmpty()
         val materialsByName = allDeductions
             .filter { it.type == "MATERIAL" }
             .groupBy { it.label.ifBlank { "Material" } }
