@@ -78,14 +78,26 @@ fun KaarigerHisaabScreen(
     val me = remember(kaarigers, session?.phone) {
         kaarigers.find { it.phone == session?.phone }
     }
-    val summary = remember(me, orders, payments, repairs) {
+    val ledgerLabels = HisaabLedgerLabels(
+        opening = stringResource(R.string.kaariger_ledger_opening),
+        oldKharcha = stringResource(R.string.kaariger_ledger_old_kharcha),
+        bill = stringResource(R.string.kaariger_ledger_bill),
+        weekKharcha = stringResource(R.string.kaariger_ledger_week_kharcha),
+        paidRemaining = stringResource(R.string.kaariger_ledger_paid_remaining),
+        repairingNamed = stringResource(R.string.kaariger_ledger_repairing_named),
+        repairing = stringResource(R.string.kaariger_ledger_repairing),
+        credit = stringResource(R.string.kaariger_ledger_credit),
+        orderFallback = stringResource(R.string.kaariger_order_fallback)
+    )
+    val summary = remember(me, orders, payments, repairs, ledgerLabels) {
         buildKaarigerHisaabSummary(
             openingBalance = me?.openingBalance ?: 0.0,
             oldKharcha = me?.oldKharcha ?: 0.0,
             creditBalance = me?.creditBalance ?: 0.0,
             orders = orders,
             payments = payments,
-            repairs = repairs
+            repairs = repairs,
+            labels = ledgerLabels
         )
     }
 
@@ -225,6 +237,18 @@ internal data class RemainingLedgerLine(
     val remainingAfter: Double
 )
 
+internal data class HisaabLedgerLabels(
+    val opening: String,
+    val oldKharcha: String,
+    val bill: String,
+    val weekKharcha: String,
+    val paidRemaining: String,
+    val repairingNamed: String,
+    val repairing: String,
+    val credit: String,
+    val orderFallback: String
+)
+
 internal data class KaarigerHisaabSummary(
     val runningBalance: Double,
     val weekKharcha: Double,
@@ -265,7 +289,8 @@ internal fun buildKaarigerHisaabSummary(
     creditBalance: Double,
     orders: List<KaarigerOrder>,
     payments: List<KaarigerOrderPayment>,
-    repairs: List<OrderRepair>?
+    repairs: List<OrderRepair>?,
+    labels: HisaabLedgerLabels
 ): KaarigerHisaabSummary {
     val running = openingBalance + oldKharcha.coerceAtLeast(0.0)
     val credit = creditBalance.coerceAtLeast(0.0)
@@ -293,7 +318,7 @@ internal fun buildKaarigerHisaabSummary(
         val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(
             orderId = order.id,
-            productName = order.productName.ifBlank { "Order" },
+            productName = order.productName.ifBlank { labels.orderFallback },
             weekLabel = order.displayWeekLabel(),
             productsTotal = productsTotal,
             deductions = deductions,
@@ -328,7 +353,8 @@ internal fun buildKaarigerHisaabSummary(
         repairs = repairs,
         standaloneRepair = standaloneRepair,
         creditApplied = creditApplied,
-        liveRemaining = totalRemaining
+        liveRemaining = totalRemaining,
+        labels = labels
     )
 
     return KaarigerHisaabSummary(
@@ -356,7 +382,8 @@ private fun buildRemainingLedgerLines(
     repairs: List<OrderRepair>?,
     standaloneRepair: Double,
     creditApplied: Double,
-    liveRemaining: Double
+    liveRemaining: Double,
+    labels: HisaabLedgerLabels
 ): List<RemainingLedgerLine> {
     val openingPays = payments.filter { isOpeningPayment(it) }
     val openingPaidTotal = openingPays.sumOf { it.amount.coerceAtLeast(0.0) }
@@ -369,14 +396,14 @@ private fun buildRemainingLedgerLines(
 
     remaining = startOpening
     lines += RemainingLedgerLine(
-        title = "Opening balance",
+        title = labels.opening,
         delta = startOpening,
         remainingAfter = remaining
     )
     if (oldKharcha > 0.0) {
         remaining += oldKharcha
         lines += RemainingLedgerLine(
-            title = "Old kharcha",
+            title = labels.oldKharcha,
             delta = oldKharcha,
             remainingAfter = remaining
         )
@@ -402,7 +429,7 @@ private fun buildRemainingLedgerLines(
                     .joinToString(" · ")
                     .ifBlank { null }
                 RemainingLedgerLine(
-                    title = "Bill · $week",
+                    title = java.lang.String.format(java.util.Locale.getDefault(), labels.bill, week),
                     subtitle = subtitle,
                     delta = add,
                     remainingAfter = next
@@ -414,7 +441,7 @@ private fun buildRemainingLedgerLines(
             events += Ev(t + 1, "kh-${order.id}") { rem ->
                 val next = rem - kh
                 RemainingLedgerLine(
-                    title = "$week kharcha",
+                    title = java.lang.String.format(java.util.Locale.getDefault(), labels.weekKharcha, week),
                     delta = -kh,
                     remainingAfter = next
                 ) to next
@@ -429,7 +456,7 @@ private fun buildRemainingLedgerLines(
             val next = rem - amt
             val whenLabel = listOf(p.date, p.time).filter { it.isNotBlank() }.joinToString(" · ")
             RemainingLedgerLine(
-                title = "Paid (Remaining)",
+                title = labels.paidRemaining,
                 subtitle = whenLabel.ifBlank { null },
                 delta = -amt,
                 remainingAfter = next
@@ -449,7 +476,11 @@ private fun buildRemainingLedgerLines(
             remaining -= r.totalRepairCost
             val sub = if (r.faultyQuantity > 0) "${r.faultyQuantity} × ₹${r.faultyPricePerPiece.toInt()}" else null
             lines += RemainingLedgerLine(
-                title = "Repairing - ${r.productName}",
+                title = java.lang.String.format(
+                    java.util.Locale.getDefault(),
+                    labels.repairingNamed,
+                    r.productName
+                ),
                 subtitle = sub,
                 delta = -r.totalRepairCost,
                 remainingAfter = remaining
@@ -458,7 +489,7 @@ private fun buildRemainingLedgerLines(
     } else if (standaloneRepair > 0.0) {
         remaining -= standaloneRepair
         lines += RemainingLedgerLine(
-            title = "Repairing",
+            title = labels.repairing,
             delta = -standaloneRepair,
             remainingAfter = remaining
         )
@@ -466,7 +497,7 @@ private fun buildRemainingLedgerLines(
     if (creditApplied > 0.0) {
         remaining -= creditApplied
         lines += RemainingLedgerLine(
-            title = "Credit",
+            title = labels.credit,
             delta = -creditApplied,
             remainingAfter = remaining
         )
@@ -842,7 +873,8 @@ private fun OrderHisaabLineCard(line: KaarigerOrderHisaabLine) {
                     fontWeight = FontWeight.Bold,
                     style = MaterialTheme.typography.titleSmall
                 )
-                if (line.productName.isNotBlank() && line.productName != "Order") {
+                val orderFallback = stringResource(R.string.kaariger_order_fallback)
+                if (line.productName.isNotBlank() && line.productName != orderFallback) {
                     Text(
                         line.productName,
                         style = MaterialTheme.typography.labelMedium,

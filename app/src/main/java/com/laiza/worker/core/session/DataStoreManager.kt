@@ -148,7 +148,7 @@ class DataStoreManager @Inject constructor(
                 throw exception
             }
         }.map { preferences ->
-            preferences[KAARIGER_LANGUAGE] ?: "hi"
+            preferences[KAARIGER_LANGUAGE] ?: "en"
         }
 
     suspend fun saveKaarigerLanguage(language: String) {

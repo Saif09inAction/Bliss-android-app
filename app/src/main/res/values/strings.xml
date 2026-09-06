@@ -120,6 +120,7 @@
     <string name="kaariger_grand_total_remaining">Total remaining</string>
     <string name="kaariger_grand_total_cleared">Sab clear ✓</string>
     <string name="kaariger_bill_add">ADD</string>
+    <string name="kaariger_bill_maal">MAAL</string>
     <string name="kaariger_bill_remaining_equation">%1$s (before) + %2$s (ADD) − %3$s (kharcha) = %4$s</string>
     <string name="kaariger_pcs">%1$d pcs</string>
     <string name="kaariger_deal_per_piece">%1$s (%2$s/pc)</string>
@@ -157,6 +158,10 @@
     <string name="kaariger_payment_hint_amber">Peela = Total remaining</string>
     <string name="kaariger_payment_remaining_hint">Remaining %1$s · Kharcha box %2$s (Pay sirf box pe)</string>
     <string name="kaariger_home_deductions_title">Jo saman / katauti lagi</string>
+    <string name="kaariger_label_runner">Runner</string>
+    <string name="kaariger_label_fitting">Fitting</string>
+    <string name="kaariger_label_astar">Astar</string>
+    <string name="kaariger_label_material">Material</string>
     <string name="kaariger_home_hisaab_button">Mera Hisaab</string>
     <string name="kaariger_home_hisaab_hint">Opening + order + katauti — poora hisaab</string>
     <string name="kaariger_hisaab_title">Mera Hisaab</string>
@@ -217,6 +222,15 @@
     <string name="kaariger_em_dash">—</string>
     <string name="kaariger_payment_opening_product">Opening balance</string>
     <string name="kaariger_payment_credit_product">Credit / advance</string>
+    <string name="kaariger_ledger_opening">Opening balance</string>
+    <string name="kaariger_ledger_old_kharcha">Old kharcha</string>
+    <string name="kaariger_ledger_bill">Bill · %1$s</string>
+    <string name="kaariger_ledger_week_kharcha">%1$s kharcha</string>
+    <string name="kaariger_ledger_paid_remaining">Paid (Remaining)</string>
+    <string name="kaariger_ledger_repairing_named">Repairing - %1$s</string>
+    <string name="kaariger_ledger_repairing">Repairing</string>
+    <string name="kaariger_ledger_credit">Credit</string>
+    <string name="kaariger_order_fallback">Order</string>
 
     <!-- Order receipt -->
     <string name="receipt_brand">BLISS BOMBAY</string>
