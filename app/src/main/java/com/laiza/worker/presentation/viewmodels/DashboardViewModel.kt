@@ -10,6 +10,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import com.laiza.worker.core.utils.DateFormatter
+import com.laiza.worker.core.utils.PayPeriodUtils
 import com.laiza.worker.core.utils.formatIndianRupee
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -81,24 +82,37 @@ class DashboardViewModel @Inject constructor(
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "₹0")
 
-    // Employee Stats & Alerts
+    // Employee Stats & Alerts — Presents/Lates/Leaves for current join-date month only
     @OptIn(ExperimentalCoroutinesApi::class)
     val employeeAttendanceStats: StateFlow<Map<String, Int>> = employeeSession
         .flatMapLatest { session ->
-            if (session != null) {
-                attendanceRepository.getEmployeeAttendanceHistory(session.phone).map { list ->
-                    val presents = list.count {
+            if (session == null) {
+                flowOf(mapOf("presents" to 0, "lates" to 0, "earlyOuts" to 0))
+            } else {
+                combine(
+                    employeeRepository.getEmployee(session.phone),
+                    attendanceRepository.getEmployeeAttendanceHistory(session.phone)
+                ) { employee, list ->
+                    val today = PayPeriodUtils.todayIso()
+                    val period = PayPeriodUtils.currentJoinMonthPeriod(
+                        joiningDateStr = employee?.joiningDate,
+                        asOfDate = today
+                    )
+                    // Count only through today within the current join-month window.
+                    val until = minOf(period.end, today)
+                    val inPeriod = list.filter { att ->
+                        att.date.isNotBlank() && att.date >= period.start && att.date <= until
+                    }
+                    val presents = inPeriod.count {
                         it.status == AttendanceStatus.PRESENT ||
                             it.status == AttendanceStatus.ON_TIME ||
                             it.status == AttendanceStatus.HALF_DAY ||
                             it.status == AttendanceStatus.FULL_DAY
                     }
-                    val lates = list.count { it.status == AttendanceStatus.LATE }
-                    val earlyOuts = list.count { it.status == AttendanceStatus.LEFT_EARLY }
+                    val lates = inPeriod.count { it.status == AttendanceStatus.LATE }
+                    val earlyOuts = inPeriod.count { it.status == AttendanceStatus.LEFT_EARLY }
                     mapOf("presents" to presents, "lates" to lates, "earlyOuts" to earlyOuts)
                 }
-            } else {
-                flowOf(mapOf("presents" to 0, "lates" to 0, "earlyOuts" to 0))
             }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), mapOf("presents" to 0, "lates" to 0, "earlyOuts" to 0))
