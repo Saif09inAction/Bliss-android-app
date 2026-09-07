@@ -122,6 +122,10 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /raw_material_payments/{paymentId} {
+      allow read, write: if true;
+    }
+
     // -------------------------------------------------------------------------
     // Bill Report — supplier ledgers under Claris / Bliss
     // -------------------------------------------------------------------------
