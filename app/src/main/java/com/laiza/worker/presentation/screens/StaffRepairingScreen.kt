@@ -58,7 +58,8 @@ private data class RepairProductOption(
 private data class RepairLineDraft(
     val id: String = UUID.randomUUID().toString(),
     val selectedProduct: RepairProductOption? = null,
-    val qtyText: String = ""
+    val qtyText: String = "",
+    val priceText: String = ""
 )
 
 @Composable
@@ -67,7 +68,7 @@ fun StaffRepairingScreen(
 ) {
     val kaarigers by orderViewModel.kaarigers.collectAsState()
     val kaarigerRepairs by orderViewModel.kaarigerRepairs.collectAsState()
-    val catalogNames by orderViewModel.productCatalogNames.collectAsState()
+    val catalog by orderViewModel.productCatalog.collectAsState()
 
     var selectedKaariger by remember { mutableStateOf<Employee?>(null) }
     var repairLines by remember { mutableStateOf(listOf(RepairLineDraft())) }
@@ -84,16 +85,14 @@ fun StaffRepairingScreen(
     val kaarigerNames = remember(kaarigers) { kaarigers.map { it.name } }
     val kaarigerByName = remember(kaarigers) { kaarigers.associateBy { it.name } }
 
-    val productOptions = remember(catalogNames) {
-        catalogNames
-            .filter { it.isNotBlank() }
-            .distinctBy { it.lowercase() }
-            .sortedBy { it.lowercase() }
-            .map { name ->
+    val productOptions = remember(catalog) {
+        catalog
+            .filter { it.name.isNotBlank() }
+            .map { product ->
                 RepairProductOption(
                     orderId = RepairStatus.STANDALONE_ORDER_ID,
-                    productName = name,
-                    pricePerPiece = 0.0
+                    productName = product.name,
+                    pricePerPiece = product.price.coerceAtLeast(0.0)
                 )
             }
     }
@@ -101,7 +100,11 @@ fun StaffRepairingScreen(
     val productLabels = remember(productOptions) { productOptions.map { it.productName } }
     val productByLabel = remember(productOptions) { productOptions.associateBy { it.productName } }
 
-    val validLines = repairLines.filter { it.selectedProduct != null && (it.qtyText.toIntOrNull() ?: 0) > 0 }
+    val validLines = repairLines.filter {
+        it.selectedProduct != null &&
+            (it.qtyText.toIntOrNull() ?: 0) > 0 &&
+            (it.priceText.toDoubleOrNull() ?: 0.0) >= 0.0
+    }
 
     Column(
         modifier = Modifier
@@ -156,17 +159,33 @@ fun StaffRepairingScreen(
                             productByLabel = productByLabel,
                             onProductSelected = { option ->
                                 repairLines = repairLines.map { draft ->
-                                    if (draft.id == line.id) draft.copy(selectedProduct = option) else draft
+                                    if (draft.id != line.id) draft
+                                    else draft.copy(
+                                        selectedProduct = option,
+                                        // Prefill catalog ₹/pc; staff can still edit.
+                                        priceText = if (option.pricePerPiece > 0) {
+                                            formatCatalogPrice(option.pricePerPiece)
+                                        } else {
+                                            draft.priceText
+                                        }
+                                    )
                                 }
                             },
                             onProductCleared = {
                                 repairLines = repairLines.map { draft ->
-                                    if (draft.id == line.id) draft.copy(selectedProduct = null) else draft
+                                    if (draft.id == line.id) {
+                                        draft.copy(selectedProduct = null, priceText = "")
+                                    } else draft
                                 }
                             },
                             onQtyChanged = { qty ->
                                 repairLines = repairLines.map { draft ->
                                     if (draft.id == line.id) draft.copy(qtyText = qty) else draft
+                                }
+                            },
+                            onPriceChanged = { price ->
+                                repairLines = repairLines.map { draft ->
+                                    if (draft.id == line.id) draft.copy(priceText = price) else draft
                                 }
                             },
                             onRemove = if (repairLines.size > 1) {
@@ -202,12 +221,14 @@ fun StaffRepairingScreen(
                         val submissions = validLines.mapNotNull { line ->
                             val product = line.selectedProduct ?: return@mapNotNull null
                             val qty = line.qtyText.toIntOrNull() ?: return@mapNotNull null
+                            val price = line.priceText.toDoubleOrNull() ?: 0.0
                             if (qty <= 0) return@mapNotNull null
+                            if (price < 0) return@mapNotNull null
                             RepairSubmission(
                                 orderId = product.orderId,
                                 productName = product.productName,
                                 faultyQuantity = qty,
-                                faultyPricePerPiece = product.pricePerPiece,
+                                faultyPricePerPiece = price,
                                 kaarigerId = kaariger.phone,
                                 kaarigerName = kaariger.name
                             )
@@ -253,6 +274,11 @@ fun StaffRepairingScreen(
     }
 }
 
+private fun formatCatalogPrice(price: Double): String {
+    return if (price % 1.0 == 0.0) price.toInt().toString()
+    else price.toString().trimEnd('0').trimEnd('.')
+}
+
 @Composable
 private fun RepairLineRow(
     index: Int,
@@ -263,8 +289,13 @@ private fun RepairLineRow(
     onProductSelected: (RepairProductOption) -> Unit,
     onProductCleared: () -> Unit,
     onQtyChanged: (String) -> Unit,
+    onPriceChanged: (String) -> Unit,
     onRemove: (() -> Unit)?
 ) {
+    val qty = line.qtyText.toIntOrNull() ?: 0
+    val price = line.priceText.toDoubleOrNull() ?: 0.0
+    val lineTotal = qty * price
+
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(
@@ -296,12 +327,42 @@ private fun RepairLineRow(
                 emptyText = "No products"
             )
 
-            CustomTextField(
-                value = line.qtyText,
-                onValueChange = { input -> onQtyChanged(input.filter { it.isDigit() }.take(6)) },
-                label = "Quantity",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CustomTextField(
+                    value = line.qtyText,
+                    onValueChange = { input -> onQtyChanged(input.filter { it.isDigit() }.take(6)) },
+                    label = "Quantity",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f)
+                )
+                CustomTextField(
+                    value = line.priceText,
+                    onValueChange = { input ->
+                        onPriceChanged(
+                            input.filter { it.isDigit() || it == '.' }
+                                .let { raw ->
+                                    val parts = raw.split('.')
+                                    if (parts.size <= 1) raw.take(8)
+                                    else parts[0].take(8) + "." + parts.drop(1).joinToString("").take(2)
+                                }
+                        )
+                    },
+                    label = "₹ / pc",
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            if (qty > 0 && price > 0) {
+                Text(
+                    text = "Total: ₹${formatCatalogPrice(lineTotal)}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

@@ -73,7 +73,7 @@ class OrderViewModel @Inject constructor(
     private val _kaarigerRepairs = MutableStateFlow<List<OrderRepair>>(emptyList())
     val kaarigerRepairs = _kaarigerRepairs.asStateFlow()
 
-    val productCatalogNames: StateFlow<List<String>> = orderRepository.getProductCatalogNames()
+    val productCatalog: StateFlow<List<CatalogProduct>> = orderRepository.getProductCatalog()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _paymentSummaries = MutableStateFlow<List<OrderPaymentSummary>>(emptyList())
