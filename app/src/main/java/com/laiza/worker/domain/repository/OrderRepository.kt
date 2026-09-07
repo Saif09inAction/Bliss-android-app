@@ -1,6 +1,7 @@
 package com.laiza.worker.domain.repository
 
 import com.laiza.worker.core.utils.Resource
+import com.laiza.worker.domain.models.CatalogProduct
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.ColorQuantity
@@ -39,7 +40,7 @@ interface OrderRepository {
     fun addPayment(payment: KaarigerOrderPayment): Flow<Resource<Unit>>
     fun getRepairsForKaariger(kaarigerId: String): Flow<List<OrderRepair>>
     fun getRepairsForOrder(orderId: String): Flow<List<OrderRepair>>
-    fun getProductCatalogNames(): Flow<List<String>>
+    fun getProductCatalog(): Flow<List<CatalogProduct>>
 
     fun createRepair(
         orderId: String,

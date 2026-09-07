@@ -436,19 +436,32 @@ class OrderRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getProductCatalogNames(): Flow<List<String>> = callbackFlow {
+    override fun getProductCatalog(): Flow<List<CatalogProduct>> = callbackFlow {
         val registration = firestore.collection("product_catalog")
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     trySend(emptyList())
                     return@addSnapshotListener
                 }
-                val names = snapshot?.documents
-                    ?.mapNotNull { it.getString("name")?.trim()?.takeIf { n -> n.isNotEmpty() } }
-                    ?.distinct()
-                    ?.sorted()
+                val products = snapshot?.documents
+                    ?.mapNotNull { doc ->
+                        val name = doc.getString("name")?.trim()?.takeIf { it.isNotEmpty() }
+                            ?: return@mapNotNull null
+                        val price = when (val raw = doc.get("price")) {
+                            is Number -> raw.toDouble()
+                            is String -> raw.toDoubleOrNull() ?: 0.0
+                            else -> doc.getDouble("price") ?: 0.0
+                        }
+                        CatalogProduct(
+                            id = doc.getString("id")?.takeIf { it.isNotBlank() } ?: doc.id,
+                            name = name,
+                            price = price.coerceAtLeast(0.0)
+                        )
+                    }
+                    ?.distinctBy { it.name.lowercase() }
+                    ?.sortedBy { it.name.lowercase() }
                     ?: emptyList()
-                trySend(names)
+                trySend(products)
             }
         awaitClose { registration.remove() }
     }
