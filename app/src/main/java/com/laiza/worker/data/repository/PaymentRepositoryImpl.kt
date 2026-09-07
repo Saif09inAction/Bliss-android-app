@@ -11,13 +11,15 @@ import com.laiza.worker.domain.models.SalaryBalanceSheet
 import com.laiza.worker.domain.repository.PaymentRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import com.laiza.worker.core.utils.CalendarDayOverride
 import com.laiza.worker.core.utils.DateFormatter
+import com.laiza.worker.core.utils.PayPeriodUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -37,6 +39,8 @@ class PaymentRepositoryImpl @Inject constructor(
     private val attendanceDao: AttendanceDao,
     private val firestore: FirebaseFirestore
 ) : PaymentRepository {
+
+    private val calendarOverrides = MutableStateFlow<Map<String, CalendarDayOverride>>(emptyMap())
 
     override fun getPaymentsForEmployee(employeeId: String): Flow<List<PaymentTransaction>> {
         CoroutineScope(Dispatchers.IO).launch {
@@ -168,6 +172,7 @@ class PaymentRepositoryImpl @Inject constructor(
                 for (pay in payList) {
                     paymentDao.insertPayment(PaymentEntity.fromDomain(pay))
                 }
+                calendarOverrides.value = fetchCalendarOverridesFromFirestore()
             } catch (_: Exception) {}
         }
 
@@ -175,7 +180,12 @@ class PaymentRepositoryImpl @Inject constructor(
         val paymentsFlow = paymentDao.getPaymentsForEmployee(employeeId)
         val attendanceFlow = attendanceDao.getEmployeeAttendanceHistory(employeeId)
 
-        return combine(employeeFlow, paymentsFlow, attendanceFlow) { employee, payments, attendanceEntities ->
+        return combine(
+            employeeFlow,
+            paymentsFlow,
+            attendanceFlow,
+            calendarOverrides
+        ) { employee, payments, attendanceEntities, overrides ->
             val baseMonthlySalary = employee?.monthlySalary ?: 0.0
             
             // Priority 1: Use admin-calculated salaryRemaining directly from Firestore employee document if present
@@ -193,20 +203,27 @@ class PaymentRepositoryImpl @Inject constructor(
 
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
             val joiningDateStr = employee?.joiningDate?.trim().takeIf { !it.isNullOrBlank() } ?: todayStr
+            val phone = employee?.phone?.takeIf { it.isNotBlank() } ?: employeeId
 
             val payPeriod = resolvePayPeriod(joiningDateStr, todayStr)
             val daysInPeriod = maxOf(payPeriod.daysInPeriod, 1)
             val perDayRate = if (baseMonthlySalary > 0.0) baseMonthlySalary / daysInPeriod else 0.0
 
-            val attendanceList = attendanceEntities.map { it.toDomain() }
-            val periodAttendance = attendanceList.filter { it.date >= payPeriod.start && it.date <= todayStr }
+            val attendanceByDate = attendanceEntities
+                .map { it.toDomain() }
+                .filter { it.date >= payPeriod.start && it.date <= todayStr }
+                .associateBy { it.date }
 
+            // Walk every day in the join-month (through today). Holidays/Sundays earn full day
+            // with no punch — salary is not deducted for admin-marked holidays.
             var grossEarned = 0.0
-            for (att in periodAttendance) {
-                val hasPunch = !att.signInTime.isNullOrBlank()
-                if (!hasPunch) continue
+            for (date in PayPeriodUtils.eachIsoDateInclusive(payPeriod.start, todayStr)) {
+                val paidOff = PayPeriodUtils.isPaidOffDay(date, overrides, phone)
+                val att = attendanceByDate[date]
+                val hasPunch = !att?.signInTime.isNullOrBlank()
+                if (!paidOff && !hasPunch) continue
 
-                val dayFactor = if (att.status.name == "HALF_DAY") 0.5 else 1.0
+                val dayFactor = if (!paidOff && att?.status?.name == "HALF_DAY") 0.5 else 1.0
                 val dayGross = kotlin.math.round(perDayRate * dayFactor * 100.0) / 100.0
                 grossEarned += dayGross
             }
@@ -242,6 +259,33 @@ class PaymentRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    private suspend fun fetchCalendarOverridesFromFirestore(): Map<String, CalendarDayOverride> =
+        suspendCancellableCoroutine { continuation ->
+            firestore.collection("calendar_days").get()
+                .addOnSuccessListener { querySnapshot ->
+                    val map = mutableMapOf<String, CalendarDayOverride>()
+                    querySnapshot.documents.forEach { doc ->
+                        val date = doc.getString("date") ?: doc.id
+                        val kind = (doc.getString("kind") ?: "").uppercase()
+                        if (kind != "HOLIDAY" && kind != "WORKING") return@forEach
+                        @Suppress("UNCHECKED_CAST")
+                        val employeeIds = (doc.get("employeeIds") as? List<*>)
+                            ?.mapNotNull { it as? String }
+                            .orEmpty()
+                        map[date] = CalendarDayOverride(
+                            date = date,
+                            kind = kind,
+                            appliesTo = doc.getString("appliesTo") ?: "ALL",
+                            employeeIds = employeeIds
+                        )
+                    }
+                    continuation.resume(map)
+                }
+                .addOnFailureListener {
+                    continuation.resume(emptyMap())
+                }
+        }
 
     override fun addPayment(
         employeeId: String,

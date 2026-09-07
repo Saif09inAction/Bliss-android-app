@@ -15,6 +15,14 @@ data class JoinMonthPeriod(
     val daysInPeriod: Int
 )
 
+/** Firestore calendar_days/{yyyy-MM-dd} override. */
+data class CalendarDayOverride(
+    val date: String,
+    val kind: String, // HOLIDAY | WORKING
+    val appliesTo: String = "ALL", // ALL | SELECTED
+    val employeeIds: List<String> = emptyList()
+)
+
 object PayPeriodUtils {
     private val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
@@ -98,4 +106,58 @@ object PayPeriodUtils {
         if (date.isBlank()) return false
         return date >= period.start && date <= period.end
     }
+
+    fun eachIsoDateInclusive(start: String, end: String): List<String> {
+        if (start.isBlank() || end.isBlank() || end < start) return emptyList()
+        val out = mutableListOf<String>()
+        val cal = Calendar.getInstance().apply {
+            time = sdf.parse(start) ?: return emptyList()
+        }
+        val endTime = sdf.parse(end)?.time ?: return emptyList()
+        while (cal.timeInMillis <= endTime) {
+            out += sdf.format(cal.time)
+            cal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        return out
+    }
+
+    fun isSunday(dateStr: String): Boolean {
+        val date = try {
+            sdf.parse(dateStr)
+        } catch (_: Exception) {
+            null
+        } ?: return false
+        val cal = Calendar.getInstance().apply { time = date }
+        return cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY
+    }
+
+    /** Default: Sunday = holiday, else working. */
+    fun defaultDayKind(dateStr: String): String =
+        if (isSunday(dateStr)) "HOLIDAY" else "WORKING"
+
+    /**
+     * Resolve HOLIDAY vs WORKING for salary.
+     * Matches admin-web: Sunday/admin holiday = paid full day (no punch needed).
+     */
+    fun resolveDayKind(
+        dateStr: String,
+        overrides: Map<String, CalendarDayOverride>,
+        employeePhone: String? = null
+    ): String {
+        val override = overrides[dateStr] ?: return defaultDayKind(dateStr)
+        if (override.appliesTo != "SELECTED" || employeePhone.isNullOrBlank()) {
+            return override.kind
+        }
+        val listed = override.employeeIds.any {
+            it.equals(employeePhone, ignoreCase = true)
+        }
+        return if (listed) override.kind else defaultDayKind(dateStr)
+    }
+
+    /** Sunday / admin holiday — paid as full present (salary not deducted). */
+    fun isPaidOffDay(
+        dateStr: String,
+        overrides: Map<String, CalendarDayOverride>,
+        employeePhone: String? = null
+    ): Boolean = resolveDayKind(dateStr, overrides, employeePhone) == "HOLIDAY"
 }
