@@ -25,7 +25,6 @@ import com.laiza.worker.R
 import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.hisaab.approvedRepairsOnBill
 import com.laiza.worker.domain.hisaab.orderAddBalance
-import com.laiza.worker.domain.hisaab.orderClosingBalance
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
@@ -66,9 +65,11 @@ fun KaarigerPreviousHisaabPanel(
     val add = orderAddBalance(order, repairs)
     val opening = order.openingAtCreation
         ?: if (order.closingAtCreation != null) {
-            order.closingAtCreation - add + budget
+            order.closingAtCreation - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
         } else 0.0
-    val closing = orderClosingBalance(order, repairs)
+    val creditSettled = order.creditApplied?.coerceAtLeast(0.0) ?: 0.0
+    val grossClosing = opening + add - budget
+    val closing = order.closingAtCreation ?: (grossClosing - creditSettled)
 
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     val dateLabel = formatOrderDate(order.createdAt)
@@ -205,6 +206,19 @@ private fun WeekBillColumn(
                 PrevRow(
                     stringResource(R.string.kaariger_hisaab_kharcha_on_bill),
                     "−${formatIndianRupee(budget)}",
+                    Jade
+                )
+            }
+            PrevRow(
+                stringResource(R.string.kaariger_hisaab_outstanding_after_create),
+                formatIndianRupee(grossClosing),
+                Amber,
+                bold = true
+            )
+            if (creditSettled > 0.0) {
+                PrevRow(
+                    stringResource(R.string.kaariger_hisaab_credit_settled),
+                    "−${formatIndianRupee(creditSettled)}",
                     Jade
                 )
             }

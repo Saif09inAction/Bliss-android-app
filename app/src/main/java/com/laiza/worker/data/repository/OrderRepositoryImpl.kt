@@ -823,6 +823,7 @@ class OrderRepositoryImpl @Inject constructor(
             openingAtCreation = (data["openingAtCreation"] as? Number)?.toDouble(),
             addBalance = (data["addBalance"] as? Number)?.toDouble(),
             closingAtCreation = (data["closingAtCreation"] as? Number)?.toDouble(),
+            creditApplied = (data["creditApplied"] as? Number)?.toDouble(),
             weekLabel = data["weekLabel"] as? String ?: "",
             weekKey = data["weekKey"] as? String ?: ""
         )

@@ -43,6 +43,7 @@ fun KaarigerOrdersScreen(
     val orders by orderViewModel.kaarigerOrders.collectAsState()
     val payments by orderViewModel.kaarigerPayments.collectAsState()
     val repairs by orderViewModel.kaarigerRepairs.collectAsState()
+    val kaarigers by orderViewModel.kaarigers.collectAsState()
     var search by remember { mutableStateOf("") }
     var detailOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
     var materialOrder by remember { mutableStateOf<KaarigerOrder?>(null) }
@@ -132,10 +133,12 @@ fun KaarigerOrdersScreen(
     }
 
     detailOrder?.let { order ->
+        val me = kaarigers.find { it.phone == session?.phone }
         KaarigerOrderDetailSheet(
             order = order,
             payments = payments,
             repairs = repairs,
+            creditBalance = me?.creditBalance ?: 0.0,
             onDismiss = { detailOrder = null },
             onReportMaterials = {
                 detailOrder = null

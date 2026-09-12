@@ -30,9 +30,18 @@ fun orderAddBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyLis
 }
 
 /**
- * Live outstanding: opening + ADD − week kharcha (can be negative).
+ * Live outstanding: opening + ADD − week kharcha − credit settled on this bill.
  */
 fun orderClosingBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyList()): Double {
+    val opening = order.openingAtCreation ?: 0.0
+    val budget = order.kharchaGiven.coerceAtLeast(0.0)
+    val gross = opening + orderAddBalance(order, repairs) - budget
+    val credit = order.creditApplied?.coerceAtLeast(0.0) ?: 0.0
+    return gross - credit
+}
+
+/** Gross closing before credit settled on the bill. */
+fun orderGrossClosingBalance(order: KaarigerOrder, repairs: List<OrderRepair>? = emptyList()): Double {
     val opening = order.openingAtCreation ?: 0.0
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     return opening + orderAddBalance(order, repairs) - budget
