@@ -388,8 +388,9 @@ private fun buildRemainingLedgerLines(
     val openingPays = payments.filter { isOpeningPayment(it) }
     val openingPaidTotal = openingPays.sumOf { it.amount.coerceAtLeast(0.0) }
     val billNet = orders.sumOf { orderAddBalance(it, repairs) - it.kharchaGiven.coerceAtLeast(0.0) }
+    val creditSettledOnBills = orders.sumOf { it.creditApplied?.coerceAtLeast(0.0) ?: 0.0 }
     val foldTotal = orders.sumOf { it.kharchaCarriedForward.coerceAtLeast(0.0) }
-    val startOpening = openingBalance + openingPaidTotal - billNet - foldTotal
+    val startOpening = openingBalance + openingPaidTotal - billNet + creditSettledOnBills - foldTotal
 
     val lines = mutableListOf<RemainingLedgerLine>()
     var remaining = 0.0
@@ -443,6 +444,18 @@ private fun buildRemainingLedgerLines(
                 RemainingLedgerLine(
                     title = java.lang.String.format(java.util.Locale.getDefault(), labels.weekKharcha, week),
                     delta = -kh,
+                    remainingAfter = next
+                ) to next
+            }
+        }
+        val settled = order.creditApplied?.coerceAtLeast(0.0) ?: 0.0
+        if (settled > 0.0) {
+            events += Ev(t + 2, "credit-${order.id}") { rem ->
+                val next = rem - settled
+                RemainingLedgerLine(
+                    title = labels.credit,
+                    subtitle = week,
+                    delta = -settled,
                     remainingAfter = next
                 ) to next
             }
@@ -797,7 +810,7 @@ private fun PreviousBillCard(
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation
         ?: if (order.closingAtCreation != null) {
-            order.closingAtCreation - add + budget
+            order.closingAtCreation - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
         } else 0.0
     val closing = orderClosingBalance(order, repairs)
 

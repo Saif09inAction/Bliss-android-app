@@ -41,8 +41,13 @@ data class KaarigerOrder(
     val openingAtCreation: Double? = null,
     /** ADD = MAAL − deductions − repair at creation. */
     val addBalance: Double? = null,
-    /** Closing = opening + ADD − week kharcha at creation. */
+    /** Closing = opening + ADD − week kharcha − creditApplied (net Remaining). */
     val closingAtCreation: Double? = null,
+    /**
+     * Credit settled into this bill at create. Shown on this bill only.
+     * Later bills start from net remaining — credit is not repeated.
+     */
+    val creditApplied: Double? = null,
     /** e.g. "October 1st week" — from admin bill create. */
     val weekLabel: String = "",
     val weekKey: String = ""

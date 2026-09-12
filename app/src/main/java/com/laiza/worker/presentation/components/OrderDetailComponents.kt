@@ -20,6 +20,7 @@ import com.laiza.worker.core.utils.formatIndianRupee
 import com.laiza.worker.domain.hisaab.approvedRepairsOnBill
 import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.hisaab.orderClosingBalance
+import com.laiza.worker.domain.hisaab.orderGrossClosingBalance
 import com.laiza.worker.domain.hisaab.pendingBillRepairs
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
@@ -38,6 +39,7 @@ fun KaarigerOrderDetailSheet(
     order: KaarigerOrder,
     payments: List<KaarigerOrderPayment> = emptyList(),
     repairs: List<OrderRepair>? = emptyList(),
+    creditBalance: Double = 0.0,
     onDismiss: () -> Unit,
     onReportMaterials: (() -> Unit)? = null,
     onViewReceipt: (() -> Unit)? = null
@@ -110,7 +112,7 @@ fun KaarigerOrderDetailSheet(
                     )
                 } else {
                     OrderHisaabBreakdown(order, orderPayments, repairs)
-                    GrandTotalBox(order, orderPayments, repairs)
+                    GrandTotalBox(order, orderPayments, repairs, creditBalance)
                 }
             }
 
@@ -267,14 +269,15 @@ private fun OrderHisaabBreakdown(
 
 /**
  * Same money model as admin bill:
- * Remaining = opening + ADD − week kharcha (Pay does not add into Remaining).
+ * Remaining = opening + ADD − week kharcha − credit settled on this bill.
  * Kharcha box = week budget − carry − week Pays.
  */
 @Composable
 private fun GrandTotalBox(
     order: KaarigerOrder,
     orderPayments: List<KaarigerOrderPayment>,
-    repairs: List<OrderRepair>?
+    repairs: List<OrderRepair>?,
+    creditBalance: Double = 0.0
 ) {
     val weekPays = orderPayments.filter { !isOpeningOrCreditPayment(it) }
     val paidCash = weekPays.sumOf { it.amount.coerceAtLeast(0.0) }
@@ -288,7 +291,22 @@ private fun GrandTotalBox(
 
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val opening = order.openingAtCreation ?: 0.0
-    val closing = orderClosingBalance(order, repairs)
+    val grossClosing = orderGrossClosingBalance(order, repairs)
+    val bakedCredit = order.creditApplied?.coerceAtLeast(0.0)
+    val creditWasSettled = bakedCredit != null
+    val liveCreditFallback =
+        if (!creditWasSettled) {
+            minOf(creditBalance.coerceAtLeast(0.0), grossClosing.coerceAtLeast(0.0))
+        } else {
+            0.0
+        }
+    val creditShown = if (creditWasSettled) bakedCredit!! else liveCreditFallback
+    val totalRemaining =
+        if (creditWasSettled) {
+            order.closingAtCreation ?: (grossClosing - bakedCredit!!)
+        } else {
+            grossClosing - liveCreditFallback
+        }
     val kharchaBox = budget - order.kharchaCarryIn - paidCash
     val jade = Color(0xFF0D8F63)
     val jadeSoft = Color(0xFFD8F8EB)
@@ -326,8 +344,22 @@ private fun GrandTotalBox(
                 DetailRow("Kharcha on bill", "−${rupees(budget)}")
             }
             BoldRow(
+                stringResource(R.string.kaariger_hisaab_outstanding_after_create),
+                rupees(grossClosing),
+                amber
+            )
+            if (creditShown > 0.0) {
+                DetailRow(
+                    stringResource(
+                        if (creditWasSettled) R.string.kaariger_hisaab_credit_settled
+                        else R.string.kaariger_hisaab_credit_applied
+                    ),
+                    "−${rupees(creditShown)}"
+                )
+            }
+            BoldRow(
                 stringResource(R.string.kaariger_hisaab_outstanding_after),
-                rupees(closing),
+                rupees(totalRemaining),
                 amber
             )
 

@@ -148,6 +148,9 @@
     <string name="kaariger_hisaab_kharcha_that_week">उस वीक का खर्चा</string>
     <string name="kaariger_hisaab_outstanding_before">आउटस्टैंडिंग बिफोर</string>
     <string name="kaariger_hisaab_outstanding_after">टोटल रिमेनिंग बैलेंस</string>
+    <string name="kaariger_hisaab_outstanding_after_create">आउटस्टैंडिंग आफ्टर क्रिएट</string>
+    <string name="kaariger_hisaab_credit_applied">क्रेडिट अप्लाइड</string>
+    <string name="kaariger_hisaab_credit_settled">इस बिल पे क्रेडिट सेटल</string>
     <string name="kaariger_hisaab_after_create">आफ्टर क्रिएट</string>
     <string name="kaariger_hisaab_kharcha_on_bill">बिल पे खर्चा</string>
     <string name="kaariger_hisaab_week_paid_left">Paid %1$s · बॉक्स %2$s</string>
