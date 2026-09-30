@@ -76,11 +76,13 @@ class EmployeeViewModel @Inject constructor(
             employeeList.map { emp ->
                 val empTx = transactions.filter { it.employeeId == emp.id || it.employeeId == emp.phone }
                 
-                val currentMonthPaid = empTx.filter {
+                val currentMonthPaidByDate = empTx.filter {
                     it.type == PaymentType.SALARY_PAYMENT && it.date.startsWith(currentMonthKey)
                 }.sumOf { it.amount }
 
-                val currentMonthPending = maxOf(0.0, emp.monthlySalary - currentMonthPaid)
+                val currentMonthPaid = emp.salaryPaidThisPeriod ?: currentMonthPaidByDate
+                val currentMonthPending = emp.salaryRemaining?.let { maxOf(0.0, it) }
+                    ?: maxOf(0.0, emp.monthlySalary - currentMonthPaid)
                 val isPaidThisMonth = currentMonthPending <= 0.0
 
                 val totalPaidTillDate = empTx.filter {

@@ -128,12 +128,16 @@ fun EmployeeProfileScreen(
     val currentMonthName = remember { SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(Date()) }
 
     // Math metrics
-    val currentMonthPaid = remember(payments) {
+    val currentMonthPaidByDate = remember(payments) {
         payments.filter {
             it.type == PaymentType.SALARY_PAYMENT && it.date.startsWith(currentMonthKey)
         }.sumOf { it.amount }
     }
-    val currentMonthPending = maxOf(0.0, emp.monthlySalary - currentMonthPaid)
+    // Admin stores the amount applied to this month and the real remaining
+    // (including prior unpaid). Date-only sums count payments that settled old months.
+    val currentMonthPaid = emp.salaryPaidThisPeriod ?: currentMonthPaidByDate
+    val currentMonthPending = emp.salaryRemaining?.let { maxOf(0.0, it) }
+        ?: maxOf(0.0, emp.monthlySalary - currentMonthPaid)
     val isPaidThisMonth = currentMonthPending <= 0.0
 
     val totalPaidAllTime = remember(payments) {
