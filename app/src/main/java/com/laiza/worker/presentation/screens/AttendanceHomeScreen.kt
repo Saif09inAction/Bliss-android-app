@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -199,6 +200,10 @@ fun AttendanceHomeScreen(
                         )
                     }
                 }
+            },
+            onPunchWithoutCameraClick = {
+                viewModel.capturedSelfiePath.value = null
+                navController.navigate("attendance/preview/SIGN_IN")
             }
         )
 
@@ -259,7 +264,8 @@ fun AttendanceHomeScreen(
 @Composable
 fun TodayStatusCard(
     state: TodayPunchState,
-    onPunchClick: () -> Unit
+    onPunchClick: () -> Unit,
+    onPunchWithoutCameraClick: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -386,6 +392,27 @@ fun TodayStatusCard(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )
+                }
+                if (state.clockInTime.isNullOrBlank() && onPunchWithoutCameraClick != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    TextButton(
+                        onClick = onPunchWithoutCameraClick,
+                        colors = ButtonDefaults.textButtonColors(contentColor = Color.White.copy(alpha = 0.9f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFD4AF37)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Camera broken? Clock In with GPS only",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White.copy(alpha = 0.95f)
+                        )
+                    }
                 }
             } else {
                 Surface(

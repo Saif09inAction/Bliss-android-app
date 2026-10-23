@@ -132,10 +132,6 @@ class AttendanceViewModel @Inject constructor(
         }
 
         val punchType = AttendanceType.valueOf(punchTypeStr)
-        if (punchType == AttendanceType.SIGN_IN && imagePath.isNullOrBlank()) {
-            _submitState.value = PunchSubmitState.Error("Selfie capture is missing. Please capture photo first.")
-            return
-        }
 
         val gpsCoordStr = "${gps.details.latitude},${gps.details.longitude}"
 
