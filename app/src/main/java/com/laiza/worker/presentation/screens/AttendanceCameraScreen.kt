@@ -10,6 +10,7 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cameraswitch
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -127,12 +129,33 @@ fun AttendanceCameraScreen(
                 ) {
                     Text("Open App Settings")
                 }
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = {
+                        viewModel.capturedSelfiePath.value = null
+                        navController.navigate("attendance/preview/$punchType")
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF15803D)),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Continue with GPS Only (Camera Broken)")
+                }
             }
         }
         return
     }
 
     var cameraLensFacing by remember { mutableStateOf(CameraSelector.LENS_FACING_FRONT) }
+    var cameraBindFailed by remember { mutableStateOf(false) }
+    var captureError by remember { mutableStateOf<String?>(null) }
     val previewView = remember { PreviewView(context) }
     val imageCapture = remember { ImageCapture.Builder().build() }
     val cameraExecutor = remember { Executors.newSingleThreadExecutor() }
@@ -157,8 +180,10 @@ fun AttendanceCameraScreen(
                     preview,
                     imageCapture
                 )
+                cameraBindFailed = false
             } catch (e: Exception) {
                 Log.e("CameraX", "Binding failed", e)
+                cameraBindFailed = true
             }
         }, ContextCompat.getMainExecutor(context))
     }
@@ -224,6 +249,38 @@ fun AttendanceCameraScreen(
             }
         }
 
+        Surface(
+            onClick = {
+                viewModel.capturedSelfiePath.value = null
+                navController.navigate("attendance/preview/$punchType")
+            },
+            shape = RoundedCornerShape(100.dp),
+            color = Color.Black.copy(alpha = 0.7f),
+            border = BorderStroke(1.dp, Color(0xFFD4AF37).copy(alpha = 0.6f)),
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 96.dp)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.LocationOn,
+                    contentDescription = null,
+                    tint = Color(0xFFD4AF37),
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Camera Broken? Use GPS Only",
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -265,6 +322,9 @@ fun AttendanceCameraScreen(
 
                                 override fun onError(exception: ImageCaptureException) {
                                     Log.e("CameraX", "Capture failed: ${exception.message}", exception)
+                                    ContextCompat.getMainExecutor(context).execute {
+                                        captureError = exception.message ?: "Camera capture failed"
+                                    }
                                 }
                             }
                         )
@@ -278,6 +338,77 @@ fun AttendanceCameraScreen(
                     modifier = Modifier.size(32.dp)
                 )
             }
+        }
+
+        if (cameraBindFailed) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.88f))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.LocationOn,
+                        contentDescription = null,
+                        tint = Color(0xFFD4AF37),
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "Camera Unavailable",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Could not start camera on this phone. You can mark attendance using your GPS location, date and time.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.8f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(24.dp))
+                    Button(
+                        onClick = {
+                            viewModel.capturedSelfiePath.value = null
+                            navController.navigate("attendance/preview/$punchType")
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF15803D)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Continue with GPS Only", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        if (captureError != null) {
+            AlertDialog(
+                onDismissRequest = { captureError = null },
+                title = { Text("Camera Capture Failed") },
+                text = { Text("Camera could not capture photo (${captureError}). Would you like to mark attendance using GPS location and time instead?") },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            captureError = null
+                            viewModel.capturedSelfiePath.value = null
+                            navController.navigate("attendance/preview/$punchType")
+                        }
+                    ) {
+                        Text("Continue with GPS Only")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { captureError = null }) {
+                        Text("Retry")
+                    }
+                }
+            )
         }
     }
 }
