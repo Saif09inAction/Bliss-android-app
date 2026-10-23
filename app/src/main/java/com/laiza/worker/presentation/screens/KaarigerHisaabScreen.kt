@@ -38,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
+import com.laiza.worker.core.utils.phonesMatch
 import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.hisaab.orderClosingBalance
 import com.laiza.worker.domain.models.KaarigerOrder
@@ -76,7 +77,7 @@ fun KaarigerHisaabScreen(
     }
 
     val me = remember(kaarigers, session?.phone) {
-        kaarigers.find { it.phone == session?.phone }
+        kaarigers.find { phonesMatch(it.phone, session?.phone) }
     }
     val ledgerLabels = HisaabLedgerLabels(
         opening = stringResource(R.string.kaariger_ledger_opening),
