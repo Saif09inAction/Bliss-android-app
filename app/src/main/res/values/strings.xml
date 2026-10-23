@@ -122,6 +122,15 @@
     <string name="kaariger_bill_add">ADD</string>
     <string name="kaariger_bill_maal">MAAL</string>
     <string name="kaariger_bill_remaining_equation">%1$s (before) + %2$s (ADD) − %3$s (kharcha) = %4$s</string>
+    <string name="kaariger_hisaab_pichhla_baaki">Pichhla Baaki (Opening)</string>
+    <string name="kaariger_hisaab_maal_kaam">+ MAAL (Kaam)</string>
+    <string name="kaariger_hisaab_subtotal_rakam">Kul Rakam (Pichhla + Maal)</string>
+    <string name="kaariger_hisaab_katauti_header">Katauti (Deductions)</string>
+    <string name="kaariger_hisaab_hafte_kharcha">− Hafte ka kharcha (Bill par)</string>
+    <string name="kaariger_hisaab_credit_settled_short">− Purana credit chukaya</string>
+    <string name="kaariger_hisaab_kul_baaki_final">Kul Baaki Hisaab</string>
+    <string name="kaariger_hisaab_paise_mile_section">Paise mile (Payment records)</string>
+    <string name="kaariger_hisaab_payments_count_total">%1$d payments · %2$s paid</string>
     <string name="kaariger_pcs">%1$d pcs</string>
     <string name="kaariger_deal_per_piece">%1$s (%2$s/pc)</string>
     <string name="kaariger_deal_total">%1$s</string>

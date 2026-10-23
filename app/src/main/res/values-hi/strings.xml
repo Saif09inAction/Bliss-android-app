@@ -84,6 +84,15 @@
     <string name="kaariger_bill_add">ADD</string>
     <string name="kaariger_bill_maal">MAAL</string>
     <string name="kaariger_bill_remaining_equation">%1$s (बिफोर) + %2$s (ADD) − %3$s (खर्चा) = %4$s</string>
+    <string name="kaariger_hisaab_pichhla_baaki">पिछला बाकी (ओपनिंग)</string>
+    <string name="kaariger_hisaab_maal_kaam">+ MAAL (काम)</string>
+    <string name="kaariger_hisaab_subtotal_rakam">कुल रकम (पिछला + माल)</string>
+    <string name="kaariger_hisaab_katauti_header">कटौती (डिडक्शंस)</string>
+    <string name="kaariger_hisaab_hafte_kharcha">− हफ्ते का खर्चा (बिल पर)</string>
+    <string name="kaariger_hisaab_credit_settled_short">− पुराना क्रेडिट चुकाया</string>
+    <string name="kaariger_hisaab_kul_baaki_final">कुल बाकी हिसाब</string>
+    <string name="kaariger_hisaab_paise_mile_section">पैसे मिले (पेमेंट रिकॉर्ड्स)</string>
+    <string name="kaariger_hisaab_payments_count_total">%1$d पेमेंट्स · %2$s मिले</string>
     <string name="kaariger_pcs">%1$d पीस</string>
     <string name="kaariger_deal_per_piece">%1$s (%2$s/पीस)</string>
     <string name="kaariger_deal_total">%1$s</string>

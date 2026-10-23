@@ -47,7 +47,7 @@ class OrderRepositoryImpl @Inject constructor(
                     }
                     val orders = snapshot?.documents?.mapNotNull { doc ->
                         docToOrder(doc.data ?: emptyMap(), doc.id)
-                    }?.filter { normalizePhone(it.kaarigerId) == normalizedId }
+                    }?.filter { phonesMatch(it.kaarigerId, normalizedId) }
                         ?.sortedByDescending { it.createdAt }
                         ?: emptyList()
                     trySend(orders)
@@ -87,6 +87,7 @@ class OrderRepositoryImpl @Inject constructor(
                 return@flow
             }
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+                ?: run { emit(Resource.Error("Invalid order data")); return@flow }
             if (order.status == OrderStatus.PENDING_APPROVAL) {
                 emit(Resource.Error("Previous delivery is awaiting staff approval"))
                 return@flow
@@ -137,6 +138,7 @@ class OrderRepositoryImpl @Inject constructor(
                 return@flow
             }
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+                ?: run { emit(Resource.Error("Invalid order data")); return@flow }
             if (order.status != OrderStatus.PENDING_APPROVAL) {
                 emit(Resource.Error("No delivery pending approval"))
                 return@flow
@@ -225,7 +227,7 @@ class OrderRepositoryImpl @Inject constructor(
             firestore.collection("kaariger_orders").document(orderId).update(
                 mapOf(
                     "approvedQuantity" to newApproved,
-                    "status" to if (isComplete) OrderStatus.COMPLETED.name else OrderStatus.ASSIGNED.name,
+                    "status" to if (isComplete) OrderStatus.APPROVED.name else OrderStatus.ASSIGNED.name,
                     "verifiedBy" to verifiedBy,
                     "verifiedAt" to verifiedAt,
                     "deliveredQuantity" to null,
@@ -307,6 +309,7 @@ class OrderRepositoryImpl @Inject constructor(
                 return@flow
             }
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+                ?: run { emit(Resource.Error("Invalid order data")); return@flow }
             if (order.approvedQuantity < order.targetQuantity) {
                 emit(Resource.Error("Complete all deliveries before reporting materials"))
                 return@flow
@@ -525,6 +528,7 @@ class OrderRepositoryImpl @Inject constructor(
                 return@flow
             }
             val order = docToOrder(doc.data ?: emptyMap(), doc.id)
+                ?: run { emit(Resource.Error("Invalid order data")); return@flow }
             val original = order.originalDealAmount ?: order.totalDealAmount
             // Preview only — amount is NOT deducted until admin approves in the panel.
             val dealAfterIfApproved =
@@ -763,70 +767,76 @@ class OrderRepositoryImpl @Inject constructor(
     )
 
     @Suppress("UNCHECKED_CAST")
-    private fun docToOrder(data: Map<String, Any>, id: String): KaarigerOrder {
-        val materials = (data["rawMaterials"] as? List<Map<String, Any>>)?.map {
-            OrderMaterial(
-                materialId = it["materialId"] as? String ?: "",
-                materialName = it["materialName"] as? String ?: "",
-                quantity = (it["quantity"] as? Number)?.toDouble() ?: 0.0,
-                unit = it["unit"] as? String ?: "",
-                usedQuantity = (it["usedQuantity"] as? Number)?.toDouble(),
-                remainingQuantity = (it["remainingQuantity"] as? Number)?.toDouble()
-            )
-        } ?: emptyList()
-        val statusRaw = data["status"] as? String ?: OrderStatus.ASSIGNED.name
-        val status = try {
-            when (statusRaw) {
-                "APPROVED" -> OrderStatus.COMPLETED
-                else -> OrderStatus.valueOf(statusRaw)
-            }
-        } catch (_: Exception) {
-            OrderStatus.ASSIGNED
-        }
-        return KaarigerOrder(
-            id = data["id"] as? String ?: id,
-            kaarigerId = data["kaarigerId"] as? String ?: "",
-            kaarigerName = data["kaarigerName"] as? String ?: "",
-            productName = data["productName"] as? String ?: "",
-            targetQuantity = (data["targetQuantity"] as? Number)?.toInt() ?: 0,
-            color = data["color"] as? String ?: "",
-            rawMaterials = materials,
-            totalDealAmount = (data["totalDealAmount"] as? Number)?.toDouble() ?: 0.0,
-            pricePerPiece = (data["pricePerPiece"] as? Number)?.toDouble(),
-            pricingType = try {
-                OrderPricingType.valueOf(data["pricingType"] as? String ?: OrderPricingType.OVERALL.name)
+    private fun docToOrder(data: Map<String, Any>, id: String): KaarigerOrder? {
+        return try {
+            val materials = (data["rawMaterials"] as? List<*>)?.mapNotNull { item ->
+                val it = item as? Map<*, *> ?: return@mapNotNull null
+                OrderMaterial(
+                    materialId = it["materialId"] as? String ?: "",
+                    materialName = it["materialName"] as? String ?: "",
+                    quantity = (it["quantity"] as? Number)?.toDouble() ?: 0.0,
+                    unit = it["unit"] as? String ?: "",
+                    usedQuantity = (it["usedQuantity"] as? Number)?.toDouble(),
+                    remainingQuantity = (it["remainingQuantity"] as? Number)?.toDouble()
+                )
+            } ?: emptyList()
+            val statusRaw = data["status"] as? String ?: OrderStatus.ASSIGNED.name
+            val status = try {
+                when (statusRaw) {
+                    "APPROVED" -> OrderStatus.COMPLETED
+                    else -> OrderStatus.valueOf(statusRaw)
+                }
             } catch (_: Exception) {
-                OrderPricingType.OVERALL
-            },
-            status = status,
-            approvedQuantity = (data["approvedQuantity"] as? Number)?.toInt() ?: 0,
-            deliveredQuantity = (data["deliveredQuantity"] as? Number)?.toInt(),
-            deliveryColor = data["deliveryColor"] as? String,
-            deliveryNotes = data["deliveryNotes"] as? String,
-            deliverySubmittedAt = (data["deliverySubmittedAt"] as? Number)?.toLong(),
-            verifiedBy = data["verifiedBy"] as? String,
-            verifiedAt = (data["verifiedAt"] as? Number)?.toLong(),
-            rejectionReason = data["rejectionReason"] as? String,
-            materialUsageReported = data["materialUsageReported"] as? Boolean ?: false,
-            createdBy = data["createdBy"] as? String ?: "",
-            createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
-            notes = data["notes"] as? String,
-            originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble(),
-            repairDeductionTotal = (data["repairDeductionTotal"] as? Number)?.toDouble() ?: 0.0,
-            products = parseProductLines(data["products"]),
-            productsTotal = (data["productsTotal"] as? Number)?.toDouble() ?: 0.0,
-            materialDeductions = parseMaterialDeductions(data["materialDeductions"]),
-            materialDeductionsTotal = (data["materialDeductionsTotal"] as? Number)?.toDouble() ?: 0.0,
-            kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0,
-            kharchaCarriedForward = (data["kharchaCarriedForward"] as? Number)?.toDouble() ?: 0.0,
-            kharchaCarryIn = (data["kharchaCarryIn"] as? Number)?.toDouble() ?: 0.0,
-            openingAtCreation = (data["openingAtCreation"] as? Number)?.toDouble(),
-            addBalance = (data["addBalance"] as? Number)?.toDouble(),
-            closingAtCreation = (data["closingAtCreation"] as? Number)?.toDouble(),
-            creditApplied = (data["creditApplied"] as? Number)?.toDouble(),
-            weekLabel = data["weekLabel"] as? String ?: "",
-            weekKey = data["weekKey"] as? String ?: ""
-        )
+                OrderStatus.ASSIGNED
+            }
+            KaarigerOrder(
+                id = data["id"] as? String ?: id,
+                kaarigerId = data["kaarigerId"] as? String ?: "",
+                kaarigerName = data["kaarigerName"] as? String ?: "",
+                productName = data["productName"] as? String ?: "",
+                targetQuantity = (data["targetQuantity"] as? Number)?.toInt() ?: 0,
+                color = data["color"] as? String ?: "",
+                rawMaterials = materials,
+                totalDealAmount = (data["totalDealAmount"] as? Number)?.toDouble() ?: 0.0,
+                pricePerPiece = (data["pricePerPiece"] as? Number)?.toDouble(),
+                pricingType = try {
+                    OrderPricingType.valueOf(data["pricingType"] as? String ?: OrderPricingType.OVERALL.name)
+                } catch (_: Exception) {
+                    OrderPricingType.OVERALL
+                },
+                status = status,
+                approvedQuantity = (data["approvedQuantity"] as? Number)?.toInt() ?: 0,
+                deliveredQuantity = (data["deliveredQuantity"] as? Number)?.toInt(),
+                deliveryColor = data["deliveryColor"] as? String,
+                deliveryNotes = data["deliveryNotes"] as? String,
+                deliverySubmittedAt = (data["deliverySubmittedAt"] as? Number)?.toLong(),
+                verifiedBy = data["verifiedBy"] as? String,
+                verifiedAt = (data["verifiedAt"] as? Number)?.toLong(),
+                rejectionReason = data["rejectionReason"] as? String,
+                materialUsageReported = data["materialUsageReported"] as? Boolean ?: false,
+                createdBy = data["createdBy"] as? String ?: "",
+                createdAt = (data["createdAt"] as? Number)?.toLong() ?: 0L,
+                notes = data["notes"] as? String,
+                originalDealAmount = (data["originalDealAmount"] as? Number)?.toDouble(),
+                repairDeductionTotal = (data["repairDeductionTotal"] as? Number)?.toDouble() ?: 0.0,
+                products = parseProductLines(data["products"]),
+                productsTotal = (data["productsTotal"] as? Number)?.toDouble() ?: 0.0,
+                materialDeductions = parseMaterialDeductions(data["materialDeductions"]),
+                materialDeductionsTotal = (data["materialDeductionsTotal"] as? Number)?.toDouble() ?: 0.0,
+                kharchaGiven = (data["kharchaGiven"] as? Number)?.toDouble() ?: 0.0,
+                kharchaCarriedForward = (data["kharchaCarriedForward"] as? Number)?.toDouble() ?: 0.0,
+                kharchaCarryIn = (data["kharchaCarryIn"] as? Number)?.toDouble() ?: 0.0,
+                openingAtCreation = (data["openingAtCreation"] as? Number)?.toDouble(),
+                addBalance = (data["addBalance"] as? Number)?.toDouble(),
+                closingAtCreation = (data["closingAtCreation"] as? Number)?.toDouble(),
+                creditApplied = (data["creditApplied"] as? Number)?.toDouble(),
+                weekLabel = data["weekLabel"] as? String ?: "",
+                weekKey = data["weekKey"] as? String ?: ""
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to parse order $id", e)
+            null
+        }
     }
 
     @Suppress("UNCHECKED_CAST")

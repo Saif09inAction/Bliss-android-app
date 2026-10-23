@@ -21,6 +21,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
+import com.laiza.worker.core.utils.phonesMatch
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.OrderMaterial
 import com.laiza.worker.domain.models.OrderStatus
@@ -133,7 +134,7 @@ fun KaarigerOrdersScreen(
     }
 
     detailOrder?.let { order ->
-        val me = kaarigers.find { it.phone == session?.phone }
+        val me = kaarigers.find { phonesMatch(it.phone, session?.phone) }
         KaarigerOrderDetailSheet(
             order = order,
             payments = payments,

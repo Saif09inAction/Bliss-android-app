@@ -38,6 +38,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.laiza.worker.R
 import com.laiza.worker.core.utils.DateFormatter
 import com.laiza.worker.core.utils.formatIndianRupee
+import com.laiza.worker.core.utils.phonesMatch
 import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.hisaab.orderClosingBalance
 import com.laiza.worker.domain.models.KaarigerOrder
@@ -76,7 +77,7 @@ fun KaarigerHisaabScreen(
     }
 
     val me = remember(kaarigers, session?.phone) {
-        kaarigers.find { it.phone == session?.phone }
+        kaarigers.find { phonesMatch(it.phone, session?.phone) }
     }
     val ledgerLabels = HisaabLedgerLabels(
         opening = stringResource(R.string.kaariger_ledger_opening),
@@ -808,10 +809,13 @@ private fun PreviousBillCard(
     val week = order.displayWeekLabel()
     val add = orderAddBalance(order, repairs)
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
+    val closingSnap = order.closingAtCreation
     val opening = order.openingAtCreation
-        ?: if (order.closingAtCreation != null) {
-            order.closingAtCreation - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
-        } else 0.0
+        ?: if (closingSnap != null) {
+            closingSnap - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
+        } else {
+            0.0
+        }
     val closing = orderClosingBalance(order, repairs)
 
     Surface(

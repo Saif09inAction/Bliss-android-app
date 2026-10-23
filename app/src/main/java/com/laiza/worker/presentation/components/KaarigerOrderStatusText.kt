@@ -9,6 +9,7 @@ import com.laiza.worker.domain.models.OrderStatus
 fun OrderStatus.kaarigerDisplayName(): String = when (this) {
     OrderStatus.ASSIGNED -> stringResource(R.string.kaariger_status_in_progress)
     OrderStatus.PENDING_APPROVAL -> stringResource(R.string.kaariger_status_pending_approval)
+    OrderStatus.APPROVED -> stringResource(R.string.kaariger_status_completed)
     OrderStatus.COMPLETED -> stringResource(R.string.kaariger_status_completed)
     OrderStatus.REJECTED -> stringResource(R.string.kaariger_status_rejected)
 }

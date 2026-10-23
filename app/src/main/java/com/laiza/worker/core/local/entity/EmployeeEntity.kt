@@ -20,7 +20,8 @@ data class EmployeeEntity(
     val openingBalance: Double = 0.0,
     val dailySignInTime: String = "",
     val dailySignOutTime: String = "",
-    val salaryRemaining: Double? = null
+    val salaryRemaining: Double? = null,
+    val salaryPaidThisPeriod: Double? = null
 ) {
     fun toDomain(): Employee {
         return Employee(
@@ -36,7 +37,8 @@ data class EmployeeEntity(
             openingBalance = openingBalance,
             dailySignInTime = dailySignInTime,
             dailySignOutTime = dailySignOutTime,
-            salaryRemaining = salaryRemaining
+            salaryRemaining = salaryRemaining,
+            salaryPaidThisPeriod = salaryPaidThisPeriod
         )
     }
 
@@ -55,7 +57,8 @@ data class EmployeeEntity(
                 openingBalance = domain.openingBalance,
                 dailySignInTime = domain.dailySignInTime,
                 dailySignOutTime = domain.dailySignOutTime,
-                salaryRemaining = domain.salaryRemaining
+                salaryRemaining = domain.salaryRemaining,
+                salaryPaidThisPeriod = domain.salaryPaidThisPeriod
             )
         }
     }

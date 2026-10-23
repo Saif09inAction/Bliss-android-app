@@ -21,7 +21,9 @@ data class Employee(
      */
     val dailySignInTime: String = "",
     val dailySignOutTime: String = "",
-    val salaryRemaining: Double? = null
+    val salaryRemaining: Double? = null,
+    /** Salary payments applied to the current calendar month (from admin). */
+    val salaryPaidThisPeriod: Double? = null
 )
 
 data class EmployeeExtraProfile(
