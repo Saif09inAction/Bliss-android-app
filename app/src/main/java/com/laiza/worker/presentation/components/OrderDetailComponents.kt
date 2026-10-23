@@ -457,7 +457,9 @@ private fun SingleHisaabCalculationBox(
             }
 
             // 6. Kharcha That Week (Budget vs Paid vs Extra/Left)
-            if (budget > 0.0 || paidDisplay > 0.0) {
+            if (budget > 0.0 || paidDisplay > 0.0 || order.kharchaCarryIn != 0.0) {
+                val unpaidCarry = (-order.kharchaCarryIn).coerceAtLeast(0.0)
+                val totalBudget = budget + unpaidCarry
                 HorizontalDivider(modifier = Modifier.padding(vertical = 2.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 Text(
                     stringResource(R.string.kaariger_hisaab_kharcha_that_week),
@@ -475,8 +477,13 @@ private fun SingleHisaabCalculationBox(
                         modifier = Modifier.weight(1f)
                     ) {
                         Column(modifier = Modifier.padding(8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(stringResource(R.string.kaariger_hisaab_kharcha_budget), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text(rupees(budget), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
+                            Text(
+                                if (unpaidCarry > 0.0) stringResource(R.string.kaariger_hisaab_total_kharcha_budget)
+                                else stringResource(R.string.kaariger_hisaab_kharcha_budget),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(rupees(totalBudget), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold)
                         }
                     }
                     Surface(
@@ -508,6 +515,51 @@ private fun SingleHisaabCalculationBox(
                                 color = if (kharchaBox < 0) amber else jade
                             )
                         }
+                    }
+                }
+
+                if (unpaidCarry > 0.0) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = jadeSoft.copy(alpha = 0.5f),
+                        border = BorderStroke(1.dp, jade.copy(alpha = 0.25f)),
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(R.string.kaariger_hisaab_this_week_budget), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(rupees(budget), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold)
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(R.string.kaariger_hisaab_unpaid_carry), style = MaterialTheme.typography.bodySmall, color = amber, fontWeight = FontWeight.SemiBold)
+                                Text("+${rupees(unpaidCarry)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = amber)
+                            }
+                            HorizontalDivider(color = jade.copy(alpha = 0.2f))
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(stringResource(R.string.kaariger_hisaab_total_kharcha_budget), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = jade)
+                                Text(rupees(totalBudget), style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = jade)
+                            }
+                            Text(
+                                stringResource(
+                                    R.string.kaariger_hisaab_unpaid_carry_hint,
+                                    rupees(budget),
+                                    rupees(unpaidCarry),
+                                    rupees(totalBudget)
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF065F46)
+                            )
+                        }
+                    }
+                }
+
+                if (priorOverpay > 0.0) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(stringResource(R.string.kaariger_hisaab_prior_overpay), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("−${rupees(priorOverpay)}", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.SemiBold, color = jade)
                     }
                 }
             }

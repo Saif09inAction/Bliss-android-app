@@ -51,6 +51,7 @@ fun KaarigerPreviousHisaabPanel(
     }
     val paidCash = weekPays.sumOf { it.amount.coerceAtLeast(0.0) }
     val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
+    val unpaidCarry = (-order.kharchaCarryIn).coerceAtLeast(0.0)
     val paidDisplay = paidCash + priorOverpay
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
     val box = budget - order.kharchaCarryIn - paidCash
@@ -116,6 +117,7 @@ fun KaarigerPreviousHisaabPanel(
                     paidDisplay = paidDisplay,
                     box = box,
                     priorOverpay = priorOverpay,
+                    unpaidCarry = unpaidCarry,
                     weekPays = weekPays,
                     modifier = Modifier.weight(1f)
                 )
@@ -137,6 +139,7 @@ fun KaarigerPreviousHisaabPanel(
                 paidDisplay = paidDisplay,
                 box = box,
                 priorOverpay = priorOverpay,
+                unpaidCarry = unpaidCarry,
                 weekPays = weekPays
             )
         }
@@ -244,6 +247,7 @@ private fun KharchaThatWeekColumn(
     paidDisplay: Double,
     box: Double,
     priorOverpay: Double,
+    unpaidCarry: Double = 0.0,
     weekPays: List<KaarigerOrderPayment>,
     modifier: Modifier = Modifier
 ) {
@@ -257,6 +261,7 @@ private fun KharchaThatWeekColumn(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            val totalBudget = budget + unpaidCarry
             Text(
                 stringResource(R.string.kaariger_hisaab_kharcha_that_week).uppercase(),
                 fontWeight = FontWeight.Bold,
@@ -269,8 +274,12 @@ private fun KharchaThatWeekColumn(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 KharchaStatChip(
-                    label = stringResource(R.string.kaariger_hisaab_kharcha_budget),
-                    value = formatIndianRupee(budget),
+                    label = if (unpaidCarry > 0.0) {
+                        stringResource(R.string.kaariger_hisaab_total_kharcha_budget)
+                    } else {
+                        stringResource(R.string.kaariger_hisaab_kharcha_budget)
+                    },
+                    value = formatIndianRupee(totalBudget),
                     modifier = Modifier.weight(1f)
                 )
                 KharchaStatChip(
@@ -289,10 +298,22 @@ private fun KharchaThatWeekColumn(
                     modifier = Modifier.weight(1f)
                 )
             }
+            if (unpaidCarry > 0.0) {
+                PrevRow(
+                    stringResource(R.string.kaariger_hisaab_this_week_budget),
+                    formatIndianRupee(budget),
+                    Color(0xFF065F46)
+                )
+                PrevRow(
+                    stringResource(R.string.kaariger_hisaab_unpaid_carry),
+                    "+${formatIndianRupee(unpaidCarry)}",
+                    Amber
+                )
+            }
             if (priorOverpay > 0) {
                 PrevRow(
                     stringResource(R.string.kaariger_hisaab_prior_overpay),
-                    formatIndianRupee(priorOverpay),
+                    "−${formatIndianRupee(priorOverpay)}",
                     Jade
                 )
             }
