@@ -225,7 +225,7 @@ class OrderRepositoryImpl @Inject constructor(
             firestore.collection("kaariger_orders").document(orderId).update(
                 mapOf(
                     "approvedQuantity" to newApproved,
-                    "status" to if (isComplete) OrderStatus.COMPLETED.name else OrderStatus.ASSIGNED.name,
+                    "status" to if (isComplete) OrderStatus.APPROVED.name else OrderStatus.ASSIGNED.name,
                     "verifiedBy" to verifiedBy,
                     "verifiedAt" to verifiedAt,
                     "deliveredQuantity" to null,

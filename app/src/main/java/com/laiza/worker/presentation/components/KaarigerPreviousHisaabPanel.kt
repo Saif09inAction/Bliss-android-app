@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,7 +27,6 @@ import com.laiza.worker.domain.hisaab.orderAddBalance
 import com.laiza.worker.domain.models.KaarigerOrder
 import com.laiza.worker.domain.models.KaarigerOrderPayment
 import com.laiza.worker.domain.models.OrderRepair
-import com.laiza.worker.domain.models.OrderStatus
 
 private val Amber = Color(0xFFB45309)
 private val Jade = Color(0xFF047857)
@@ -63,13 +61,16 @@ fun KaarigerPreviousHisaabPanel(
         approvedRepairsOnBill(order, repairs)
     }
     val add = orderAddBalance(order, repairs)
-    val opening = order.openingAtCreation
-        ?: if (order.closingAtCreation != null) {
-            order.closingAtCreation - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
-        } else 0.0
+    val closingSnap = order.closingAtCreation
     val creditSettled = order.creditApplied?.coerceAtLeast(0.0) ?: 0.0
+    val opening = order.openingAtCreation
+        ?: if (closingSnap != null) {
+            closingSnap - add + budget + creditSettled
+        } else {
+            0.0
+        }
     val grossClosing = opening + add - budget
-    val closing = order.closingAtCreation ?: (grossClosing - creditSettled)
+    val closing = closingSnap ?: (grossClosing - creditSettled)
 
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     val dateLabel = formatOrderDate(order.createdAt)
@@ -104,6 +105,8 @@ fun KaarigerPreviousHisaabPanel(
                     productsTotal = productsTotal,
                     add = add,
                     budget = budget,
+                    grossClosing = grossClosing,
+                    creditSettled = creditSettled,
                     closing = closing,
                     repairs = repairs,
                     modifier = Modifier.weight(1f)
@@ -124,6 +127,8 @@ fun KaarigerPreviousHisaabPanel(
                 productsTotal = productsTotal,
                 add = add,
                 budget = budget,
+                grossClosing = grossClosing,
+                creditSettled = creditSettled,
                 closing = closing,
                 repairs = repairs
             )
@@ -145,6 +150,8 @@ private fun WeekBillColumn(
     productsTotal: Double,
     add: Double,
     budget: Double,
+    grossClosing: Double,
+    creditSettled: Double,
     closing: Double,
     repairs: List<OrderRepair>?,
     modifier: Modifier = Modifier
@@ -170,20 +177,26 @@ private fun WeekBillColumn(
                 letterSpacing = 0.6.sp
             )
             PrevRow(
-                stringResource(R.string.kaariger_hisaab_outstanding_before),
+                stringResource(R.string.kaariger_hisaab_pichhla_baaki),
                 formatIndianRupee(opening),
                 Amber,
                 bold = true
             )
             order.products.forEach { p ->
                 PrevRow(
-                    "${p.productName} (${p.quantity}×${formatIndianRupee(p.pricePerPiece)})",
+                    "+ MAAL: ${p.productName} (${p.quantity}×${formatIndianRupee(p.pricePerPiece)})",
                     formatIndianRupee(p.lineTotal)
                 )
             }
-            if (productsTotal > 0) {
-                PrevRow(stringResource(R.string.kaariger_bill_maal), formatIndianRupee(productsTotal))
+            if (productsTotal > 0 && order.products.size > 1) {
+                PrevRow(stringResource(R.string.kaariger_hisaab_maal_kaam), formatIndianRupee(productsTotal), Jade, bold = true)
             }
+            PrevRow(
+                stringResource(R.string.kaariger_hisaab_subtotal_rakam),
+                formatIndianRupee(opening + productsTotal),
+                Amber,
+                bold = true
+            )
             order.materialDeductions.forEach { d ->
                 PrevRow(
                     stringResource(R.string.kaariger_previous_less, d.label),
@@ -201,29 +214,22 @@ private fun WeekBillColumn(
                     Color(0xFFDC2626)
                 )
             }
-            PrevRow(stringResource(R.string.kaariger_bill_add), formatIndianRupee(add), bold = true)
             if (budget > 0) {
                 PrevRow(
-                    stringResource(R.string.kaariger_hisaab_kharcha_on_bill),
+                    stringResource(R.string.kaariger_hisaab_hafte_kharcha),
                     "−${formatIndianRupee(budget)}",
-                    Jade
+                    Color(0xFFDC2626)
                 )
             }
-            PrevRow(
-                stringResource(R.string.kaariger_hisaab_outstanding_after_create),
-                formatIndianRupee(grossClosing),
-                Amber,
-                bold = true
-            )
             if (creditSettled > 0.0) {
                 PrevRow(
-                    stringResource(R.string.kaariger_hisaab_credit_settled),
+                    stringResource(R.string.kaariger_hisaab_credit_settled_short),
                     "−${formatIndianRupee(creditSettled)}",
-                    Jade
+                    Color(0xFFDC2626)
                 )
             }
             PrevRow(
-                stringResource(R.string.kaariger_hisaab_outstanding_after),
+                stringResource(R.string.kaariger_hisaab_kul_baaki_final),
                 formatIndianRupee(closing),
                 Amber,
                 bold = true

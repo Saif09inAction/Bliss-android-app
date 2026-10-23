@@ -808,10 +808,13 @@ private fun PreviousBillCard(
     val week = order.displayWeekLabel()
     val add = orderAddBalance(order, repairs)
     val budget = order.kharchaGiven.coerceAtLeast(0.0)
+    val closingSnap = order.closingAtCreation
     val opening = order.openingAtCreation
-        ?: if (order.closingAtCreation != null) {
-            order.closingAtCreation - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
-        } else 0.0
+        ?: if (closingSnap != null) {
+            closingSnap - add + budget + (order.creditApplied?.coerceAtLeast(0.0) ?: 0.0)
+        } else {
+            0.0
+        }
     val closing = orderClosingBalance(order, repairs)
 
     Surface(

@@ -127,12 +127,14 @@ enum class OrderPricingType {
 enum class OrderStatus {
     ASSIGNED,
     PENDING_APPROVAL,
+    APPROVED,
     COMPLETED,
     REJECTED;
 
     fun displayName(): String = when (this) {
         ASSIGNED -> "In Progress"
         PENDING_APPROVAL -> "Pending Approval"
+        APPROVED -> "Approved"
         COMPLETED -> "Completed"
         REJECTED -> "Rejected"
     }
