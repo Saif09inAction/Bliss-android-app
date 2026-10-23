@@ -201,6 +201,11 @@
     <string name="kaariger_hisaab_after_create">After create</string>
     <string name="kaariger_hisaab_kharcha_on_bill">Kharcha on bill</string>
     <string name="kaariger_hisaab_week_paid_left">Paid %1$s · box %2$s</string>
+    <string name="kaariger_hisaab_week_paid_left_detailed">Budget %1$s · Paid %2$s · box %3$s</string>
+    <string name="kaariger_hisaab_this_week_budget">Is hafte ka budget</string>
+    <string name="kaariger_hisaab_unpaid_carry">Purana kharcha (Carry forward)</string>
+    <string name="kaariger_hisaab_unpaid_carry_hint">Pichhle week ka baaki kharcha is budget mein add hua: %1$s + %2$s = %3$s</string>
+    <string name="kaariger_hisaab_total_kharcha_budget">Kul kharcha budget</string>
     <string name="kaariger_hisaab_prior_overpay">Prior overpay (last week)</string>
     <string name="kaariger_hisaab_prior_overpay_hint">Is week ke budget mein pehle se count</string>
     <string name="kaariger_hisaab_kharcha_left">Left</string>

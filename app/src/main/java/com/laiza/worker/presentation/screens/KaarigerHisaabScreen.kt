@@ -224,6 +224,9 @@ internal data class KaarigerOrderHisaabLine(
     val deductions: Double,
     val repair: Double,
     val weekKharcha: Double,
+    val kharchaCarryIn: Double,
+    val unpaidCarry: Double,
+    val totalBudget: Double,
     val paidCash: Double,
     val priorOverpay: Double,
     val paid: Double,
@@ -254,6 +257,8 @@ internal data class KaarigerHisaabSummary(
     val runningBalance: Double,
     val weekKharcha: Double,
     val weekKharchaBudget: Double,
+    val unpaidCarryForward: Double,
+    val totalEffectiveBudget: Double,
     val weekKharchaPaidCash: Double,
     val priorOverpayApplied: Double,
     val weekKharchaPaid: Double,
@@ -308,6 +313,7 @@ internal fun buildKaarigerHisaabSummary(
         }
         val paidCash = orderPayments.sumOf { it.amount }
         val priorOverpay = order.kharchaCarryIn.coerceAtLeast(0.0)
+        val unpaidCarry = (-order.kharchaCarryIn).coerceAtLeast(0.0)
         val productsTotal = if (order.productsTotal > 0) {
             order.productsTotal
         } else {
@@ -316,6 +322,7 @@ internal fun buildKaarigerHisaabSummary(
         val deductions = order.materialDeductionsTotal.coerceAtLeast(0.0)
         val repair = orderRepairs.sumOf { it.totalRepairCost }
         val weekDue = (order.kharchaGiven - order.kharchaCarriedForward).coerceAtLeast(0.0)
+        val totalBudget = weekDue + unpaidCarry
         val kharchaRemaining = weekDue - order.kharchaCarryIn - paidCash
         KaarigerOrderHisaabLine(
             orderId = order.id,
@@ -325,6 +332,9 @@ internal fun buildKaarigerHisaabSummary(
             deductions = deductions,
             repair = repair,
             weekKharcha = weekDue,
+            kharchaCarryIn = order.kharchaCarryIn,
+            unpaidCarry = unpaidCarry,
+            totalBudget = totalBudget,
             paidCash = paidCash,
             priorOverpay = priorOverpay,
             paid = paidCash + priorOverpay,
@@ -335,6 +345,8 @@ internal fun buildKaarigerHisaabSummary(
 
     val weekKharcha = orderLines.sumOf { it.kharchaRemaining }
     val weekKharchaBudget = orderLines.sumOf { it.weekKharcha }
+    val unpaidCarryForward = orderLines.sumOf { it.unpaidCarry }
+    val totalEffectiveBudget = orderLines.sumOf { it.totalBudget }
     val weekKharchaPaidCash = orderLines.sumOf { it.paidCash }
     val priorOverpayApplied = orderLines.sumOf { it.priorOverpay }
     val weekKharchaPaid = weekKharchaPaidCash + priorOverpayApplied
@@ -362,6 +374,8 @@ internal fun buildKaarigerHisaabSummary(
         runningBalance = running,
         weekKharcha = weekKharcha,
         weekKharchaBudget = weekKharchaBudget,
+        unpaidCarryForward = unpaidCarryForward,
+        totalEffectiveBudget = totalEffectiveBudget,
         weekKharchaPaidCash = weekKharchaPaidCash,
         priorOverpayApplied = priorOverpayApplied,
         weekKharchaPaid = weekKharchaPaid,
@@ -727,8 +741,12 @@ private fun KharchaBreakdownPanel(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 MiniStat(
-                    label = stringResource(R.string.kaariger_hisaab_kharcha_budget),
-                    value = formatIndianRupee(summary.weekKharchaBudget),
+                    label = if (summary.unpaidCarryForward > 0.0) {
+                        stringResource(R.string.kaariger_hisaab_total_kharcha_budget)
+                    } else {
+                        stringResource(R.string.kaariger_hisaab_kharcha_budget)
+                    },
+                    value = formatIndianRupee(summary.totalEffectiveBudget),
                     modifier = Modifier.weight(1f)
                 )
                 MiniStat(
@@ -746,10 +764,53 @@ private fun KharchaBreakdownPanel(
                     modifier = Modifier.weight(1f)
                 )
             }
+
+            if (summary.unpaidCarryForward > 0.0) {
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = Color.White.copy(alpha = 0.75f),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        HisaabRow(
+                            label = stringResource(R.string.kaariger_hisaab_this_week_budget),
+                            value = formatIndianRupee(summary.weekKharchaBudget),
+                            valueColor = Color(0xFF065F46)
+                        )
+                        HisaabRow(
+                            label = stringResource(R.string.kaariger_hisaab_unpaid_carry),
+                            value = "+${formatIndianRupee(summary.unpaidCarryForward)}",
+                            valueColor = Amber,
+                            bold = true
+                        )
+                        HorizontalDivider(color = Color(0xFFA7F3D0))
+                        HisaabRow(
+                            label = stringResource(R.string.kaariger_hisaab_total_kharcha_budget),
+                            value = formatIndianRupee(summary.totalEffectiveBudget),
+                            valueColor = Jade,
+                            bold = true
+                        )
+                        Text(
+                            stringResource(
+                                R.string.kaariger_hisaab_unpaid_carry_hint,
+                                formatIndianRupee(summary.weekKharchaBudget),
+                                formatIndianRupee(summary.unpaidCarryForward),
+                                formatIndianRupee(summary.totalEffectiveBudget)
+                            ),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color(0xFF065F46)
+                        )
+                    }
+                }
+            }
+
             if (summary.priorOverpayApplied > 0.0) {
                 HisaabRow(
                     label = stringResource(R.string.kaariger_hisaab_prior_overpay),
-                    value = formatIndianRupee(summary.priorOverpayApplied),
+                    value = "−${formatIndianRupee(summary.priorOverpayApplied)}",
                     valueColor = Jade
                 )
             }
@@ -898,9 +959,15 @@ private fun OrderHisaabLineCard(line: KaarigerOrderHisaabLine) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+                val budgetNote = if (line.unpaidCarry > 0.0) {
+                    "${formatIndianRupee(line.weekKharcha)} (+${formatIndianRupee(line.unpaidCarry)} carry)"
+                } else {
+                    formatIndianRupee(line.weekKharcha)
+                }
                 Text(
                     stringResource(
-                        R.string.kaariger_hisaab_week_paid_left,
+                        R.string.kaariger_hisaab_week_paid_left_detailed,
+                        budgetNote,
                         formatIndianRupee(line.paid),
                         formatIndianRupee(line.kharchaRemaining)
                     ),

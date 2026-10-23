@@ -163,6 +163,11 @@
     <string name="kaariger_hisaab_after_create">आफ्टर क्रिएट</string>
     <string name="kaariger_hisaab_kharcha_on_bill">बिल पे खर्चा</string>
     <string name="kaariger_hisaab_week_paid_left">Paid %1$s · बॉक्स %2$s</string>
+    <string name="kaariger_hisaab_week_paid_left_detailed">बजट %1$s · Paid %2$s · बॉक्स %3$s</string>
+    <string name="kaariger_hisaab_this_week_budget">इस हफ़्ते का बजट</string>
+    <string name="kaariger_hisaab_unpaid_carry">पुराना खर्चा (कैरी फॉरवर्ड)</string>
+    <string name="kaariger_hisaab_unpaid_carry_hint">पिछले वीक का बाकी खर्चा इस बजट में जुड़ा: %1$s + %2$s = %3$s</string>
+    <string name="kaariger_hisaab_total_kharcha_budget">कुल खर्चा बजट</string>
     <string name="kaariger_hisaab_prior_overpay">प्रायर ओवरपे (लास्ट वीक)</string>
     <string name="kaariger_hisaab_prior_overpay_hint">इस वीक के बजट में पहले से काउंट</string>
     <string name="kaariger_hisaab_kharcha_left">लेफ्ट</string>
