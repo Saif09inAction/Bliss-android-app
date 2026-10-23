@@ -16,7 +16,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Task
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -132,15 +131,6 @@ private fun KaarigerContainerContent(
                         childNavController.navigate(KaarigerNav.Hisaab.route)
                     }
                 )
-                DrawerItem(
-                    title = stringResource(R.string.kaariger_nav_payments),
-                    icon = Icons.Default.Payments,
-                    selected = currentRoute == KaarigerNav.Payments.route,
-                    onClick = {
-                        scope.launch { drawerState.close() }
-                        childNavController.navigate(KaarigerNav.Payments.route)
-                    }
-                )
                 Spacer(modifier = Modifier.height(8.dp))
                 KaarigerLanguageSwitch(
                     selectedLanguage = language,
@@ -168,7 +158,6 @@ private fun KaarigerContainerContent(
                         KaarigerNav.Home.route -> homeGreeting
                         KaarigerNav.Orders.route -> stringResource(R.string.kaariger_title_orders)
                         KaarigerNav.Hisaab.route -> stringResource(R.string.kaariger_title_hisaab)
-                        KaarigerNav.Payments.route -> stringResource(R.string.kaariger_title_payments)
                         else -> stringResource(R.string.kaariger_title_app)
                     },
                     subtitle = session?.name,
@@ -189,7 +178,7 @@ private fun KaarigerContainerContent(
                     tabs = listOf(
                         BlissNavTab(KaarigerNav.Home.route, stringResource(R.string.kaariger_nav_home), Icons.Default.Home),
                         BlissNavTab(KaarigerNav.Orders.route, stringResource(R.string.kaariger_nav_orders), Icons.Default.Task),
-                        BlissNavTab(KaarigerNav.Payments.route, stringResource(R.string.kaariger_nav_payments), Icons.Default.Payments)
+                        BlissNavTab(KaarigerNav.Hisaab.route, stringResource(R.string.kaariger_home_hisaab_button), Icons.Default.Calculate)
                     ),
                     currentRoute = currentRoute,
                     onTabSelected = { route ->
@@ -238,9 +227,6 @@ private fun KaarigerContainerContent(
                 }
                 composable(KaarigerNav.Hisaab.route) {
                     KaarigerHisaabScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
-                }
-                composable(KaarigerNav.Payments.route) {
-                    KaarigerPaymentsScreen(orderViewModel = orderViewModel, authViewModel = authViewModel)
                 }
             }
         }
@@ -467,5 +453,4 @@ private sealed class KaarigerNav(val route: String, @StringRes val titleRes: Int
     object Home : KaarigerNav("kaariger_home", R.string.kaariger_nav_home, Icons.Default.Home)
     object Orders : KaarigerNav("kaariger_orders", R.string.kaariger_nav_orders, Icons.Default.Task)
     object Hisaab : KaarigerNav("kaariger_hisaab", R.string.kaariger_home_hisaab_button, Icons.Default.Calculate)
-    object Payments : KaarigerNav("kaariger_payments", R.string.kaariger_nav_payments, Icons.Default.Payments)
 }
